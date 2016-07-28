@@ -1,3 +1,4 @@
+"use strict";
 var http = require('http');
 var graphql = require('graphql');
 require('babel-register');

@@ -1,3 +1,4 @@
+"use strict";
 var WebSocketClient = require('websocket').client;
 class Client {
   constructor(url, protocol) {
