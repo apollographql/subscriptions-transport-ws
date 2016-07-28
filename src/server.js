@@ -6,8 +6,6 @@ var WebSocketServer = require('websocket').server;
 var graphql_tools = require('graphql-tools');
 var graphql_validator = require('graphql/validation');
 var graphql_execution = require('graphql/execution');
-import gql from 'graphql-tag';
-var data = require('../data.json');
 
 class Server {
   constructor(schema, httpServer) {
