@@ -22,12 +22,10 @@ Client sends this message to end a subscription.
 The id of the subscription that will be terminated.
 
 ### Server -> Client
-#### 'subscription_success'
-Server sends this message upon successfully registering a subscription, in response to client **subscription_start** message.
 #### 'subscription_fail'
 Server sends this message upon failing to register a subscription, in response to client **subscription_start** message.
-##### error
-Error message
+##### errors
+Array of errors
 ##### id
 ID of subscription that failed to be registered on the server.
 #### 'subscription_data'

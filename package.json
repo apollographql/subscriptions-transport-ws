@@ -1,13 +1,13 @@
 {
-  "name": "sockjs-echo",
-  "version": "0.0.0-unreleasable",
+  "name": "ws-graphql",
+  "version": "0.1.0",
+  "description": "A simple way of handling graphql subscriptions over websockets.",
   "dependencies": {
-    "node-static": "0.5.9",
-    "sockjs": "*"
+    "node-static": "0.5.9"
   },
   "scripts": {
     "lint": "eslint api ui",
-    "test": "mocha --compilers js:babel-core/register --reporter spec --full-trace 'test/*.js' && npm run lint",
+    "test": "mocha --compilers js:babel-core/register --reporter spec --full-trace 'test/*.js'",
     "start-server": "nodemon src/server.js --exec babel-node",
     "start-client": "webpack-dev-server -d --hot --inline --no-info --port 3000",
     "start": "concurrently \"npm run start-server\" \"npm run start-client\""

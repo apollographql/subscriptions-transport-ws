@@ -7,9 +7,7 @@ class Client {
     this.connection = null;
     this.subscriptions = {}; // id: handler
     this.max_id = 0;
-    this.client.on('connectFailed', function(error) {
-      console.log('Connect error: ' + error);
-    });
+
     this.client.on('connect', (connection) => {
       this.connection = connection;
       connection.on('error', function(error){
@@ -29,14 +27,22 @@ class Client {
           if (message_data.data) {
             const sub_id = message_data.id;
             if (this.subscriptions[sub_id]) {
-              this.subscriptions[sub_id](message_data.data); // pass data into data handler
+              this.subscriptions[sub_id](null, message_data.data); // pass data into data handler
             }
+          } else {
+            this.subscriptions[sub_id](message_data.errors, null);
           }
         }
       });
     });
   }
-  openConnection() {
+  openConnection(handler) {
+    if (!handler) {
+      handler = (error) => {console.log(error);};
+    }
+    this.client.on('connectFailed', function(error) {
+      handler(error);
+    });
     this.client.connect(this.url, this.protocol);
   }
 
@@ -52,6 +58,16 @@ class Client {
     return id;
   }
 
+  /*
+  options:
+    - query
+    - variables
+    - rootValue
+    - contextValue
+    - operationName
+    - pollingInterval
+    - triggers
+  */
   subscribe(options, handler) {
     if (! this.connection) {
       throw new Error('Client is not connected to a websocket.');
@@ -72,6 +88,9 @@ class Client {
     } else {
       let message = { id: id, type: 'subscription_end'};
       this.sendMessage(message);
+      if (this.subscriptions[id]) {
+        delete this.subscriptions[id];
+      }
     }
   }
 }
