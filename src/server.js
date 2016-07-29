@@ -8,8 +8,17 @@ var graphql_validator = require('graphql/validation');
 var graphql_execution = require('graphql/execution');
 
 class Server {
-  constructor(schema, httpServer) {
-    this.schema = schema;
+  /*
+  options {
+    schema: GraphQLSchema
+    contextValue?: any,
+    rootValue?: any,
+    formatResponse?: (Object) => Object,
+    validationRules?: Array<any> 
+  }
+  */
+  constructor(options, httpServer) {
+    this.options = options;
     //initialize http server
 
     //init and connect websocket server to http
@@ -29,10 +38,10 @@ class Server {
             triggered_subs.forEach((sub_id) => {
               let sub_data = connection.subscriptions[sub_id];
               graphql.graphql(
-                this.schema,
+                this.options.schema,
                 sub_data.query,
-                sub_data.rootValue,
-                sub_data.contextValue,
+                this.options.rootValue,
+                this.options.contextValue,
                 sub_data.variables,
                 sub_data.operationName
               ).then(function(response) {
@@ -42,6 +51,9 @@ class Server {
                 connection.sendUTF(JSON.stringify(message));
               }, function(err) {
                 let message = response;
+                if (this.options.formatResponse) {
+                  message = formatResponse(message);
+                }
                 message.type = 'subscription_data';
                 message.id = sub_id;
                 connection.sendUTF(JSON.stringify(message));
@@ -50,7 +62,7 @@ class Server {
           }
         } else {
           if (message_data.type === 'subscription_start') {
-            let syntax_errors = graphql_validator.validate(this.schema, graphql.parse(message_data.query));
+            let syntax_errors = graphql_validator.validate(this.options.schema, graphql.parse(message_data.query), this.options.validationRules);
             if (syntax_errors.length > 0) {
               let message = {
                 type: 'subscription_fail',
@@ -81,10 +93,10 @@ class Server {
                 let pollingId = setInterval(
                   () => {
                     graphql.graphql(
-                      this.schema,
+                      this.options.schema,
                       message_data.query,
-                      message_data.rootValue,
-                      message_data.contextValue,
+                      this.options.rootValue,
+                      this.options.contextValue,
                       message_data.variables,
                       message_data.operationName
                     ).then(function(response){

@@ -20,6 +20,8 @@ var userType = new graphql.GraphQLObjectType({
   }
 });
 
+var options = {};
+
 var schema = new graphql.GraphQLSchema({
   query: new graphql.GraphQLObjectType({
     name: 'Query',
@@ -41,6 +43,9 @@ var schema = new graphql.GraphQLSchema({
     }
   })
 });
+
+options.schema = schema;
+
 var httpServer = http.createServer(function(request, response) {
     response.writeHead(404);
     response.end();
@@ -49,7 +54,7 @@ var httpServer = http.createServer(function(request, response) {
 httpServer.listen(8080, function() {
   console.log("Server is listening on port 8080");
 });
-var server = new Server(schema, httpServer);
+var server = new Server(options, httpServer);
 var client = new Client('ws://localhost:8080/', 'graphql-protocol');
 client.openConnection();
 
