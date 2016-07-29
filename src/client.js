@@ -13,7 +13,7 @@ class Client {
       this.connection = connection;
       connection.on('error', function(error){
         this.connection = null;
-        //console.log('connection error: ' + error.toString());
+        console.log('connection error: ' + error.toString());
       });
       connection.on('close', function() {
         this.connection = null;
@@ -39,7 +39,7 @@ class Client {
   }
   openConnection(handler) {
     if (!handler) {
-      handler = (error) => {console.log(error);};
+      handler = (error) => {console.log('Error opening connection', error);};
     }
     this.client.on('connectFailed', function(error) {
       handler(error);

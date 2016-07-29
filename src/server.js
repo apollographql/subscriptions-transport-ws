@@ -30,6 +30,7 @@ class Server {
     this.wsServer.on('request', (request) => {
       //accept connection
       var connection = request.accept('graphql-protocol', request.origin);
+      console.log('Accepted connection');
       connection.on('message', (message) => {
         let message_data = JSON.parse(message.utf8Data);
         if (! message_data.type) { //mutation message
