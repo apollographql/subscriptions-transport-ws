@@ -34,7 +34,7 @@ class Client {
     };
 
     this.client.onerror = function(error) {
-      console.log('connection error: ' + error.toString());
+      console.log('connection error: ', error);
     };
   }
   openConnection(handler) {
@@ -63,8 +63,6 @@ class Client {
   options:
     - query
     - variables
-    - rootValue
-    - contextValue
     - operationName
     - pollingInterval
     - triggers

@@ -19,6 +19,7 @@ class Server {
   */
   constructor(options, httpServer) {
     this.options = options;
+    this.triggers = {}; // trigger_name: [{connection, sub_id}]
     //initialize http server
 
     //init and connect websocket server to http
@@ -34,10 +35,12 @@ class Server {
       connection.on('message', (message) => {
         let message_data = JSON.parse(message.utf8Data);
         if (! message_data.type) { //mutation message
-          if (message_data.name && connection.triggers && connection.triggers[message_data.name]) {
-            let triggered_subs = connection.triggers[message_data.name];
-            triggered_subs.forEach((sub_id) => {
-              let sub_data = connection.subscriptions[sub_id];
+          if (message_data.name && this.triggers && this.triggers[message_data.name]) {
+            let triggered_subs = this.triggers[message_data.name];
+            triggered_subs.forEach((sub_obj) => {
+              let sub_connection = sub_obj.connection;
+              let sub_id = sub_obj.sub_id;
+              let sub_data = sub_connection.subscriptions[sub_id];
               graphql.graphql(
                 this.options.schema,
                 sub_data.query,
@@ -45,19 +48,22 @@ class Server {
                 this.options.contextValue,
                 sub_data.variables,
                 sub_data.operationName
-              ).then(function(response) {
+              ).then((response) => {
                 let message = response;
                 message.type = 'subscription_data';
                 message.id = sub_id;
-                connection.sendUTF(JSON.stringify(message));
-              }, function(err) {
+                if (this.options.formatResponse) {
+                  message = formatResponse(message);
+                }
+                sub_connection.sendUTF(JSON.stringify(message));
+              }, (err) => {
                 let message = response;
                 if (this.options.formatResponse) {
                   message = formatResponse(message);
                 }
                 message.type = 'subscription_data';
                 message.id = sub_id;
-                connection.sendUTF(JSON.stringify(message));
+                sub_connection.sendUTF(JSON.stringify(message));
               });
             })
           }
@@ -78,14 +84,11 @@ class Server {
               }
               //set up trigger listeners
               if (message_data.triggers) {
-                if (! connection.triggers) {
-                  connection.triggers = {};
-                }
-                message_data.triggers.forEach(function(trigger) {
-                  if (! connection.triggers[trigger]) {
-                    connection.triggers[trigger] = [sub_id];
+                message_data.triggers.forEach((trigger) => {
+                  if (! this.triggers[trigger]) {
+                    this.triggers[trigger] = [{connection: connection, sub_id: sub_id}];
                   } else {
-                    connection.triggers[trigger].push(sub_id);
+                    this.triggers[trigger].push({connection: connection, sub_id: sub_id});
                   }
                 });
               }
