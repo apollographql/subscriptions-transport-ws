@@ -316,7 +316,7 @@ describe('Server', function() {
           variables: {
             id: 3
           },
-          triggers: ['mutation hi'],
+          triggers: [{name: 'mutation hi', fortune_cookie: 'lucky'}],
         }, (error, result) => {
           num_triggers += 1;
           assert.property(result, 'user');
@@ -328,6 +328,7 @@ describe('Server', function() {
     setTimeout(() => {
       client_3.sendMessage({
         name: 'mutation hi',
+        fortune_cookie: 'lucky'
       });
     }, 100);
     setTimeout(() => {
@@ -352,7 +353,7 @@ describe('Server', function() {
           variables: {
             id: 3
           },
-          triggers: ['mutation bye'],
+          triggers: [{name: 'mutation bye'}],
         }, (error, result) => {
           num_triggers += 1;
           assert.property(result, 'user');
@@ -371,7 +372,7 @@ describe('Server', function() {
           variables: {
             id: 1
           },
-          triggers: ['mutation bye'],
+          triggers: [{name: 'mutation bye'}],
         }, (error, result) => {
           num_triggers += 1;
           assert.property(result, 'user');
@@ -387,6 +388,62 @@ describe('Server', function() {
     }, 100);
     setTimeout(() => {
       assert.equal(num_triggers, 2);
+      done();
+    }, 1000);
+  });
+
+  it('should correctly distinguish between subscriptions with different properties', function(done) {
+    let num_triggers = 0;
+    var client_3 = new Client('ws://localhost:8080/', 'graphql-protocol');
+    var client_4 = new Client('ws://localhost:8080/', 'graphql-protocol');
+    setTimeout(() => {
+      client_3.subscribe({
+        query: 
+          `query useInfo($id: String) {
+            user(id: $id) {
+              id
+              name
+            }
+          }`,
+          variables: {
+            id: 3
+          },
+          triggers: [{name: 'mutation bye', fortune_cookie: 'unlucky'}],
+        }, (error, result) => {
+          num_triggers += 1;
+          assert.property(result, 'user');
+          assert.equal(result.user.id, '3');
+          assert.equal(result.user.name, 'Jessie');
+        }
+      );
+      client_4.subscribe({
+        query: 
+          `query useInfo($id: String) {
+            user(id: $id) {
+              id
+              name
+            }
+          }`,
+          variables: {
+            id: 1
+          },
+          triggers: [{name: 'mutation bye', fortune_cookie: 'lucky'}],
+        }, (error, result) => {
+          num_triggers += 1;
+          assert.property(result, 'user');
+          assert.equal(result.user.id, '1');
+          assert.equal(result.user.name, 'Dan');
+        }
+      );
+    }, 100);
+    setTimeout(() => {
+      client_3.sendMessage({
+        name: 'mutation bye',
+        fortune_cookie: 'lucky'
+      });
+    }, 100);
+    setTimeout(() => {
+      assert.equal(num_triggers, 1);
       done();
     }, 1000);
   });

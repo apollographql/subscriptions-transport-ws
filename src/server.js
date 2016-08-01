@@ -19,7 +19,7 @@ class Server {
   */
   constructor(options, httpServer) {
     this.options = options;
-    this.triggers = {}; // trigger_name: [{connection, sub_id}]
+    this.triggers = {}; // trigger_object: [{connection, sub_id}]
     //initialize http server
 
     //init and connect websocket server to http
@@ -35,8 +35,8 @@ class Server {
       connection.on('message', (message) => {
         let message_data = JSON.parse(message.utf8Data);
         if (! message_data.type) { //mutation message
-          if (message_data.name && this.triggers && this.triggers[message_data.name]) {
-            let triggered_subs = this.triggers[message_data.name];
+          if (message_data && this.triggers && this.triggers[JSON.stringify(message_data)]) {
+            let triggered_subs = this.triggers[JSON.stringify(message_data)];
             triggered_subs.forEach((sub_obj) => {
               let sub_connection = sub_obj.connection;
               let sub_id = sub_obj.sub_id;
@@ -85,10 +85,11 @@ class Server {
               //set up trigger listeners
               if (message_data.triggers) {
                 message_data.triggers.forEach((trigger) => {
-                  if (! this.triggers[trigger]) {
-                    this.triggers[trigger] = [{connection: connection, sub_id: sub_id}];
+                  let string_trigger = JSON.stringify(trigger);
+                  if (! this.triggers[string_trigger]) {
+                    this.triggers[string_trigger] = [{connection: connection, sub_id: sub_id}];
                   } else {
-                    this.triggers[trigger].push({connection: connection, sub_id: sub_id});
+                    this.triggers[string_trigger].push({connection: connection, sub_id: sub_id});
                   }
                 });
               }
