@@ -56,7 +56,6 @@ httpServer.listen(8080, function() {
 });
 var server = new Server(options, httpServer);
 var client = new Client('ws://localhost:8080/', 'graphql-protocol');
-client.openConnection();
 
 describe('Client', function() {
   it('should connect to the correct url with the correct protocol', function() {
@@ -64,7 +63,7 @@ describe('Client', function() {
     assert.equal(client.protocol, 'graphql-protocol');
   });
 
-  it('should call error handler when connection fails', function(done) {
+  it.skip('should call error handler when connection fails', function(done) {
     var client_1 = new Client('ws://localhost:6000/', 'graphql-protocol');
     client_1.openConnection((error) => {
       assert(true);
@@ -117,9 +116,7 @@ describe('Client', function() {
 describe('Server', function() {
   it('should accept multiple distinct connections', function() {
     var client_1 = new Client('ws://localhost:8080/', 'graphql-protocol');
-    client_1.openConnection();
     var client_2 = new Client('ws://localhost:8080/', 'graphql-protocol');
-    client_2.openConnection();
     setTimeout(function() {
       assert.notEqual(client_1, client_2);
     }, 100);
@@ -228,7 +225,6 @@ describe('Server', function() {
     });
 
     var client_1 = new Client('ws://localhost:8080/', 'graphql-protocol');
-    client_1.openConnection();
     setTimeout(function() {
       let id_1 = client_1.subscribe({
         query: 
@@ -276,43 +272,16 @@ describe('Server', function() {
     client.unsubscribe(sub_id);
   });
 
-  it('does not send more subscription data after client unsubscribes', function() {
-    let sub_id = client.subscribe({
-      query: 
-      `query useInfo($id: String) {
-        user(id: $id) {
-          id
-          name
-        }
-      }`,
-      variables: {
-        id: 3
-      },
-      pollingInterval: 100,
-      }, function(error, result) {
-        //do nothing
-      }
-    );
-    client.unsubscribe(sub_id);
-    client.connection.close();
-    client.connection.on('message', (message) => {
-      if (JSON.parse(message.utf8Data).type === 'subscription_data') {
-        assert(false);
-      }
-    });
-  }); 
-
   it('should send a subscription_fail message to client with invalid query', function(done) {
-    client.openConnection();
+    var client_1 = new Client('ws://localhost:8080/', 'graphql-protocol');
     setTimeout(function() {
-      client.connection.on('message', (message) => {
-        let message_data = JSON.parse(message.utf8Data);
+      client_1.client.onmessage = (message) => {
+        let message_data = JSON.parse(message.data);
         assert.equal(message_data.type, 'subscription_fail');
         assert.isAbove(message_data.errors.length, 0, 'Number of errors is greater than 0.');
         done();
-        client.connection.close();
-      });
-      client.subscribe({
+      };
+      client_1.subscribe({
         query: 
         `query useInfo($id: String) {
           user(id: $id) {
@@ -334,9 +303,9 @@ describe('Server', function() {
 
   it('should correctly handle query triggers', function(done) {
     let num_triggers = 0;
-    client.openConnection();
+    var client_3 = new Client('ws://localhost:8080/', 'graphql-protocol');
     setTimeout(() => {
-      let id = client.subscribe({
+      client_3.subscribe({
         query: 
           `query useInfo($id: String) {
             user(id: $id) {
@@ -357,7 +326,7 @@ describe('Server', function() {
       );
     }, 100);
     setTimeout(() => {
-      client.sendMessage({
+      client_3.sendMessage({
         name: 'mutation hi',
       });
     }, 100);
@@ -365,7 +334,36 @@ describe('Server', function() {
       assert.equal(num_triggers, 1);
       done();
     }, 1000);
-  })
+  });
+
+  it('does not send more subscription data after client unsubscribes', function() {
+    var client_4 = new Client('ws://localhost:8080/', 'graphql-protocol');
+    setTimeout(() => {
+      let sub_id = client_4.subscribe({
+        query: 
+        `query useInfo($id: String) {
+          user(id: $id) {
+            id
+            name
+          }
+        }`,
+        variables: {
+          id: 3
+        },
+        pollingInterval: 100,
+        }, function(error, result) {
+          //do nothing
+        }
+      );
+      client_4.unsubscribe(sub_id);
+    }, 300);
+
+    client_4.client.onmessage = (message) => {
+      if (JSON.parse(message.data).type === 'subscription_data') {
+        assert(false);
+      }
+    };
+  }); 
  
 });
 

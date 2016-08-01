@@ -1,41 +1,41 @@
 "use strict";
-var WebSocketClient = require('websocket').client;
+var W3CWebSocket = require('websocket').w3cwebsocket;
 class Client {
   constructor(url, protocol) {
     this.url = url;
     this.protocol = protocol;
-    this.client = new WebSocketClient();
-    this.connection = null;
+    this.client = new W3CWebSocket(url, protocol);
     this.subscriptions = {}; // id: handler
     this.max_id = 0;
 
-    this.client.on('connect', (connection) => {
-      this.connection = connection;
-      connection.on('error', function(error){
-        this.connection = null;
-        console.log('connection error: ' + error.toString());
-      });
-      connection.on('close', function() {
-        this.connection = null;
-        console.log("connection closed");
-      });
-      connection.on('message', (message) => {
-        let message_data = JSON.parse(message.utf8Data);
-        if (message_data.type === 'subscription_fail') {
-          const del_id = message_data.id;
-          delete this.subscriptions[del_id];
-        } else if (message_data.type === 'subscription_data') {
-          if (message_data.data) {
-            const sub_id = message_data.id;
-            if (this.subscriptions[sub_id]) {
-              this.subscriptions[sub_id](null, message_data.data); // pass data into data handler
-            }
-          } else {
-            this.subscriptions[sub_id](message_data.errors, null);
+    this.client.onopen = () => {
+      console.log("Websocket client connected.");
+    };
+
+    this.client.onmessage = (message) => {
+      let message_data = JSON.parse(message.data);
+      if (message_data.type === 'subscription_fail') {
+        const del_id = message_data.id;
+        delete this.subscriptions[del_id];
+      } else if (message_data.type === 'subscription_data') {
+        if (message_data.data) {
+          const sub_id = message_data.id;
+          if (this.subscriptions[sub_id]) {
+            this.subscriptions[sub_id](null, message_data.data); // pass data into data handler
           }
+        } else {
+          this.subscriptions[sub_id](message_data.errors, null);
         }
-      });
-    });
+      }
+    };
+
+    this.client.onclose = function() {
+      console.log("connection closed");
+    };
+
+    this.client.onerror = function(error) {
+      console.log('connection error: ' + error.toString());
+    };
   }
   openConnection(handler) {
     if (!handler) {
@@ -48,8 +48,8 @@ class Client {
   }
 
   sendMessage(message) {
-    if (this.connection.connected) {
-      this.connection.sendUTF(JSON.stringify(message));
+    if (this.client.readyState === this.client.OPEN) {
+      this.client.send(JSON.stringify(message));
     }
   }
 
@@ -70,7 +70,7 @@ class Client {
     - triggers
   */
   subscribe(options, handler) {
-    if (! this.connection) {
+    if (this.client.readyState !== this.client.OPEN) {
       throw new Error('Client is not connected to a websocket.');
     } else {
       let message = options;
@@ -84,7 +84,7 @@ class Client {
   }
 
   unsubscribe(id) {
-    if (! this.connection) {
+    if (this.client.readyState !== this.client.OPEN) {
       throw new Error('Client is not connected to a websocket.');
     } else {
       let message = { id: id, type: 'subscription_end'};
