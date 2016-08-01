@@ -326,11 +326,11 @@ describe('Server', function() {
       );
     }, 100);
     setTimeout(() => {
-      client_3.sendMessage({
+      server.triggerAction({
         name: 'mutation hi',
         fortune_cookie: 'lucky'
       });
-    }, 100);
+    }, 500);
     setTimeout(() => {
       assert.equal(num_triggers, 1);
       done();
@@ -382,10 +382,10 @@ describe('Server', function() {
       );
     }, 100);
     setTimeout(() => {
-      client_3.sendMessage({
+      server.triggerAction({
         name: 'mutation bye',
       });
-    }, 100);
+    }, 500);
     setTimeout(() => {
       assert.equal(num_triggers, 2);
       done();
@@ -437,11 +437,11 @@ describe('Server', function() {
       );
     }, 100);
     setTimeout(() => {
-      client_3.sendMessage({
+      server.triggerAction({
         name: 'mutation bye',
         fortune_cookie: 'lucky'
       });
-    }, 100);
+    }, 500);
     setTimeout(() => {
       assert.equal(num_triggers, 1);
       done();
