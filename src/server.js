@@ -15,6 +15,7 @@ class Server {
     rootValue?: any,
     formatResponse?: (Object) => Object,
     validationRules?: Array<any> 
+    triggerGenerator?: (Object) => [Object]
   }
   */
   constructor(options, httpServer) {
@@ -49,16 +50,23 @@ class Server {
               connection.subscriptions = {};
             }
             //set up trigger listeners
+            let msg_triggers = [];
             if (message_data.triggers) {
-              message_data.triggers.forEach((trigger) => {
-                let string_trigger = JSON.stringify(trigger);
-                if (! this.triggers[string_trigger]) {
-                  this.triggers[string_trigger] = [{connection: connection, sub_id: sub_id}];
-                } else {
-                  this.triggers[string_trigger].push({connection: connection, sub_id: sub_id});
-                }
-              });
+              msg_triggers = message_data.triggers;
+
+            } else {
+              if (this.options.triggerGenerator) {
+                msg_triggers = this.options.triggerGenerator(message_data);
+              }
             }
+            msg_triggers.forEach((trigger) => {
+              let string_trigger = JSON.stringify(trigger);
+              if (! this.triggers[string_trigger]) {
+                this.triggers[string_trigger] = [{connection: connection, sub_id: sub_id}];
+              } else {
+                this.triggers[string_trigger].push({connection: connection, sub_id: sub_id});
+              }
+            });
             //set up polling message
             if (message_data.pollingInterval) {
               let pollingId = setInterval(

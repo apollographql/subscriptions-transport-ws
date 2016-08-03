@@ -8,8 +8,10 @@ var Server = require('../src/server.js');
 var data = require('../data.json');
 var index = require('../index.js');
 
-const removeWhiteSpace = function(str) {
-  return str.replace(/ /g, '');
+const triggerGen = function(message_data) {
+  if ((message_data.query).startsWith('query useInfo')) {
+    return [{name: 'mutation auto'}];
+  }
 }
 
 var userType = new graphql.GraphQLObjectType({
@@ -45,6 +47,7 @@ var schema = new graphql.GraphQLSchema({
 });
 
 options.schema = schema;
+options.triggerGenerator = triggerGen;
 
 var httpServer = http.createServer(function(request, response) {
     response.writeHead(404);
@@ -440,6 +443,61 @@ describe('Server', function() {
       server.triggerAction({
         name: 'mutation bye',
         fortune_cookie: 'lucky'
+      });
+    }, 500);
+    setTimeout(() => {
+      assert.equal(num_triggers, 1);
+      done();
+    }, 1000);
+  });
+
+  it('should correctly generate triggers', function(done) {
+    let num_triggers = 0;
+    var client_3 = new Client('ws://localhost:8080/', 'graphql-protocol');
+    var client_4 = new Client('ws://localhost:8080/', 'graphql-protocol');
+    setTimeout(() => {
+      client_3.subscribe({
+        query: 
+          `query useInfo($id: String) {
+            user(id: $id) {
+              id
+              name
+            }
+          }`,
+          variables: {
+            id: 3
+          },
+          triggers: [{name: 'mutation bye', fortune_cookie: 'unlucky'}],
+        }, (error, result) => {
+          assert(false);
+          num_triggers += 1;
+          assert.property(result, 'user');
+          assert.equal(result.user.id, '3');
+          assert.equal(result.user.name, 'Jessie');
+        }
+      );
+      client_4.subscribe({
+        query: 
+          `query useInfo($id: String) {
+            user(id: $id) {
+              id
+              name
+            }
+          }`,
+          variables: {
+            id: 1
+          },
+        }, (error, result) => {
+          num_triggers += 1;
+          assert.property(result, 'user');
+          assert.equal(result.user.id, '1');
+          assert.equal(result.user.name, 'Dan');
+        }
+      );
+    }, 100);
+    setTimeout(() => {
+      server.triggerAction({
+        name: 'mutation auto',
       });
     }, 500);
     setTimeout(() => {
