@@ -1,4 +1,3 @@
-"use strict";
 var W3CWebSocket = require('websocket').w3cwebsocket;
 class Client {
   constructor(url, protocol) {
@@ -94,4 +93,4 @@ class Client {
   }
 }
 
-module.exports = Client;
+export default Client;

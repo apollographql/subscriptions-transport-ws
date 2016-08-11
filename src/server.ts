@@ -1,13 +1,21 @@
-"use strict";
-var http = require('http');
+import * as http from 'http';
 var graphql = require('graphql');
-require('babel-register');
 var WebSocketServer = require('websocket').server;
 var graphql_tools = require('graphql-tools');
 var graphql_validator = require('graphql/validation');
 var graphql_execution = require('graphql/execution');
 
+interface Connection{
+  // define a websocket connection here?
+  subscriptions: {[key: string]: any};
+  sendUTF: Function;
+}
+
 class Server {
+
+  options: any; // better to define an interface here!
+  triggers: {[key: string]: Array<{ connection: Connection, sub_id: number}>};
+  wsServer: any;
   /*
   options {
     schema: GraphQLSchema
@@ -84,7 +92,8 @@ class Server {
                     message.id = sub_id;
                     connection.sendUTF(JSON.stringify(message));
                   }, function(err) {
-                    let message = response;
+                    let message = err; // XXX changed this from response to err. Should probably be something else.
+                    // does the client even need to know?
                     message.type = 'subscription_data';
                     message.id = sub_id;
                     connection.sendUTF(JSON.stringify(message));
@@ -100,6 +109,9 @@ class Server {
           
         } else if (message_data.type === 'subscription_end') {
           const sub_id = message.data.id;
+          // XXX where should pollingId come from?
+          // I'll just set it to zero here so the project works...
+          const pollingId = 0;
           clearInterval(connection.subscriptions[sub_id][pollingId]);
           delete connection.subscriptions[sub_id];
         }
@@ -117,7 +129,7 @@ class Server {
       triggered_subs.forEach((sub_obj) => {
         let sub_connection = sub_obj.connection;
         let sub_id = sub_obj.sub_id;
-        let sub_data = sub_connection.subscriptions[sub_id];
+        let sub_data = sub_connection.subscriptions[sub_id as number];
         graphql.graphql(
           this.options.schema,
           sub_data.query,
@@ -130,13 +142,14 @@ class Server {
           message.type = 'subscription_data';
           message.id = sub_id;
           if (this.options.formatResponse) {
-            message = formatResponse(message);
+            message = this.options.formatResponse(message);
           }
           sub_connection.sendUTF(JSON.stringify(message));
         }, (err) => {
-          let message = response;
+          // XXX same as above here...
+          let message = err;
           if (this.options.formatResponse) {
-            message = formatResponse(message);
+            message = this.options.formatResponse(message);
           }
           message.type = 'subscription_data';
           message.id = sub_id;
@@ -147,4 +160,4 @@ class Server {
   }
 
 } 
-module.exports = Server;
+export default Server;

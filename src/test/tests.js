@@ -1,12 +1,28 @@
 var assert = require('chai').assert;
-var Client = require('../src/client.js');
-var graphql_tools = require('graphql-tools');
-var graphql = require('graphql');
-var casual = require('casual-browserify');
-var http = require('http');
-var Server = require('../src/server.js');
-var data = require('../data.json');
-var index = require('../index.js');
+import { assert } from 'chai';
+import {
+  GraphQLObjectType,
+  GraphQLSchema,
+  GraphQLString
+} from 'graphql';
+import { createServer } from 'http';
+import Server from '../server';
+import Client from '../client';
+
+const data = {
+  "1": {
+    "id": "1",
+    "name": "Dan"
+  },
+  "2": {
+    "id": "2",
+    "name": "Marie"
+  },
+  "3": {
+    "id": "3",
+    "name": "Jessie"
+  }
+};
 
 const triggerGen = function(message_data) {
   if ((message_data.query).startsWith('query useInfo')) {
@@ -14,25 +30,25 @@ const triggerGen = function(message_data) {
   }
 }
 
-var userType = new graphql.GraphQLObjectType({
+var userType = new GraphQLObjectType({
   name: 'User',
   fields: {
-    id: { type: graphql.GraphQLString },
-    name: { type: graphql.GraphQLString },
+    id: { type: GraphQLString },
+    name: { type: GraphQLString },
   }
 });
 
 var options = {};
 
-var schema = new graphql.GraphQLSchema({
-  query: new graphql.GraphQLObjectType({
+var schema = new GraphQLSchema({
+  query: new GraphQLObjectType({
     name: 'Query',
     fields: {
       user: {
         type: userType,
         // `args` describes the arguments that the `user` query accepts
         args: {
-          id: { type: graphql.GraphQLString }
+          id: { type: GraphQLString }
         },
         // The resolve function describes how to "resolve" or fulfill
         // the incoming query.
@@ -49,7 +65,7 @@ var schema = new graphql.GraphQLSchema({
 options.schema = schema;
 options.triggerGenerator = triggerGen;
 
-var httpServer = http.createServer(function(request, response) {
+var httpServer = createServer(function(request, response) {
     response.writeHead(404);
     response.end();
   });
@@ -57,6 +73,7 @@ var httpServer = http.createServer(function(request, response) {
 httpServer.listen(8080, function() {
   console.log("Server is listening on port 8080");
 });
+console.log('server', Server);
 var server = new Server(options, httpServer);
 var client = new Client('ws://localhost:8080/', 'graphql-protocol');
 
@@ -76,7 +93,7 @@ describe('Client', function() {
 
   it('removes subscription when it unsubscribes from it', function() {
     let sub_id = client.subscribe({
-      query: 
+      query:
       `query useInfo($id: String) {
         user(id: $id) {
           id
@@ -97,7 +114,7 @@ describe('Client', function() {
 
   it.skip('should call error handler when graphql result has errors', function(done) {
     let id = client.subscribe({
-      query: 
+      query:
       `query useInfo($id: String) {
         user(id: $id) {
           id
@@ -129,7 +146,7 @@ describe('Server', function() {
     let pollCount = 0;
     setTimeout(function() {
       let id = client.subscribe({
-        query: 
+        query:
         `query useInfo($id: String) {
           user(id: $id) {
             id
@@ -159,7 +176,7 @@ describe('Server', function() {
     let pollCount_2 = 0;
 
     let id_1 = client.subscribe({
-      query: 
+      query:
       `query useInfo($id: String) {
         user(id: $id) {
           id
@@ -174,10 +191,10 @@ describe('Server', function() {
       pollCount_1 += 1;
       assert.property(result, 'user');
       assert.equal(result.user.id, '3');
-      assert.equal(result.user.name, 'Jessie');   
+      assert.equal(result.user.name, 'Jessie');
     });
     let id_2 = client.subscribe({
-      query: 
+      query:
       `query useInfo($id: String) {
         user(id: $id) {
           id
@@ -202,14 +219,14 @@ describe('Server', function() {
         done();
       }
     }, 1000);
-  }); 
+  });
 
   it('should send correct results to multiple clients with subscriptions', function(done) {
     let pollCount_1 = 0;
     let pollCount_2 = 0;
 
     let id = client.subscribe({
-      query: 
+      query:
       `query useInfo($id: String) {
         user(id: $id) {
           id
@@ -230,7 +247,7 @@ describe('Server', function() {
     var client_1 = new Client('ws://localhost:8080/', 'graphql-protocol');
     setTimeout(function() {
       let id_1 = client_1.subscribe({
-        query: 
+        query:
         `query useInfo($id: String) {
           user(id: $id) {
             id
@@ -257,7 +274,7 @@ describe('Server', function() {
 
   it('does not call subscribe handler when client unsubscribes', function() {
     let sub_id = client.subscribe({
-      query: 
+      query:
       `query useInfo($id: String) {
         user(id: $id) {
           id
@@ -285,7 +302,7 @@ describe('Server', function() {
         done();
       };
       client_1.subscribe({
-        query: 
+        query:
         `query useInfo($id: String) {
           user(id: $id) {
             id
@@ -309,7 +326,7 @@ describe('Server', function() {
     var client_3 = new Client('ws://localhost:8080/', 'graphql-protocol');
     setTimeout(() => {
       client_3.subscribe({
-        query: 
+        query:
           `query useInfo($id: String) {
             user(id: $id) {
               id
@@ -346,7 +363,7 @@ describe('Server', function() {
     var client_4 = new Client('ws://localhost:8080/', 'graphql-protocol');
     setTimeout(() => {
       client_3.subscribe({
-        query: 
+        query:
           `query useInfo($id: String) {
             user(id: $id) {
               id
@@ -365,7 +382,7 @@ describe('Server', function() {
         }
       );
       client_4.subscribe({
-        query: 
+        query:
           `query useInfo($id: String) {
             user(id: $id) {
               id
@@ -401,7 +418,7 @@ describe('Server', function() {
     var client_4 = new Client('ws://localhost:8080/', 'graphql-protocol');
     setTimeout(() => {
       client_3.subscribe({
-        query: 
+        query:
           `query useInfo($id: String) {
             user(id: $id) {
               id
@@ -420,7 +437,7 @@ describe('Server', function() {
         }
       );
       client_4.subscribe({
-        query: 
+        query:
           `query useInfo($id: String) {
             user(id: $id) {
               id
@@ -457,7 +474,7 @@ describe('Server', function() {
     var client_4 = new Client('ws://localhost:8080/', 'graphql-protocol');
     setTimeout(() => {
       client_3.subscribe({
-        query: 
+        query:
           `query useInfo($id: String) {
             user(id: $id) {
               id
@@ -477,7 +494,7 @@ describe('Server', function() {
         }
       );
       client_4.subscribe({
-        query: 
+        query:
           `query useInfo($id: String) {
             user(id: $id) {
               id
@@ -510,7 +527,7 @@ describe('Server', function() {
     var client_4 = new Client('ws://localhost:8080/', 'graphql-protocol');
     setTimeout(() => {
       let sub_id = client_4.subscribe({
-        query: 
+        query:
         `query useInfo($id: String) {
           user(id: $id) {
             id
@@ -533,7 +550,6 @@ describe('Server', function() {
         assert(false);
       }
     };
-  }); 
- 
-});
+  });
 
+});
