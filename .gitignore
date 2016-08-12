@@ -3,3 +3,4 @@ node_modules
 dist
 coverage
 typings
+npm-debug.log

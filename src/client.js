@@ -12,7 +12,9 @@ class Client {
     };
 
     this.client.onmessage = (message) => {
+      
       let message_data = JSON.parse(message.data);
+      console.log('received message from server:', message_data);
       if (message_data.type === 'subscription_fail') {
         const del_id = message_data.id;
         delete this.subscriptions[del_id];

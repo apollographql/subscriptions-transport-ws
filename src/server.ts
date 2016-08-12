@@ -5,16 +5,41 @@ var graphql_tools = require('graphql-tools');
 var graphql_validator = require('graphql/validation');
 var graphql_execution = require('graphql/execution');
 
+import {
+  Document,
+  GraphQLSchema,
+} from 'graphql';
+
+
 interface Connection{
   // define a websocket connection here?
   subscriptions: {[key: string]: any};
   sendUTF: Function;
 }
 
+interface SubscribeMessage {
+  query: string;
+  variables?: { [key: string]: any };
+  operationName: string,
+  id: string,
+  type: string,
+};
+
+interface SubscriptionData {
+  query: string;
+  variables?: { [key: string]: any };
+}
+
+interface ServerOptions {
+  schema: GraphQLSchema;
+  contextValue?: any;
+  //tbc
+}
+
 class Server {
 
   options: any; // better to define an interface here!
-  triggers: {[key: string]: Array<{ connection: Connection, sub_id: number}>};
+  triggers: {[key: string]: Array<{ connection: Connection, sub_data: SubscriptionData, sub_id: number, filter: Function}>};
   wsServer: any;
   /*
   options {
@@ -23,7 +48,7 @@ class Server {
     rootValue?: any,
     formatResponse?: (Object) => Object,
     validationRules?: Array<any> 
-    triggerGenerator?: (Object) => [Object]
+    triggerGenerator?: (Object) => [{name: , filter: }] 
   }
   */
   constructor(options, httpServer) {
@@ -42,7 +67,9 @@ class Server {
       var connection = request.accept('graphql-protocol', request.origin);
       console.log('Accepted connection');
       connection.on('message', (message) => {
+        
         let message_data = JSON.parse(message.utf8Data);
+        console.log('received message from client:', message_data);
         if (message_data.type === 'subscription_start') {
           let syntax_errors = graphql_validator.validate(this.options.schema, graphql.parse(message_data.query), this.options.validationRules);
           if (syntax_errors.length > 0) {
@@ -59,10 +86,7 @@ class Server {
             }
             //set up trigger listeners
             let msg_triggers = [];
-            if (message_data.triggers) {
-              msg_triggers = message_data.triggers;
 
-            } else {
               if (this.options.triggerGenerator) {
                 // 1. parse query
                 // 2. validate
@@ -70,55 +94,34 @@ class Server {
                 // make sure it's a subscription
                 // 4. make sure there's only one field on that operation definition
 
-                msg_triggers = this.options.triggerGenerator(message_data);
-              }
-            }
-            msg_triggers.forEach((trigger) => {
-              let string_trigger = JSON.stringify(trigger);
-              if (! this.triggers[string_trigger]) {
-                this.triggers[string_trigger] = [{connection: connection, sub_id: sub_id}];
+                msg_triggers = this.options.triggerGenerator(message_data.operationName, message_data.variables);
               } else {
-                this.triggers[string_trigger].push({connection: connection, sub_id: sub_id});
+                throw new Error('Server does not have trigger generator.');
+              }
+            
+            msg_triggers.forEach((trigger) => {
+              let trigger_name = trigger.name;
+              let trigger_object = {
+                  connection: connection,
+                  filter: trigger.filter,
+                  sub_id: sub_id,
+                  sub_data: {
+                    query: message_data.query,
+                    variables: message_data.variables,
+                  }
+                }
+              if (! this.triggers[trigger_name]) {
+                this.triggers[trigger_name] = [trigger_object];
+              } else {
+                this.triggers[trigger_name].push(trigger_object);
               }
             });
-            //set up polling message
-            if (message_data.pollingInterval) {
-              let pollingId = setInterval(
-                () => {
-                  graphql.graphql(
-                    this.options.schema,
-                    message_data.query,
-                    this.options.rootValue,
-                    this.options.contextValue,
-                    message_data.variables,
-                    message_data.operationName
-                  ).then(function(response){
-                    let message = response;
-                    message.type = 'subscription_data';
-                    message.id = sub_id;
-                    connection.sendUTF(JSON.stringify(message));
-                  }, function(err) {
-                    let message = err; // XXX changed this from response to err. Should probably be something else.
-                    // does the client even need to know?
-                    message.type = 'subscription_data';
-                    message.id = sub_id;
-                    connection.sendUTF(JSON.stringify(message));
-                  });
-                }, 
-                message_data.pollingInterval
-              );
-              message_data.pollingId = pollingId;
-            }
 
             connection.subscriptions[sub_id] = message_data;
           }
           
         } else if (message_data.type === 'subscription_end') {
           const sub_id = message.data.id;
-          // XXX where should pollingId come from?
-          // I'll just set it to zero here so the project works...
-          const pollingId = 0;
-          clearInterval(connection.subscriptions[sub_id][pollingId]);
           delete connection.subscriptions[sub_id];
         }
       });
@@ -130,8 +133,15 @@ class Server {
   }
 
   triggerAction(message_data) {
-    if (this.triggers[JSON.stringify(message_data)]) {
-      let triggered_subs = this.triggers[JSON.stringify(message_data)];
+    const trigger_name = message_data.name;
+    const trigger_value = message_data.value; //rootValue
+
+    if (this.triggers[trigger_name]) {
+      //not sure how to filter
+      let triggered_subs = this.triggers[trigger_name].filter((subscriber) => {
+        return subscriber.filter(trigger_value);
+      });
+
       triggered_subs.forEach((sub_obj) => {
         let sub_connection = sub_obj.connection;
         let sub_id = sub_obj.sub_id;
@@ -139,7 +149,7 @@ class Server {
         graphql.graphql(
           this.options.schema,
           sub_data.query,
-          this.options.rootValue,
+          trigger_value,
           this.options.contextValue,
           sub_data.variables,
           sub_data.operationName
