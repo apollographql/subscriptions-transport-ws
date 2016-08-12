@@ -64,6 +64,12 @@ class Server {
 
             } else {
               if (this.options.triggerGenerator) {
+                // 1. parse query
+                // 2. validate
+                // 3. get operation definition out of it
+                // make sure it's a subscription
+                // 4. make sure there's only one field on that operation definition
+
                 msg_triggers = this.options.triggerGenerator(message_data);
               }
             }

@@ -3,6 +3,7 @@
   "version": "0.1.6",
   "description": "A simple way of handling graphql subscriptions over websockets.",
   "dependencies": {
+    "es6-promise": "^3.2.1",
     "node-static": "0.5.9",
     "websocket": "^1.0.23"
   },
