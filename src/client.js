@@ -14,7 +14,6 @@ class Client {
     this.client.onmessage = (message) => {
       
       let message_data = JSON.parse(message.data);
-      console.log('received message from server:', message_data);
       if (message_data.type === 'subscription_fail') {
         const del_id = message_data.id;
         delete this.subscriptions[del_id];
@@ -37,15 +36,6 @@ class Client {
     this.client.onerror = function(error) {
       console.log('connection error: ', error);
     };
-  }
-  openConnection(handler) {
-    if (!handler) {
-      handler = (error) => {console.log('Error opening connection', error);};
-    }
-    this.client.on('connectFailed', function(error) {
-      handler(error);
-    });
-    this.client.connect(this.url, this.protocol);
   }
 
   sendMessage(message) {
@@ -76,7 +66,6 @@ class Client {
       const sub_id = this.generateSubscriptionId();
       message.type = 'subscription_start';
       message.id = sub_id;
-      console.log('message form client:', message);
       this.sendMessage(message);
       this.subscriptions[sub_id] = handler;
       return sub_id;

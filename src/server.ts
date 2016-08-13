@@ -68,7 +68,6 @@ class Server {
       connection.on('message', (message) => {
         
         let message_data = JSON.parse(message.utf8Data);
-        console.log('received message from client:', message_data);
         if (message_data.type === 'subscription_start') {
           let syntax_errors = graphql_validator.validate(this.options.schema, graphql.parse(message_data.query), this.options.validationRules);
           if (syntax_errors.length > 0) {
@@ -94,7 +93,6 @@ class Server {
               // 4. make sure there's only one field on that operation definition
 
               msg_triggers = this.options.triggerGenerator(message_data.operationName, message_data.variables);
-              console.log('msg_triggers:', msg_triggers);
             } else {
               throw new Error('Server does not have trigger generator.');
             }
@@ -134,19 +132,14 @@ class Server {
   }
 
   triggerAction(message_data) {
-    console.log('triggerAction:', message_data);
-    console.log('triggers:', this.triggers);
     const trigger_name = message_data.name;
     const trigger_value = message_data.value; //rootValue
-    console.log(this.triggers[trigger_name]);
 
     if (this.triggers[trigger_name]) {
       //not sure how to filter
       let triggered_subs = this.triggers[trigger_name].filter((subscriber) => {
-        console.log('subscriber:', subscriber.sub_id);
         return subscriber.filter(trigger_value);
       });
-      console.log('triggered_subs:', triggered_subs);
 
       triggered_subs.forEach((sub_obj) => {
         let sub_connection = sub_obj.connection;
@@ -160,7 +153,6 @@ class Server {
           sub_data.variables,
           sub_data.operationName
         ).then((response) => {
-          console.log('subscription response:', response);
           let message = response;
           message.type = 'subscription_data';
           message.id = sub_id;
@@ -171,7 +163,6 @@ class Server {
         }, (err) => {
           // XXX same as above here...
           let message = err;
-          console.log('graphql err:', err);
           if (this.options.formatResponse) {
             message = this.options.formatResponse(message);
           }
