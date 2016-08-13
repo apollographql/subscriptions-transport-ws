@@ -1,6 +1,6 @@
 {
   "name": "ws-graphql",
-  "version": "0.1.13",
+  "version": "0.1.14",
   "description": "A simple way of handling graphql subscriptions over websockets.",
   "main": "dist/index.js",
   "dependencies": {
