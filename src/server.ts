@@ -138,10 +138,12 @@ class Server {
     console.log('triggers:', this.triggers);
     const trigger_name = message_data.name;
     const trigger_value = message_data.value; //rootValue
+    console.log(this.triggers[trigger_name]);
 
     if (this.triggers[trigger_name]) {
       //not sure how to filter
       let triggered_subs = this.triggers[trigger_name].filter((subscriber) => {
+        console.log('subscriber:', subscriber.sub_id);
         return subscriber.filter(trigger_value);
       });
       console.log('triggered_subs:', triggered_subs);
