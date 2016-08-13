@@ -116,7 +116,7 @@ class Server {
                 this.triggers[trigger_name].push(trigger_object);
               }
             });
-            console.log('triggers:', this.triggers);
+            
 
             connection.subscriptions[sub_id] = message_data;
           }
@@ -135,6 +135,7 @@ class Server {
 
   triggerAction(message_data) {
     console.log('triggerAction:', message_data);
+    console.log('triggers:', this.triggers);
     const trigger_name = message_data.name;
     const trigger_value = message_data.value; //rootValue
 
@@ -143,6 +144,7 @@ class Server {
       let triggered_subs = this.triggers[trigger_name].filter((subscriber) => {
         return subscriber.filter(trigger_value);
       });
+      console.log('triggered_subs:', triggered_subs);
 
       triggered_subs.forEach((sub_obj) => {
         let sub_connection = sub_obj.connection;
@@ -156,6 +158,7 @@ class Server {
           sub_data.variables,
           sub_data.operationName
         ).then((response) => {
+          console.log('subscription response:', response);
           let message = response;
           message.type = 'subscription_data';
           message.id = sub_id;
@@ -166,6 +169,7 @@ class Server {
         }, (err) => {
           // XXX same as above here...
           let message = err;
+          console.log('graphql err:', err);
           if (this.options.formatResponse) {
             message = this.options.formatResponse(message);
           }
