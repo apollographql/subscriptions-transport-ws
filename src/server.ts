@@ -1,7 +1,6 @@
 import * as http from 'http';
 var graphql = require('graphql');
 var WebSocketServer = require('websocket').server;
-var graphql_tools = require('graphql-tools');
 var graphql_validator = require('graphql/validation');
 var graphql_execution = require('graphql/execution');
 
@@ -87,17 +86,18 @@ class Server {
             //set up trigger listeners
             let msg_triggers = [];
 
-              if (this.options.triggerGenerator) {
-                // 1. parse query
-                // 2. validate
-                // 3. get operation definition out of it
-                // make sure it's a subscription
-                // 4. make sure there's only one field on that operation definition
+            if (this.options.triggerGenerator) {
+              // 1. parse query
+              // 2. validate
+              // 3. get operation definition out of it
+              // make sure it's a subscription
+              // 4. make sure there's only one field on that operation definition
 
-                msg_triggers = this.options.triggerGenerator(message_data.operationName, message_data.variables);
-              } else {
-                throw new Error('Server does not have trigger generator.');
-              }
+              msg_triggers = this.options.triggerGenerator(message_data.operationName, message_data.variables);
+              console.log('msg_triggers:', msg_triggers);
+            } else {
+              throw new Error('Server does not have trigger generator.');
+            }
             
             msg_triggers.forEach((trigger) => {
               let trigger_name = trigger.name;
@@ -116,6 +116,7 @@ class Server {
                 this.triggers[trigger_name].push(trigger_object);
               }
             });
+            console.log('triggers:', this.triggers);
 
             connection.subscriptions[sub_id] = message_data;
           }
@@ -133,6 +134,7 @@ class Server {
   }
 
   triggerAction(message_data) {
+    console.log('triggerAction:', message_data);
     const trigger_name = message_data.name;
     const trigger_value = message_data.value; //rootValue
 

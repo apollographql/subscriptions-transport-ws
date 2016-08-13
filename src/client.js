@@ -76,6 +76,7 @@ class Client {
       const sub_id = this.generateSubscriptionId();
       message.type = 'subscription_start';
       message.id = sub_id;
+      console.log('message form client:', message);
       this.sendMessage(message);
       this.subscriptions[sub_id] = handler;
       return sub_id;
