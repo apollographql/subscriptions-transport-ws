@@ -19,13 +19,13 @@ export function tooManySubscriptionFieldsError(subscriptionName: string): string
 
 export function subscriptionHasSingleField(context: ValidationContext): any {
   const schema = context.getSchema();
-  schema.getSubscriptionType()
+  schema.getSubscriptionType();
   return {
     OperationDefinition(node) {
       const operationName = node.name.value;
       let numFields = 0;
       node.selectionSet.selections.forEach( (selection: Selection) => {
-        if (selection.kind === FIELD){
+        if (selection.kind === FIELD) {
           numFields++;
         } else {
           // why the heck use a fragment on the Subscription type? Just ... don't
@@ -33,7 +33,7 @@ export function subscriptionHasSingleField(context: ValidationContext): any {
         }
       });
       if (numFields > 1) {
-        context.reportError(new GraphQLError(tooManySubscriptionFieldsError(operationName), node));        
+        context.reportError(new GraphQLError(tooManySubscriptionFieldsError(operationName), node));
       }
       return false;
     },

@@ -1,8 +1,8 @@
-var assert = require('chai').assert;
 import {
   assert,
   expect,
 } from 'chai';
+
 import {
   parse,
   GraphQLObjectType,
@@ -10,6 +10,14 @@ import {
   GraphQLString,
   validate,
 } from 'graphql';
+
+import {
+  SUBSCRIPTION_FAIL,
+  SUBSCRIPTION_DATA,
+  SUBSCRIPTION_START,
+  SUBSCRIPTION_END,
+} from '../messageTypes';
+
 import { createServer } from 'http';
 import Server from '../server';
 import Client from '../client';
@@ -82,19 +90,14 @@ var httpServer = createServer(function(request, response) {
 httpServer.listen(8080, function() {
   console.log("Server is listening on port 8080");
 });
-console.log('server', Server);
 var server = new Server(options, httpServer);
-var client = new Client('ws://localhost:8080/', 'graphql-protocol');
+var client = new Client('ws://localhost:8080/');
 
 
 describe('Client', function() {
-  it('should connect to the correct url with the correct protocol', function() {
-    assert.equal(client.url, 'ws://localhost:8080/');
-    assert.equal(client.protocol, 'graphql-protocol');
-  });
 
   it.skip('should call error handler when connection fails', function(done) {
-    var client_1 = new Client('ws://localhost:6000/', 'graphql-protocol');
+    var client_1 = new Client('ws://localhost:6000/');
     client_1.openConnection((error) => {
       assert(true);
       done();
@@ -119,7 +122,7 @@ describe('Client', function() {
       }
     );
     client.unsubscribe(sub_id);
-    assert.notProperty(client.subscriptions, sub_id);
+    assert.notProperty(client.subscriptionHandlers, sub_id);
   });
 
   it.skip('should call error handler when graphql result has errors', function(done) {
@@ -145,8 +148,8 @@ describe('Client', function() {
 
 describe('Server', function() {
   it('should accept multiple distinct connections', function() {
-    var client_1 = new Client('ws://localhost:8080/', 'graphql-protocol');
-    var client_2 = new Client('ws://localhost:8080/', 'graphql-protocol');
+    var client_1 = new Client('ws://localhost:8080/');
+    var client_2 = new Client('ws://localhost:8080/');
     setTimeout(function() {
       assert.notEqual(client_1, client_2);
     }, 100);
@@ -173,7 +176,7 @@ describe('Server', function() {
       assert.equal(result.user.name, 'Jessie');
     });
 
-    var client_1 = new Client('ws://localhost:8080/', 'graphql-protocol');
+    var client_1 = new Client('ws://localhost:8080/');
     setTimeout(function() {
       let id_1 = client_1.subscribe({
         query:
@@ -207,11 +210,11 @@ describe('Server', function() {
   });
 
   it('should send a subscription_fail message to client with invalid query', function(done) {
-    var client_1 = new Client('ws://localhost:8080/', 'graphql-protocol');
+    var client_1 = new Client('ws://localhost:8080/');
     setTimeout(function() {
       client_1.client.onmessage = (message) => {
         let message_data = JSON.parse(message.data);
-        assert.equal(message_data.type, 'subscription_fail');
+        assert.equal(message_data.type, SUBSCRIPTION_FAIL);
         assert.isAbove(message_data.errors.length, 0, 'Number of errors is greater than 0.');
         done();
       };
@@ -239,8 +242,8 @@ describe('Server', function() {
 
   it.skip('should correctly distinguish between subscriptions with different properties', function(done) {
     let num_triggers = 0;
-    var client_3 = new Client('ws://localhost:8080/', 'graphql-protocol');
-    var client_4 = new Client('ws://localhost:8080/', 'graphql-protocol');
+    var client_3 = new Client('ws://localhost:8080/');
+    var client_4 = new Client('ws://localhost:8080/');
     setTimeout(() => {
       client_3.subscribe({
         query:
@@ -297,8 +300,8 @@ describe('Server', function() {
 
   it.skip('should correctly generate triggers', function(done) {
     let num_triggers = 0;
-    var client_3 = new Client('ws://localhost:8080/', 'graphql-protocol');
-    var client_4 = new Client('ws://localhost:8080/', 'graphql-protocol');
+    var client_3 = new Client('ws://localhost:8080/');
+    var client_4 = new Client('ws://localhost:8080/');
     setTimeout(() => {
       client_3.subscribe({
         query:
@@ -353,7 +356,7 @@ describe('Server', function() {
   });
 
   it('does not send more subscription data after client unsubscribes', function() {
-    var client_4 = new Client('ws://localhost:8080/', 'graphql-protocol');
+    var client_4 = new Client('ws://localhost:8080/');
     setTimeout(() => {
       let sub_id = client_4.subscribe({
         query:
@@ -375,10 +378,51 @@ describe('Server', function() {
     }, 300);
 
     client_4.client.onmessage = (message) => {
-      if (JSON.parse(message.data).type === 'subscription_data') {
+      if (JSON.parse(message.data).type === SUBSCRIPTION_DATA) {
         assert(false);
       }
     };
+  });
+
+  it('correctly deletes subscription data when client unsubscribes', function(done) {
+
+    let subId = client.subscribe({
+      query:
+      `query useInfoBla($id: String) {
+        user(id: $id) {
+          id
+          name
+        }
+      }`,
+      operationName: 'useInfoBla',
+      variables: {
+        id: 3
+      },
+      }, function(error, result) {
+        //do nothing
+      }
+    );
+    setTimeout(() => {
+      let filteredTriggers = server.triggers['mutation auto'].filter((subscriber) => {
+        return (subscriber.subscriptionArgs.operationName === 'useInfoBla' && subscriber.subId === subId);
+      });
+      assert.equal(filteredTriggers.length, 1);
+    }, 50);
+
+    setTimeout(() => {
+      client.unsubscribe(subId);
+    }, 50);
+
+    setTimeout(() => {
+
+      let filteredTriggers = server.triggers['mutation auto'].filter((subscriber) => {
+        return (subscriber.subscriptionArgs.operationName === 'useInfoBla' && subscriber.subId === subId);
+      });
+      assert.equal(filteredTriggers.length, 0);
+      done();
+    }, 100);
+
+
   });
 
 });
