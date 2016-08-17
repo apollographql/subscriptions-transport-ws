@@ -2,10 +2,6 @@
 **(Work in progress!)**
 A GraphQL websocket server to facilitate GraphQL subscriptions.
 See the [websocket-integration branch](https://github.com/apollostack/GitHunt/branches) on GitHunt for example code.
-## The Goal
-Clients should be able to subscribe to certain queries. For each subscription, the server should send a result for a query subscription every client-specified polling interval. Possible applications include getting information about new comments or deleted comments.
-## How is this different from a live query system (Meteor's)?
-A GraphQL subscription system allows developers to specify exactly which data they want to look out for and how to handle that data. Meteor's live query system watches for all changes - this is hard to scale, because it gets more expensive as the number of possible data mutations grows.
 ## Client
 ### Constructor
 - `url: string` - url that the client will connect to
