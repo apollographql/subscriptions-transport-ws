@@ -1,9 +1,11 @@
-const W3CWebSocket = require('websocket').w3cwebsocket;
+import websocket = require('websocket');
+const W3CWebSocket = websocket['w3cwebsocket'];
 
 import {
   SUBSCRIPTION_FAIL,
   SUBSCRIPTION_DATA,
   SUBSCRIPTION_START,
+  SUBSCRIPTION_SUCCESS,
   SUBSCRIPTION_END,
 } from './messageTypes';
 
@@ -37,24 +39,28 @@ export default class Client {
       } catch (e) {
         throw new Error('Message must be JSON-parseable.');
       }
+      const subId = parsedMessage.id;
+      if (!this.subscriptionHandlers[subId]) {
+        this.unsubscribe(subId);
+        return;
+      }
       switch (parsedMessage.type) {
 
-        case SUBSCRIPTION_FAIL:
-          const delId = parsedMessage.id;
-          if (this.subscriptionHandlers[delId]) {
-            this.subscriptionHandlers[delId](parsedMessage.errors, null);
-          }
-          delete this.subscriptionHandlers[delId];
-          break;
+        case SUBSCRIPTION_SUCCESS:
+          // TODO: how to notify the handler that subscription succeeded?
+          this.subscriptionHandlers[subId](null, null);
 
+          break;
+        case SUBSCRIPTION_FAIL:
+          if (this.subscriptionHandlers[subId]) {
+            this.subscriptionHandlers[subId](parsedMessage.errors, null);
+          }
+          delete this.subscriptionHandlers[subId];
+
+          break;
         case SUBSCRIPTION_DATA:
-          const subId = parsedMessage.id;
-          if (parsedMessage.payload.data) {
-            if (this.subscriptionHandlers[subId]) {
-              this.subscriptionHandlers[subId](null, parsedMessage.payload.data); // pass data into data handler
-            } else {
-              this.unsubscribe(subId);
-            }
+          if (parsedMessage.payload.data && !parsedMessage.payload.errors) {
+              this.subscriptionHandlers[subId](null, parsedMessage.payload.data);
           } else {
             this.subscriptionHandlers[subId](parsedMessage.payload.errors, null);
           }
@@ -107,32 +113,24 @@ export default class Client {
   }
 
   public unsubscribe(id) {
-    switch (this.client.readyState) {
-
-      case this.client.OPEN:
+    delete this.subscriptionHandlers[id];
+    if (this.client.readyState === this.client.OPEN) {
         let message = { id: id, type: SUBSCRIPTION_END};
         this.sendMessage(message);
-        delete this.subscriptionHandlers[id];
-        break;
-
-      case this.client.CONNECTING:
-        throw new Error('Client is still connecting to websocket.');
-
-      case this.client.CLOSING:
-        throw new Error('Client websocket connection is closing.');
-
-      case this.client.CLOSED:
-        throw new Error('Client is not connected to a websocket.');
-
-      default:
-        throw new Error('Client is not connected to a websocket.');
     }
+  }
 
+  public unsubscribeAll() {
+    Object.keys(this.subscriptionHandlers).forEach( subId => {
+      this.unsubscribe(subId);
+    });
   }
 
   private sendMessage(message) {
     if (this.client.readyState === this.client.OPEN) {
       this.client.send(JSON.stringify(message));
+    } else {
+      throw new Error('Cannot send message. WebSocket connection is not open');
     }
   }
 

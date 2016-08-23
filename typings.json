@@ -1,10 +1,11 @@
 {
   "globalDependencies": {
     "es6-shim": "registry:dt/es6-shim#0.31.2+20160602141504",
+    "graphql": "github:nitintutlani/typed-graphql",
     "node": "registry:dt/node#6.0.0+20160807145350",
     "websocket": "registry:dt/websocket#0.0.0+20160720001629"
   },
   "dependencies": {
-    "graphql": "github:nitintutlani/typed-graphql"
+    "lodash": "registry:npm/lodash#4.0.0+20160723033700"
   }
 }

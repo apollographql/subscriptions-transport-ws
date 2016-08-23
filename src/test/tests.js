@@ -11,18 +11,19 @@ import {
   validate,
 } from 'graphql';
 
+import { SubscriptionManager } from 'graphql-subscriptions';
+
 import {
   SUBSCRIPTION_FAIL,
   SUBSCRIPTION_DATA,
   SUBSCRIPTION_START,
+  SUBSCRIPTION_SUCCESS,
   SUBSCRIPTION_END,
 } from '../messageTypes';
 
 import { createServer } from 'http';
 import Server from '../server';
 import Client from '../client';
-
-import { subscriptionHasSingleField } from '../validation';
 
 const data = {
   "1": {
@@ -39,14 +40,6 @@ const data = {
   }
 };
 
-const triggerGen = function(name, args, ctx) {
-  if ((name).startsWith('useInfo')) {
-    return [{name: 'mutation auto', filter: () => true}];
-  } else {
-    return [];
-  }
-}
-
 var userType = new GraphQLObjectType({
   name: 'User',
   fields: {
@@ -55,11 +48,15 @@ var userType = new GraphQLObjectType({
   }
 });
 
-var options = {};
-
 var schema = new GraphQLSchema({
   query: new GraphQLObjectType({
     name: 'Query',
+    fields: {
+      testString: { type: GraphQLString },
+    }
+  }),
+  subscription: new GraphQLObjectType({
+    name: 'Subscription',
     fields: {
       user: {
         type: userType,
@@ -74,13 +71,27 @@ var schema = new GraphQLSchema({
         resolve: function (_, args) {
           return data[args.id];
         }
-      }
+      },
+      error: { type: GraphQLString, resolve: () => { throw new Error('E1') } },
     }
   })
 });
 
-options.schema = schema;
-options.triggerGenerator = triggerGen;
+const subscriptionManager = new SubscriptionManager({
+  schema,
+  filters: {
+    'userInfoFilter1': options => {
+      return user => {
+        return user.id === options.variables.id;
+      }
+    },
+  }
+});
+
+var options = {
+  subscriptionManager,
+  onSubscribe: (msg, params) => params,
+};
 
 var httpServer = createServer(function(request, response) {
     response.writeHead(404);
@@ -91,96 +102,108 @@ httpServer.listen(8080, function() {
   console.log("Server is listening on port 8080");
 });
 var server = new Server(options, httpServer);
-var client = new Client('ws://localhost:8080/');
 
 
 describe('Client', function() {
 
-  it.skip('should call error handler when connection fails', function(done) {
-    var client_1 = new Client('ws://localhost:6000/');
-    client_1.openConnection((error) => {
-      assert(true);
-      done();
-    });
-  });
-
   it('removes subscription when it unsubscribes from it', function() {
-    let sub_id = client.subscribe({
-      query:
-      `query useInfo($id: String) {
-        user(id: $id) {
-          id
-          name
+    var client = new Client('ws://localhost:8080/');
+
+    setTimeout( () => {
+      let sub_id = client.subscribe({
+        query:
+        `subscription useInfo($id: String) {
+          user(id: $id) {
+            id
+            name
+          }
+        }`,
+        operationName: 'useInfo',
+        variables: {
+          id: 3
+        },
+        }, function(error, result) {
+          //do nothing
         }
-      }`,
-      operationName: 'useInfo',
-      variables: {
-        id: 3
-      },
-      }, function(error, result) {
-        //do nothing
-      }
-    );
-    client.unsubscribe(sub_id);
-    assert.notProperty(client.subscriptionHandlers, sub_id);
+      );
+      client.unsubscribe(sub_id);
+      assert.notProperty(client.subscriptionHandlers, sub_id);
+    }, 100);
   });
 
-  it.skip('should call error handler when graphql result has errors', function(done) {
+  it('should call error handler when graphql result has errors', function(done) {
+    var client = new Client('ws://localhost:8080/');
+
+    setTimeout( () => {
     let id = client.subscribe({
-      query:
-      `query useInfo($id: String) {
-        user(id: $id) {
-          id
-          name
+        query:
+        `subscription useInfo{
+          error
+        }`,
+        operationName: 'useInfo',
+        variables: {},
+        }, function(error, result) {
+          if (error){
+            client.unsubscribeAll();
+            done();
+          }
+          if (result) {
+            client.unsubscribeAll();
+            assert(false);
+          }
         }
-      }`,
-      operationName: 'useInfo',
-      variables: {
-        id: 6
-      },
-      }, function(error, result) {
-        client.unsubscribe(id);
-        done();
-      }
-    );
+      );
+    }, 100);
+    setTimeout( () => {
+      subscriptionManager.publish('useInfo', {});
+    }, 200);
   });
 });
 
 describe('Server', function() {
-  it('should accept multiple distinct connections', function() {
-    var client_1 = new Client('ws://localhost:8080/');
-    var client_2 = new Client('ws://localhost:8080/');
-    setTimeout(function() {
-      assert.notEqual(client_1, client_2);
-    }, 100);
-  });
 
   it('should send correct results to multiple clients with subscriptions', function(done) {
 
-    let id = client.subscribe({
-      query:
-      `query useInfo($id: String) {
-        user(id: $id) {
-          id
-          name
-        }
-      }`,
-      operationName: 'useInfo',
-      variables: {
-        id: 3
-      },
+    var client = new Client('ws://localhost:8080/');
+    let client1 = new Client('ws://localhost:8080');
 
-    }, function(error, result) {
-      assert.property(result, 'user');
-      assert.equal(result.user.id, '3');
-      assert.equal(result.user.name, 'Jessie');
-    });
+    let num_results = 0;
+    setTimeout( () => {
+      let id = client.subscribe({
+        query:
+        `subscription useInfo($id: String) {
+          user(id: $id) {
+            id
+            name
+          }
+        }`,
+        operationName: 'useInfo',
+        variables: {
+          id: 3
+        },
+
+      }, function(error, result) {
+        if (error) {
+          assert(false);
+        }
+        if (result) {
+          assert.property(result, 'user');
+          assert.equal(result.user.id, '3');
+          assert.equal(result.user.name, 'Jessie');
+          num_results++;
+        } else {
+          // pass
+        }
+        // if both error and result are null, this was a SUBSCRIPTION_SUCCESS message.
+      });
+    }, 100);
 
     var client_1 = new Client('ws://localhost:8080/');
+    let num_results_1 = 0;
     setTimeout(function() {
       let id_1 = client_1.subscribe({
         query:
-        `query useInfo($id: String) {
+        `subscription useInfo($id: String) {
           user(id: $id) {
             id
             name
@@ -193,19 +216,30 @@ describe('Server', function() {
 
       }, function(error, result) {
 
+      if (error) {
+        assert(false);
+      }
+      if (result) {
         assert.property(result, 'user');
         assert.equal(result.user.id, '2');
         assert.equal(result.user.name, 'Marie');
-        done();
+        num_results_1++;
+      }
+      // if both error and result are null, this was a SUBSCRIPTION_SUCCESS message.
       });
     }, 100);
 
     setTimeout(() => {
-      server.triggerAction({
-        name: 'mutation auto',
-        value: {},
-      });
-    }, 500);
+      subscriptionManager.publish('useInfo', {});
+    }, 200);
+
+    setTimeout(() => {
+      client.unsubscribeAll();
+      expect(num_results).to.equals(1);
+      client1.unsubscribeAll();
+      expect(num_results_1).to.equals(1);
+      done();
+    }, 300);
 
   });
 
@@ -215,12 +249,12 @@ describe('Server', function() {
       client_1.client.onmessage = (message) => {
         let message_data = JSON.parse(message.data);
         assert.equal(message_data.type, SUBSCRIPTION_FAIL);
-        assert.isAbove(message_data.errors.length, 0, 'Number of errors is greater than 0.');
+        assert.isAbove(message_data.payload.errors.length, 0, 'Number of errors is greater than 0.');
         done();
       };
       client_1.subscribe({
         query:
-        `query useInfo($id: String) {
+        `subscription useInfo($id: String) {
           user(id: $id) {
             id
             birthday
@@ -238,121 +272,72 @@ describe('Server', function() {
 
   });
 
- 
-
-  it.skip('should correctly distinguish between subscriptions with different properties', function(done) {
+  it('should set up the proper filters when subscribing', function(done) {
     let num_triggers = 0;
     var client_3 = new Client('ws://localhost:8080/');
     var client_4 = new Client('ws://localhost:8080/');
     setTimeout(() => {
       client_3.subscribe({
         query:
-          `query useInfo($id: String) {
+          `subscription userInfoFilter1($id: String) {
             user(id: $id) {
               id
               name
             }
           }`,
-          operationName: 'useInfo',
+          operationName: 'userInfoFilter1',
           variables: {
             id: 3
           },
           triggers: [{name: 'mutation bye', fortune_cookie: 'unlucky'}],
         }, (error, result) => {
-          num_triggers += 1;
-          assert.property(result, 'user');
-          assert.equal(result.user.id, '3');
-          assert.equal(result.user.name, 'Jessie');
+          if (error){
+            assert(false);
+          }
+          if (result) {
+            num_triggers += 1;
+            assert.property(result, 'user');
+            assert.equal(result.user.id, '3');
+            assert.equal(result.user.name, 'Jessie');
+          }
+          // both null means it's a SUBSCRIPTION_SUCCESS message
         }
       );
       client_4.subscribe({
         query:
-          `query useInfo($id: String) {
+          `subscription userInfoFilter1($id: String) {
             user(id: $id) {
               id
               name
             }
           }`,
-          operationName: 'useInfo',
-          variables: {
-            id: 1
-          },
-          triggers: [{name: 'mutation bye', fortune_cookie: 'lucky'}],
-        }, (error, result) => {
-          num_triggers += 1;
-          assert.property(result, 'user');
-          assert.equal(result.user.id, '1');
-          assert.equal(result.user.name, 'Dan');
-        }
-      );
-    }, 100);
-    setTimeout(() => {
-      server.triggerAction({
-        name: 'mutation bye',
-        fortune_cookie: 'lucky'
-      });
-    }, 500);
-    setTimeout(() => {
-      assert.equal(num_triggers, 1);
-      done();
-    }, 1000);
-  });
-
-  it.skip('should correctly generate triggers', function(done) {
-    let num_triggers = 0;
-    var client_3 = new Client('ws://localhost:8080/');
-    var client_4 = new Client('ws://localhost:8080/');
-    setTimeout(() => {
-      client_3.subscribe({
-        query:
-          `query useInfo($id: String) {
-            user(id: $id) {
-              id
-              name
-            }
-          }`,
-          operationName: 'useInfo',
-          variables: {
-            id: 3
-          },
-          triggers: [{name: 'mutation bye', fortune_cookie: 'unlucky'}],
-        }, (error, result) => {
-          assert(false);
-          num_triggers += 1;
-          assert.property(result, 'user');
-          assert.equal(result.user.id, '3');
-          assert.equal(result.user.name, 'Jessie');
-        }
-      );
-      client_4.subscribe({
-        query:
-          `query useInfo($id: String) {
-            user(id: $id) {
-              id
-              name
-            }
-          }`,
-          operationName: 'useInfo',
+          operationName: 'userInfoFilter1',
           variables: {
             id: 1
           },
         }, (error, result) => {
-          num_triggers += 1;
-          assert.property(result, 'user');
-          assert.equal(result.user.id, '1');
-          assert.equal(result.user.name, 'Dan');
+          if (result) {
+            num_triggers += 1;
+            assert.property(result, 'user');
+            assert.equal(result.user.id, '1');
+            assert.equal(result.user.name, 'Dan');
+          }
+          if (error) {
+            assert(false);
+          }
+          // both null means SUBSCRIPTION_SUCCESS
         }
       );
     }, 100);
     setTimeout(() => {
-      server.triggerAction({
-        name: 'mutation auto',
-      });
-    }, 500);
+      subscriptionManager.publish('userInfoFilter1', { id: 1 });
+      subscriptionManager.publish('userInfoFilter1', { id: 2 });
+      subscriptionManager.publish('userInfoFilter1', { id: 3 });
+    }, 200);
     setTimeout(() => {
-      assert.equal(num_triggers, 1);
+      assert.equal(num_triggers, 2);
       done();
-    }, 1000);
+    }, 300);
   });
 
   it('does not send more subscription data after client unsubscribes', function() {
@@ -360,7 +345,7 @@ describe('Server', function() {
     setTimeout(() => {
       let sub_id = client_4.subscribe({
         query:
-        `query useInfo($id: String) {
+        `subscription useInfo($id: String) {
           user(id: $id) {
             id
             name
@@ -375,142 +360,16 @@ describe('Server', function() {
         }
       );
       client_4.unsubscribe(sub_id);
-    }, 300);
+    }, 100);
+    setTimeout(() => {
+      subscriptionManager.publish('useInfo', {});
+    }, 200);
 
     client_4.client.onmessage = (message) => {
       if (JSON.parse(message.data).type === SUBSCRIPTION_DATA) {
         assert(false);
       }
     };
-  });
-
-  it('correctly deletes subscription data when client unsubscribes', function(done) {
-
-    let subId = client.subscribe({
-      query:
-      `query useInfoBla($id: String) {
-        user(id: $id) {
-          id
-          name
-        }
-      }`,
-      operationName: 'useInfoBla',
-      variables: {
-        id: 3
-      },
-      }, function(error, result) {
-        //do nothing
-      }
-    );
-    setTimeout(() => {
-      let filteredTriggers = server.triggers['mutation auto'].filter((subscriber) => {
-        return (subscriber.subscriptionArgs.operationName === 'useInfoBla' && subscriber.subId === subId);
-      });
-      assert.equal(filteredTriggers.length, 1);
-    }, 50);
-
-    setTimeout(() => {
-      client.unsubscribe(subId);
-    }, 50);
-
-    setTimeout(() => {
-
-      let filteredTriggers = server.triggers['mutation auto'].filter((subscriber) => {
-        return (subscriber.subscriptionArgs.operationName === 'useInfoBla' && subscriber.subId === subId);
-      });
-      assert.equal(filteredTriggers.length, 0);
-      done();
-    }, 100);
-
-
-  });
-
-});
-
-
-// ---------------------------------------------
-// validation tests ....
-
-// TODO: Gotta test it..
-
-const validationSchema = new GraphQLSchema({
-  query: new GraphQLObjectType({
-    name: 'Query',
-    fields: {
-      placeholder: { type: GraphQLString },
-    },
-  }),
-  subscription: new GraphQLObjectType({
-    name: 'Subscription',
-    fields: {
-      test1: { type: GraphQLString },
-      test2: { type: GraphQLString },
-    },
-  }),
-});
-
-describe('SubscriptionValidationRule', function() {
-  it('should allow a valid subscription', function() {
-    const sub = `subscription S1{
-      test1
-    }`;
-    const errors = validate(validationSchema, parse(sub), [subscriptionHasSingleField]);
-    expect(errors.length).to.equals(0);
-  });
-
-  it('should allow another valid subscription', function() {
-    const sub = `
-    subscription S1{
-      test1
-    }
-    subscription S2{
-      test2
-    }`;
-    const errors = validate(validationSchema, parse(sub), [subscriptionHasSingleField]);
-    expect(errors.length).to.equals(0);
-  });
-
-  it('should allow two valid subscription definitions', function() {
-    const sub = `subscription S2{
-      test2
-    }`;
-    const errors = validate(validationSchema, parse(sub), [subscriptionHasSingleField]);
-    expect(errors.length).to.equals(0);
-  });
-  
-  
-  it('should not allow two fields in the subscription', function() {
-    const sub = `subscription S3{
-      test1
-      test2
-    }`;
-    const errors = validate(validationSchema, parse(sub), [subscriptionHasSingleField]);
-    expect(errors.length).to.equals(1);
-    expect(errors[0].message).to.equals('Subscription "S3" must have only one field.');
-  });
-  
-  it('should not allow inline fragments', function() {
-    const sub = `subscription S4{
-      ... on Subscription {
-        test1
-      }
-    }`;
-    const errors = validate(validationSchema, parse(sub), [subscriptionHasSingleField]);
-    expect(errors.length).to.equals(1);
-    expect(errors[0].message).to.equals('Apollo subscriptions do not support fragments on the root field');
-  });
-  
-  it('should not allow named fragments', function() {
-    const sub = `subscription S5{
-      ...testFragment
-    }
-
-    fragment testFragment on Subscription{
-      test2
-    }`;
-    const errors = validate(validationSchema, parse(sub), [subscriptionHasSingleField]);
-    expect(errors.length).to.equals(1);
-    expect(errors[0].message).to.equals('Apollo subscriptions do not support fragments on the root field');
   });
 });
 

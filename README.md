@@ -51,8 +51,14 @@ Client sends this message to end a subscription.
 - `id: string` : subscription ID of the subscription to be terminated
 
 ### Server -> Client
+#### SUBSCRIPTION_SUCCESS
+The server sends this message to confirm that it has validated the subscription query and
+is subscribed to the triggers.
+- `id: string` : ID of the subscription that was successfully set up
+
 #### SUBSCRIPTION_FAIL
-Server sends this message upon failing to register a subscription.
+Server sends this message upon failing to register a subscription. It may also send this message
+at any point during the subscription to notify the client the the subscription has been stopped.
 - `errors: Array<Object>` : array of errors attributed to the subscription failing on the server
 - `id: string` : subscription ID of the subscription that failed on the server
 
@@ -60,4 +66,3 @@ Server sends this message upon failing to register a subscription.
 GraphQL result sent periodically from server to client according to subscription.
 - `payload: GraphQLResult` : GraphQL result from running the subscription
 - `id: string` : subscription ID
-
