@@ -6,7 +6,7 @@
   "dependencies": {
     "es6-promise": "^3.2.1",
     "graphql": "^0.6.2",
-    "graphql-subscriptions": "0.0.6",
+    "graphql-subscriptions": "0.0.8",
     "node-static": "0.5.9",
     "websocket": "^1.0.23"
   },

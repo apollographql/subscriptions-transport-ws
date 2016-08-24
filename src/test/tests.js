@@ -72,6 +72,15 @@ var schema = new GraphQLSchema({
           return data[args.id];
         }
       },
+      userFiltered: {
+        type: userType,
+        args: {
+          id: { type: GraphQLString }
+        },
+        resolve: function (_, args) {
+          return data[args.id];
+        }
+      },
       error: { type: GraphQLString, resolve: () => { throw new Error('E1') } },
     }
   })
@@ -79,12 +88,12 @@ var schema = new GraphQLSchema({
 
 const subscriptionManager = new SubscriptionManager({
   schema,
-  filters: {
-    'userInfoFilter1': options => {
-      return user => {
-        return user.id === options.variables.id;
-      }
-    },
+  setupFunctions: {
+    'userFiltered': (options, args) => ({
+      'userFiltered': user => {
+        return !args.id || user.id === args.id;
+      },
+    }),
   }
 });
 
@@ -155,7 +164,7 @@ describe('Client', function() {
       );
     }, 100);
     setTimeout( () => {
-      subscriptionManager.publish('useInfo', {});
+      subscriptionManager.publish('error', {});
     }, 200);
   });
 });
@@ -230,7 +239,7 @@ describe('Server', function() {
     }, 100);
 
     setTimeout(() => {
-      subscriptionManager.publish('useInfo', {});
+      subscriptionManager.publish('user', {});
     }, 200);
 
     setTimeout(() => {
@@ -280,7 +289,7 @@ describe('Server', function() {
       client_3.subscribe({
         query:
           `subscription userInfoFilter1($id: String) {
-            user(id: $id) {
+            userFiltered(id: $id) {
               id
               name
             }
@@ -289,16 +298,15 @@ describe('Server', function() {
           variables: {
             id: 3
           },
-          triggers: [{name: 'mutation bye', fortune_cookie: 'unlucky'}],
         }, (error, result) => {
           if (error){
             assert(false);
           }
           if (result) {
             num_triggers += 1;
-            assert.property(result, 'user');
-            assert.equal(result.user.id, '3');
-            assert.equal(result.user.name, 'Jessie');
+            assert.property(result, 'userFiltered');
+            assert.equal(result.userFiltered.id, '3');
+            assert.equal(result.userFiltered.name, 'Jessie');
           }
           // both null means it's a SUBSCRIPTION_SUCCESS message
         }
@@ -306,7 +314,7 @@ describe('Server', function() {
       client_4.subscribe({
         query:
           `subscription userInfoFilter1($id: String) {
-            user(id: $id) {
+            userFiltered(id: $id) {
               id
               name
             }
@@ -318,9 +326,9 @@ describe('Server', function() {
         }, (error, result) => {
           if (result) {
             num_triggers += 1;
-            assert.property(result, 'user');
-            assert.equal(result.user.id, '1');
-            assert.equal(result.user.name, 'Dan');
+            assert.property(result, 'userFiltered');
+            assert.equal(result.userFiltered.id, '1');
+            assert.equal(result.userFiltered.name, 'Dan');
           }
           if (error) {
             assert(false);
@@ -330,9 +338,9 @@ describe('Server', function() {
       );
     }, 100);
     setTimeout(() => {
-      subscriptionManager.publish('userInfoFilter1', { id: 1 });
-      subscriptionManager.publish('userInfoFilter1', { id: 2 });
-      subscriptionManager.publish('userInfoFilter1', { id: 3 });
+      subscriptionManager.publish('userFiltered', { id: 1 });
+      subscriptionManager.publish('userFiltered', { id: 2 });
+      subscriptionManager.publish('userFiltered', { id: 3 });
     }, 200);
     setTimeout(() => {
       assert.equal(num_triggers, 2);
@@ -362,7 +370,7 @@ describe('Server', function() {
       client_4.unsubscribe(sub_id);
     }, 100);
     setTimeout(() => {
-      subscriptionManager.publish('useInfo', {});
+      subscriptionManager.publish('user', {});
     }, 200);
 
     client_4.client.onmessage = (message) => {
