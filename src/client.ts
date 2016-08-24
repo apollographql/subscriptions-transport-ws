@@ -20,17 +20,23 @@ export interface SubscriptionOptions {
   operationName: string;
 }
 
+const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
+
 export default class Client {
 
   public client: any;
   public subscriptionHandlers: {[id: string]: (error, result) => void};
   private maxId: number;
+  private subscriptionTimeout: number;
+  private waitingSubscriptions: {[id: string]: boolean}; // subscriptions waiting for SUBSCRIPTION_SUCCESS
 
-  constructor(url: string) {
+  constructor(url: string, options?: { timeout: number }) {
 
     this.client = new W3CWebSocket(url, 'graphql-subscriptions');
     this.subscriptionHandlers = {}; // id: handler
     this.maxId = 0;
+    this.subscriptionTimeout = (options && options.timeout) || DEFAULT_SUBSCRIPTION_TIMEOUT;
+    this.waitingSubscriptions = {};
 
     this.client.onmessage = (message) => {
       let parsedMessage;
@@ -49,8 +55,7 @@ export default class Client {
       switch (parsedMessage.type) {
 
         case SUBSCRIPTION_SUCCESS:
-          // TODO: how to notify the handler that subscription succeeded?
-          this.subscriptionHandlers[subId](null, null);
+          delete this.waitingSubscriptions[subId];
 
           break;
         case SUBSCRIPTION_FAIL:
@@ -58,6 +63,7 @@ export default class Client {
             this.subscriptionHandlers[subId](parsedMessage.errors, null);
           }
           delete this.subscriptionHandlers[subId];
+          delete this.waitingSubscriptions[subId];
 
           break;
         case SUBSCRIPTION_DATA:
@@ -98,6 +104,13 @@ export default class Client {
         let message = Object.assign(options, {type: SUBSCRIPTION_START, id: subId});
         this.sendMessage(message);
         this.subscriptionHandlers[subId] = handler;
+        this.waitingSubscriptions[subId] = true;
+        setTimeout( () => {
+          if (this.waitingSubscriptions[subId]){
+            handler(new Error('Subscription timed out - no response from server'));
+            this.unsubscribe(subId);
+          }
+        }, this.subscriptionTimeout);
         return subId;
 
       case this.client.CONNECTING:

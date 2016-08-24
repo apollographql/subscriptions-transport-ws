@@ -161,6 +161,31 @@ describe('Client', function() {
       subscriptionManager.publish('error', {});
     }, 200);
   });
+
+  it('should throw an error when the susbcription times out', function(done) {
+    // hopefully 1ms is fast enough to time out before the server responds
+    const client = new Client('ws://localhost:8080/', { timeout: 1 });
+
+    setTimeout( () => {
+    client.subscribe({
+        query:
+        `subscription useInfo{
+          error
+        }`,
+        operationName: 'useInfo',
+        variables: {},
+        }, function(error, result) {
+          if (error) {
+            expect(error.message).to.equals('Subscription timed out - no response from server');
+            done();
+          }
+          if (result) {
+            assert(false);
+          }
+        }
+      );
+    }, 100);
+  });
 });
 
 describe('Server', function() {
