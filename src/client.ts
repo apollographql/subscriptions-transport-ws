@@ -14,7 +14,7 @@ import {
   isObject,
 } from 'lodash';
 
-interface SubscriptionOptions {
+export interface SubscriptionOptions {
   query: string;
   variables: Object;
   operationName: string;

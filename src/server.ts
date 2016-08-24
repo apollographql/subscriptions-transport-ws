@@ -31,7 +31,7 @@ interface SubscriptionData {
   operationName: string;
 }
 
-interface ServerOptions {
+export interface ServerOptions {
   subscriptionManager: SubscriptionManager;
   onSubscribe?: Function;
   // contextValue?: any;
