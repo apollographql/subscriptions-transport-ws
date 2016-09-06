@@ -9,7 +9,7 @@ import {
   GraphQLString,
 } from 'graphql';
 
-import { SubscriptionManager } from 'graphql-subscriptions';
+import { PubSub, SubscriptionManager } from 'graphql-subscriptions';
 
 import {
   SUBSCRIPTION_FAIL,
@@ -83,6 +83,7 @@ const schema = new GraphQLSchema({
 
 const subscriptionManager = new SubscriptionManager({
   schema,
+  pubsub: new PubSub(),
   setupFunctions: {
     'userFiltered': (options, args) => ({
       'userFiltered': user => {

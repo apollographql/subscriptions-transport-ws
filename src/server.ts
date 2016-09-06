@@ -116,16 +116,13 @@ class Server {
           };
 
           let graphqlSubId;
-          try {
-            graphqlSubId = this.subscriptionManager.subscribe( params );
-          } catch (e) {
+          this.subscriptionManager.subscribe( params ).then( graphqlSubId => {
+            connectionSubscriptions[subId] = graphqlSubId;
+            this.sendSubscriptionSuccess(connection, subId);
+          }).catch( e => {
             this.sendSubscriptionFail(connection, subId, { errors: e.errors });
             return;
-          }
-
-          connectionSubscriptions[subId] = graphqlSubId;
-
-          this.sendSubscriptionSuccess(connection, subId);
+          });
           break;
 
         case SUBSCRIPTION_END:
