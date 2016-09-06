@@ -37,7 +37,7 @@
     "babel-register": "^6.9.0",
     "casual-browserify": "^1.5.3",
     "chai": "^3.5.0",
-    "istanbul": "1.0.0-alpha.2",
+    "istanbul": "^1.0.0-alpha.2",
     "mocha": "^3.0.0",
     "remap-istanbul": "^0.6.4",
     "tslint": "^3.13.0",
