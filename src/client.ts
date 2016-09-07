@@ -16,8 +16,8 @@ import {
 
 export interface SubscriptionOptions {
   query: string;
-  variables: Object;
-  operationName: string;
+  variables?: Object;
+  operationName?: string;
 }
 
 const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
@@ -84,8 +84,8 @@ export default class Client {
   public subscribe(options: SubscriptionOptions, handler) {
     const { query, variables, operationName } = options;
 
-    if (!query || !variables || !operationName) {
-      throw new Error('Must provide `query`, `variables`, and `operationName` to subscribe.');
+    if (!query) {
+      throw new Error('Must provide `query` to subscribe.');
     }
 
     if (!handler) {
