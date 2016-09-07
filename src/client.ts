@@ -92,7 +92,12 @@ export default class Client {
       throw new Error('Must provide `handler` to subscribe.');
     }
 
-    if (!isString(query) || !isString(operationName) || !isObject(variables)) {
+    
+    if (
+      !isString(query) || 
+      ( operationName && !isString(operationName)) || 
+      ( variables && !isObject(variables))
+    ) {
       throw new Error('Incorrect option types to subscribe. `subscription` must be a string,' +
       '`operationName` must be a string, and `variables` must be an object.');
     }
