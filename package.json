@@ -11,6 +11,7 @@
     "es6-promise": "^3.2.1",
     "graphql": "^0.6.2",
     "graphql-subscriptions": "^0.1.0",
+    "lodash": "^4.15.0",
     "node-static": "0.5.9",
     "websocket": "^1.0.23"
   },
