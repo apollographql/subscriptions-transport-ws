@@ -29,6 +29,7 @@ export default class Client {
   private maxId: number;
   private subscriptionTimeout: number;
   private waitingSubscriptions: {[id: string]: boolean}; // subscriptions waiting for SUBSCRIPTION_SUCCESS
+  private unsentMessagesQueue: Array<any>; // queued messages while websocket is opening.
 
   constructor(url: string, options?: { timeout: number }) {
 
@@ -37,6 +38,16 @@ export default class Client {
     this.maxId = 0;
     this.subscriptionTimeout = (options && options.timeout) || DEFAULT_SUBSCRIPTION_TIMEOUT;
     this.waitingSubscriptions = {};
+
+
+    this.unsentMessagesQueue = [];
+
+    this.client.onopen = () => {
+      this.unsentMessagesQueue.forEach((message) => {
+          this.client.send(JSON.stringify(message));
+      });
+      this.unsentMessagesQueue = [];
+    }
 
     this.client.onmessage = (message) => {
       let parsedMessage;
@@ -102,42 +113,24 @@ export default class Client {
       '`operationName` must be a string, and `variables` must be an object.');
     }
 
-    switch (this.client.readyState) {
-
-      case this.client.OPEN:
-        const subId = this.generateSubscriptionId();
-        let message = Object.assign(options, {type: SUBSCRIPTION_START, id: subId});
-        this.sendMessage(message);
-        this.subscriptionHandlers[subId] = handler;
-        this.waitingSubscriptions[subId] = true;
-        setTimeout( () => {
-          if (this.waitingSubscriptions[subId]){
-            handler(new Error('Subscription timed out - no response from server'));
-            this.unsubscribe(subId);
-          }
-        }, this.subscriptionTimeout);
-        return subId;
-
-      case this.client.CONNECTING:
-        throw new Error('Client is still connecting to websocket.');
-
-      case this.client.CLOSING:
-        throw new Error('Client websocket connection is closing.');
-
-      case this.client.CLOSED:
-        throw new Error('Client is not connected to a websocket.');
-
-      default:
-        throw new Error('Client is not connected to a websocket.');
-    }
+      const subId = this.generateSubscriptionId();
+      let message = Object.assign(options, {type: SUBSCRIPTION_START, id: subId});
+      this.sendMessage(message);
+      this.subscriptionHandlers[subId] = handler;
+      this.waitingSubscriptions[subId] = true;
+      setTimeout( () => {
+        if (this.waitingSubscriptions[subId]){
+          handler(new Error('Subscription timed out - no response from server'));
+          this.unsubscribe(subId);
+        }
+      }, this.subscriptionTimeout);
+      return subId;
   }
 
   public unsubscribe(id) {
     delete this.subscriptionHandlers[id];
-    if (this.client.readyState === this.client.OPEN) {
-        let message = { id: id, type: SUBSCRIPTION_END};
-        this.sendMessage(message);
-    }
+    let message = { id: id, type: SUBSCRIPTION_END};
+    this.sendMessage(message);
   }
 
   public unsubscribeAll() {
@@ -146,11 +139,22 @@ export default class Client {
     });
   }
 
+  // send message, or queue it if connection is not open
   private sendMessage(message) {
-    if (this.client.readyState === this.client.OPEN) {
-      this.client.send(JSON.stringify(message));
-    } else {
-      throw new Error('Cannot send message. WebSocket connection is not open');
+    switch (this.client.readyState) {
+
+      case this.client.OPEN:
+        this.client.send(JSON.stringify(message));
+
+        break;
+      case this.client.CONNECTING:
+        this.unsentMessagesQueue.push(message);
+
+        break;
+      case this.client.CLOSING:
+      case this.client.CLOSED:
+      default:
+        throw new Error('Client is not connected to a websocket.');
     }
   }
 

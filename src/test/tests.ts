@@ -20,6 +20,8 @@ import { createServer } from 'http';
 import Server from '../server';
 import Client from '../client';
 
+const TEST_PORT = 4953;
+
 const data = {
   '1': {
     'id': '1',
@@ -103,15 +105,15 @@ const httpServer = createServer(function(request, response) {
     response.end();
   });
 
-httpServer.listen(8080, function() {
-  // console.log('Server is listening on port 8080');
+httpServer.listen(TEST_PORT, function() {
+  // console.log(`Server is listening on port ${TEST_PORT}`);
 });
 new Server(options, httpServer);
 
 describe('Client', function() {
 
   it('removes subscription when it unsubscribes from it', function() {
-    const client = new Client('ws://localhost:8080/');
+    const client = new Client(`ws://localhost:${TEST_PORT}/`);
 
     setTimeout( () => {
       let subId = client.subscribe({
@@ -135,8 +137,35 @@ describe('Client', function() {
     }, 100);
   });
 
+  it('queues messages while websocket is still connecting', function() {
+    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+
+    let subId = client.subscribe({
+      query:
+      `subscription useInfo($id: String) {
+        user(id: $id) {
+          id
+          name
+        }
+      }`,
+      operationName: 'useInfo',
+      variables: {
+        id: 3,
+      },
+      }, function(error, result) {
+        //do nothing
+      }
+    );
+    expect((client as any).unsentMessagesQueue.length).to.equals(1);
+    client.unsubscribe(subId);
+    expect((client as any).unsentMessagesQueue.length).to.equals(2);
+    setTimeout(() => {
+      expect((client as any).unsentMessagesQueue.length).to.equals(0);
+    }, 100);
+  });
+
   it('should call error handler when graphql result has errors', function(done) {
-    const client = new Client('ws://localhost:8080/');
+    const client = new Client(`ws://localhost:${TEST_PORT}/`);
 
     setTimeout( () => {
     client.subscribe({
@@ -144,7 +173,6 @@ describe('Client', function() {
         `subscription useInfo{
           error
         }`,
-        operationName: 'useInfo',
         variables: {},
         }, function(error, result) {
           if (error) {
@@ -165,7 +193,7 @@ describe('Client', function() {
 
   it('should throw an error when the susbcription times out', function(done) {
     // hopefully 1ms is fast enough to time out before the server responds
-    const client = new Client('ws://localhost:8080/', { timeout: 1 });
+    const client = new Client(`ws://localhost:${TEST_PORT}/`, { timeout: 1 });
 
     setTimeout( () => {
     client.subscribe({
@@ -193,8 +221,8 @@ describe('Server', function() {
 
   it('should send correct results to multiple clients with subscriptions', function(done) {
 
-    const client = new Client('ws://localhost:8080/');
-    let client1 = new Client('ws://localhost:8080');
+    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    let client1 = new Client(`ws://localhost:${TEST_PORT}/`);
 
     let numResults = 0;
     setTimeout( () => {
@@ -227,7 +255,7 @@ describe('Server', function() {
       });
     }, 100);
 
-    const client11 = new Client('ws://localhost:8080/');
+    const client11 = new Client(`ws://localhost:${TEST_PORT}/`);
     let numResults1 = 0;
     setTimeout(function() {
       client11.subscribe({
@@ -273,7 +301,7 @@ describe('Server', function() {
   });
 
   it('should send a subscription_fail message to client with invalid query', function(done) {
-    const client1 = new Client('ws://localhost:8080/');
+    const client1 = new Client(`ws://localhost:${TEST_PORT}/`);
     setTimeout(function() {
       client1.client.onmessage = (message) => {
         let messageData = JSON.parse(message.data);
@@ -303,8 +331,8 @@ describe('Server', function() {
 
   it('should set up the proper filters when subscribing', function(done) {
     let numTriggers = 0;
-    const client3 = new Client('ws://localhost:8080/');
-    const client4 = new Client('ws://localhost:8080/');
+    const client3 = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client4 = new Client(`ws://localhost:${TEST_PORT}/`);
     setTimeout(() => {
       client3.subscribe({
         query:
@@ -369,7 +397,7 @@ describe('Server', function() {
   });
 
   it('does not send more subscription data after client unsubscribes', function() {
-    const client4 = new Client('ws://localhost:8080/');
+    const client4 = new Client(`ws://localhost:${TEST_PORT}/`);
     setTimeout(() => {
       let subId = client4.subscribe({
         query:
