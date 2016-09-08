@@ -107,7 +107,10 @@ class Server {
             formatError: undefined,
             callback: undefined,
           };
-          params = this.onSubscribe(parsedMessage, params) || params;
+
+          if (this.onSubscribe){
+            params = this.onSubscribe(parsedMessage, params);
+          }
 
           // create a callback
           params['callback'] = (errors, data) => {
