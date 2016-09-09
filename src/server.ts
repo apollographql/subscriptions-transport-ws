@@ -75,9 +75,18 @@ class Server {
 
       const connectionSubscriptions = {};
       connection.on('message', this.onMessage(connection, connectionSubscriptions));
+      connection.on('close', this.onClose(connection, connectionSubscriptions));
     });
+  }
 
-    //TODO: on close, clean everything up!
+  // TODO test that this actually works
+  private onClose(connection, connectionSubscriptions) {
+    return () => {
+      Object.keys(connectionSubscriptions).forEach( (subId) => {
+        this.subscriptionManager.unsubscribe(connectionSubscriptions[subId]);
+        delete connectionSubscriptions[subId];
+      });
+    }
   }
 
   private onMessage(connection, connectionSubscriptions) {
@@ -110,6 +119,13 @@ class Server {
 
           if (this.onSubscribe){
             params = this.onSubscribe(parsedMessage, params);
+          }
+
+          // if we already have a subscription with this id, unsubscribe from it first
+          // TODO: test that this actually works
+          if (connectionSubscriptions[subId]) {
+            this.subscriptionManager.unsubscribe(connectionSubscriptions[subId]);
+            delete connectionSubscriptions[subId];
           }
 
           // create a callback
