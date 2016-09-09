@@ -18,6 +18,7 @@ export interface SubscriptionOptions {
   query: string;
   variables?: Object;
   operationName?: string;
+  context?: any;
 }
 
 const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
@@ -93,7 +94,7 @@ export default class Client {
   }
 
   public subscribe(options: SubscriptionOptions, handler) {
-    const { query, variables, operationName } = options;
+    const { query, variables, operationName, context } = options;
 
     if (!query) {
       throw new Error('Must provide `query` to subscribe.');
@@ -144,6 +145,7 @@ export default class Client {
     switch (this.client.readyState) {
 
       case this.client.OPEN:
+        // TODO: throw error if message isn't json serializable?
         this.client.send(JSON.stringify(message));
 
         break;

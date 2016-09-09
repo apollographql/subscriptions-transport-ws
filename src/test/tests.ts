@@ -78,6 +78,12 @@ const schema = new GraphQLSchema({
           return data[id];
         },
       },
+      context: {
+        type: GraphQLString,
+        resolve: (root, args, ctx) => {
+          return ctx;
+        },
+      },
       error: { type: GraphQLString, resolve: () => { throw new Error('E1'); } },
     },
   }),
@@ -97,7 +103,9 @@ const subscriptionManager = new SubscriptionManager({
 
 const options = {
   subscriptionManager,
-  onSubscribe: (msg, params) => params,
+  onSubscribe: (msg, params) => {
+    return Object.assign({}, params, { context: msg.context });
+  },
 };
 
 const httpServer = createServer(function(request, response) {
@@ -394,6 +402,32 @@ describe('Server', function() {
       assert.equal(numTriggers, 2);
       done();
     }, 300);
+  });
+
+  it('correctly sets the context in onSubscribe', function(done) {
+    const CTX = 'testContext';
+    const client3 = new Client(`ws://localhost:${TEST_PORT}/`);
+    client3.subscribe({
+      query:
+        `subscription context {
+          context
+        }`,
+        variables: { },
+        context: CTX,
+      }, (error, result) => {
+        if (error) {
+          assert(false);
+        }
+        if (result) {
+          assert.property(result, 'context');
+          assert.equal(result.context, CTX);
+        }
+        done();
+      }
+    );
+    setTimeout(() => {
+      subscriptionManager.publish('context', {});
+    }, 100);
   });
 
   it('does not send more subscription data after client unsubscribes', function() {
