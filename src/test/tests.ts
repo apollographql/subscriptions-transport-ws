@@ -17,8 +17,10 @@ import {
 } from '../messageTypes';
 
 import { createServer } from 'http';
-import Server from '../server';
+import SubscriptionServer from '../server';
 import Client from '../client';
+
+
 
 const TEST_PORT = 4953;
 
@@ -116,7 +118,7 @@ const httpServer = createServer(function(request, response) {
 httpServer.listen(TEST_PORT, function() {
   // console.log(`Server is listening on port ${TEST_PORT}`);
 });
-new Server(options, httpServer);
+new SubscriptionServer(options, httpServer);
 
 describe('Client', function() {
 
