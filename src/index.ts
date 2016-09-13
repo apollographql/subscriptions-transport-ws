@@ -1,3 +1,3 @@
 import Client from './client';
-import Server from './server';
-export { Server, Client };
+import SubscriptionServer from './server';
+export { SubscriptionServer, Client };
