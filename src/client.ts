@@ -72,7 +72,7 @@ export default class Client {
           break;
         case SUBSCRIPTION_FAIL:
           if (this.subscriptionHandlers[subId]) {
-            this.subscriptionHandlers[subId](parsedMessage.errors, null);
+            this.subscriptionHandlers[subId](parsedMessage.payload.errors, null);
           }
           delete this.subscriptionHandlers[subId];
           delete this.waitingSubscriptions[subId];
