@@ -201,6 +201,28 @@ describe('Client', function() {
     }, 200);
   });
 
+  it('should call error handler when graphql query is not valid', function(done) {
+    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+
+    setTimeout( () => {
+    client.subscribe({
+        query:
+        `subscription useInfo{
+          invalid
+        }`,
+        variables: {},
+      }, function(error, result) {
+          if (error) {
+            expect(error[0].message).to.equals('Cannot query field "invalid" on type "Subscription".');
+            done();
+          } else {
+            assert(false);
+          }
+        }
+      );
+    }, 100);
+  });
+
   it('should throw an error when the susbcription times out', function(done) {
     // hopefully 1ms is fast enough to time out before the server responds
     const client = new Client(`ws://localhost:${TEST_PORT}/`, { timeout: 1 });
