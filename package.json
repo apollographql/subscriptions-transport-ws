@@ -8,7 +8,6 @@
     "url": "git+https://github.com/apollostack/subscriptions-transport-ws.git"
   },
   "dependencies": {
-    "babel-polyfill": "^6.13.0",
     "es6-promise": "^3.2.1",
     "graphql-subscriptions": "^0.1.3",
     "lodash": "^4.15.0",
