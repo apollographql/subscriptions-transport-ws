@@ -9,10 +9,8 @@ import {
   SUBSCRIPTION_END,
 } from './messageTypes';
 
-import {
-  isString,
-  isObject,
-} from 'lodash';
+import isString = require('lodash.isstring');
+import isObject = require('lodash.isobject');
 
 export interface SubscriptionOptions {
   query: string;
