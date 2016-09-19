@@ -10,7 +10,8 @@
     "allowSyntheticDefaultImports": true,
     "pretty": true,
     "removeComments": true,
-    "declaration": true
+    "declaration": true ,
+    "lib": ["es6"]
   },
   "exclude": [
     "node_modules",
