@@ -20,11 +20,12 @@ import { createServer } from 'http';
 import SubscriptionServer from '../server';
 import Client from '../client';
 
-
+import { SubscribeMessage } from '../server';
+import { SubscriptionOptions } from 'graphql-subscriptions/dist/pubsub';
 
 const TEST_PORT = 4953;
 
-const data = {
+const data: { [key: string]: { [key: string]: string } } = {
   '1': {
     'id': '1',
     'name': 'Dan',
@@ -95,9 +96,9 @@ const subscriptionManager = new SubscriptionManager({
   schema,
   pubsub: new PubSub(),
   setupFunctions: {
-    'userFiltered': (options, args) => ({
-      'userFiltered': user => {
-        return !args.id || user.id === args.id;
+    'userFiltered': (options: SubscriptionOptions, args: { [key: string]: any }) => ({
+      'userFiltered': (user: any) => {
+        return !args['id'] || user.id === args['id'];
       },
     }),
   },
@@ -105,8 +106,8 @@ const subscriptionManager = new SubscriptionManager({
 
 const options = {
   subscriptionManager,
-  onSubscribe: (msg, params) => {
-    return Object.assign({}, params, { context: msg.context });
+  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions) => {
+      return Object.assign({}, params, { context: msg['context'] });
   },
 };
 
@@ -211,7 +212,7 @@ describe('Client', function() {
           invalid
         }`,
         variables: {},
-      }, function(error, result) {
+      }, function(error: Error[], result: any) {
           if (error) {
             expect(error[0].message).to.equals('Cannot query field "invalid" on type "Subscription".');
             done();
@@ -237,7 +238,7 @@ describe('Client', function() {
         variables: {},
         }, function(error, result) {
           if (error) {
-            expect(error.message).to.equals('Subscription timed out - no response from server');
+            expect(error[0].message).to.equals('Subscription timed out - no response from server');
             done();
           }
           if (result) {
@@ -335,7 +336,7 @@ describe('Server', function() {
   it('should send a subscription_fail message to client with invalid query', function(done) {
     const client1 = new Client(`ws://localhost:${TEST_PORT}/`);
     setTimeout(function() {
-      client1.client.onmessage = (message) => {
+      client1.client.onmessage = (message: any) => {
         let messageData = JSON.parse(message.data);
         assert.equal(messageData.type, SUBSCRIPTION_FAIL);
         assert.isAbove(messageData.payload.errors.length, 0, 'Number of errors is greater than 0.');
@@ -479,12 +480,10 @@ describe('Server', function() {
       subscriptionManager.publish('user', {});
     }, 200);
 
-    client4.client.onmessage = (message) => {
+    client4.client.onmessage = (message: any) => {
       if (JSON.parse(message.data).type === SUBSCRIPTION_DATA) {
         assert(false);
       }
     };
   });
 });
-
-

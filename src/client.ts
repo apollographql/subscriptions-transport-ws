@@ -1,5 +1,5 @@
-import websocket = require('websocket');
-const W3CWebSocket = websocket['w3cwebsocket'];
+import * as websocket from 'websocket';
+const W3CWebSocket = (websocket as { [key: string]: any })['w3cwebsocket'];
 
 import {
   SUBSCRIPTION_FAIL,
@@ -26,7 +26,7 @@ const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
 export default class Client {
 
   public client: any;
-  public subscriptionHandlers: {[id: string]: (error, result) => void};
+  public subscriptionHandlers: {[id: string]: (error: Error[], result?: any) => void};
   private maxId: number;
   private subscriptionTimeout: number;
   private waitingSubscriptions: {[id: string]: boolean}; // subscriptions waiting for SUBSCRIPTION_SUCCESS
@@ -40,7 +40,6 @@ export default class Client {
     this.subscriptionTimeout = (options && options.timeout) || DEFAULT_SUBSCRIPTION_TIMEOUT;
     this.waitingSubscriptions = {};
 
-
     this.unsentMessagesQueue = [];
 
     this.client.onopen = () => {
@@ -50,8 +49,8 @@ export default class Client {
       this.unsentMessagesQueue = [];
     }
 
-    this.client.onmessage = (message) => {
-      let parsedMessage;
+    this.client.onmessage = (message: { data: string }) => {
+      let parsedMessage: any;
       try {
         parsedMessage = JSON.parse(message.data);
       } catch (e) {
@@ -93,7 +92,7 @@ export default class Client {
     };
   }
 
-  public subscribe(options: SubscriptionOptions, handler) {
+  public subscribe(options: SubscriptionOptions, handler: (error: Error[], result?: any) => void) {
     const { query, variables, operationName, context } = options;
 
     if (!query) {
@@ -104,10 +103,9 @@ export default class Client {
       throw new Error('Must provide `handler` to subscribe.');
     }
 
-    
     if (
-      !isString(query) || 
-      ( operationName && !isString(operationName)) || 
+      !isString(query) ||
+      ( operationName && !isString(operationName)) ||
       ( variables && !isObject(variables))
     ) {
       throw new Error('Incorrect option types to subscribe. `subscription` must be a string,' +
@@ -121,14 +119,14 @@ export default class Client {
       this.waitingSubscriptions[subId] = true;
       setTimeout( () => {
         if (this.waitingSubscriptions[subId]){
-          handler(new Error('Subscription timed out - no response from server'));
+          handler([new Error('Subscription timed out - no response from server')]);
           this.unsubscribe(subId);
         }
       }, this.subscriptionTimeout);
       return subId;
   }
 
-  public unsubscribe(id) {
+  public unsubscribe(id: number) {
     delete this.subscriptionHandlers[id];
     let message = { id: id, type: SUBSCRIPTION_END};
     this.sendMessage(message);
@@ -136,12 +134,12 @@ export default class Client {
 
   public unsubscribeAll() {
     Object.keys(this.subscriptionHandlers).forEach( subId => {
-      this.unsubscribe(subId);
+      this.unsubscribe(parseInt(subId));
     });
   }
 
   // send message, or queue it if connection is not open
-  private sendMessage(message) {
+  private sendMessage(message: Object) {
     switch (this.client.readyState) {
 
       case this.client.OPEN:
