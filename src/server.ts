@@ -109,7 +109,7 @@ class Server {
       switch (parsedMessage.type) {
 
         case SUBSCRIPTION_START:
-          let params: SubscriptionOptions = {
+          const baseParams: SubscriptionOptions = {
             query: parsedMessage.query,
             variables: parsedMessage.variables,
             operationName: parsedMessage.operationName,
@@ -118,9 +118,10 @@ class Server {
             formatError: undefined,
             callback: undefined,
           };
+          let promisedParams = Promise.resolve(baseParams);
 
           if (this.onSubscribe){
-            params = this.onSubscribe(parsedMessage, params);
+            promisedParams = Promise.resolve(this.onSubscribe(parsedMessage, baseParams));
           }
 
           // if we already have a subscription with this id, unsubscribe from it first
@@ -130,13 +131,14 @@ class Server {
             delete connectionSubscriptions[subId];
           }
 
-          // create a callback
-          params['callback'] = (errors: Error[], data: any) => {
-            // TODO: we don't do anything with errors
-            this.sendSubscriptionData(connection, subId, data);
-          };
-
-          this.subscriptionManager.subscribe( params ).then( (graphqlSubId: number) => {
+          promisedParams.then( params => {
+            // create a callback
+            params['callback'] = (errors: Error[], data: any) => {
+              // TODO: we don't do anything with errors
+              this.sendSubscriptionData(connection, subId, data);
+            };
+            return this.subscriptionManager.subscribe( params );
+          }).then((graphqlSubId: number) => {
             connectionSubscriptions[subId] = graphqlSubId;
             this.sendSubscriptionSuccess(connection, subId);
           }).catch( e => {
@@ -157,7 +159,6 @@ class Server {
         default:
           throw new Error('Invalid message type. Message type must be `subscription_start` or `subscription_end`.');
       }
-
     };
   }
 
