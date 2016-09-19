@@ -7,11 +7,18 @@
     "noImplicitAny": true,
     "rootDir": "./src",
     "outDir": "./dist",
-    "allowSyntheticDefaultImports": true,
+    "allowSyntheticDefaultImports": false,
     "pretty": true,
     "removeComments": true,
     "declaration": true ,
-    "lib": ["es6"]
+    "lib": ["es6"],
+    "typeRoots": [
+        "node_modules/@types"
+    ],
+    "types": [
+        "@types/node",
+        "typed-graphql"
+    ]
   },
   "exclude": [
     "node_modules",

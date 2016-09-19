@@ -1,5 +1,3 @@
-/// <reference types="typed-graphql" />
-
 declare module 'lodash.isobject' {
   import {isObject} from 'lodash';
   export = isObject;

@@ -1,3 +1,4 @@
+import 'mocha';
 import {
   assert,
   expect,
