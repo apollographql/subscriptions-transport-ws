@@ -1,5 +1,7 @@
 import {
   server as WebSocketServer, // these are NOT the correct typings!
+  connection as Connection,
+  IMessage,
 } from 'websocket';
 
 import {
@@ -11,13 +13,13 @@ import {
 } from './messageTypes';
 
 import { SubscriptionManager } from 'graphql-subscriptions';
+import { SubscriptionOptions } from 'graphql-subscriptions/dist/pubsub';
+import { Server as HttpServer} from 'http';
 
-interface Connection {
-  // define a websocket connection here?
-  sendUTF: Function;
-}
+type ConnectionSubscriptions = { [subId: string]: number };
 
-interface SubscribeMessage {
+export interface SubscribeMessage {
+  [key: string]: any, // any extention that will come with the message.
   query?: string;
   variables?: { [key: string]: any };
   operationName?: string;
@@ -52,7 +54,7 @@ class Server {
   private wsServer: WebSocketServer;
   private subscriptionManager: SubscriptionManager;
 
-  constructor(options: ServerOptions, httpServer) {
+  constructor(options: ServerOptions, httpServer: HttpServer) {
     const { subscriptionManager, onSubscribe } = options;
 
     if (!subscriptionManager) {
@@ -71,16 +73,16 @@ class Server {
 
     this.wsServer.on('request', (request) => {
       // accept connection
-      const connection = request.accept('graphql-subscriptions', request.origin);
+      const connection: Connection = request.accept('graphql-subscriptions', request.origin);
 
-      const connectionSubscriptions = {};
+      const connectionSubscriptions: ConnectionSubscriptions = {};
       connection.on('message', this.onMessage(connection, connectionSubscriptions));
       connection.on('close', this.onClose(connection, connectionSubscriptions));
     });
   }
 
   // TODO test that this actually works
-  private onClose(connection, connectionSubscriptions) {
+  private onClose(connection: Connection, connectionSubscriptions: ConnectionSubscriptions) {
     return () => {
       Object.keys(connectionSubscriptions).forEach( (subId) => {
         this.subscriptionManager.unsubscribe(connectionSubscriptions[subId]);
@@ -89,8 +91,8 @@ class Server {
     }
   }
 
-  private onMessage(connection, connectionSubscriptions) {
-    return  (message) => {
+  private onMessage(connection: Connection, connectionSubscriptions: ConnectionSubscriptions) {
+    return  (message: IMessage) => {
       let parsedMessage: SubscribeMessage;
       try {
         parsedMessage = JSON.parse(message.utf8Data);
@@ -107,7 +109,7 @@ class Server {
       switch (parsedMessage.type) {
 
         case SUBSCRIPTION_START:
-          let params = {
+          let params: SubscriptionOptions = {
             query: parsedMessage.query,
             variables: parsedMessage.variables,
             operationName: parsedMessage.operationName,
@@ -129,13 +131,12 @@ class Server {
           }
 
           // create a callback
-          params['callback'] = (errors, data) => {
+          params['callback'] = (errors: Error[], data: any) => {
             // TODO: we don't do anything with errors
             this.sendSubscriptionData(connection, subId, data);
           };
 
-          let graphqlSubId;
-          this.subscriptionManager.subscribe( params ).then( graphqlSubId => {
+          this.subscriptionManager.subscribe( params ).then( (graphqlSubId: number) => {
             connectionSubscriptions[subId] = graphqlSubId;
             this.sendSubscriptionSuccess(connection, subId);
           }).catch( e => {
