@@ -39,6 +39,7 @@ export interface ServerOptions {
   subscriptionManager: SubscriptionManager;
   onSubscribe?: Function;
   keepAlive?: number;
+  onUnsubscribe?: Function;
   // contextValue?: any;
   // rootValue?: any;
   // formatResponse?: (Object) => Object;
@@ -54,11 +55,12 @@ interface TriggerAction {
 
 class Server {
   private onSubscribe: Function;
+  private onUnsubscribe: Function;
   private wsServer: WebSocketServer;
   private subscriptionManager: SubscriptionManager;
 
   constructor(options: ServerOptions, httpServer: HttpServer) {
-    const { subscriptionManager, onSubscribe, keepAlive } = options;
+    const { subscriptionManager, onSubscribe, onUnsubscribe, keepAlive } = options;
 
     if (!subscriptionManager) {
       throw new Error('Must provide `subscriptionManager` to websocket server constructor.');
@@ -66,6 +68,7 @@ class Server {
 
     this.subscriptionManager = subscriptionManager;
     this.onSubscribe = onSubscribe;
+    this.onUnsubscribe = onUnsubscribe;
 
     // init and connect websocket server to http
     this.wsServer = new WebSocketServer({
@@ -104,6 +107,9 @@ class Server {
   private onClose(connection: Connection, connectionSubscriptions: ConnectionSubscriptions) {
     return () => {
       Object.keys(connectionSubscriptions).forEach( (subId) => {
+        if (this.onUnsubscribe) {
+          this.onUnsubscribe(connectionSubscriptions[subId], subId);
+        }
         this.subscriptionManager.unsubscribe(connectionSubscriptions[subId]);
         delete connectionSubscriptions[subId];
       });
@@ -140,7 +146,7 @@ class Server {
           let promisedParams = Promise.resolve(baseParams);
 
           if (this.onSubscribe){
-            promisedParams = Promise.resolve(this.onSubscribe(parsedMessage, baseParams));
+            promisedParams = Promise.resolve(this.onSubscribe(parsedMessage, baseParams, subId));
           }
 
           // if we already have a subscription with this id, unsubscribe from it first
