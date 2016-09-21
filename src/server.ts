@@ -11,6 +11,7 @@ import {
   SUBSCRIPTION_END,
   SUBSCRIPTION_SUCCESS,
 } from './messageTypes';
+import { GRAPHQL_SUBSCRIPTIONS } from './protocols';
 
 import { SubscriptionManager } from 'graphql-subscriptions';
 import { SubscriptionOptions } from 'graphql-subscriptions/dist/pubsub';
@@ -72,8 +73,13 @@ class Server {
     });
 
     this.wsServer.on('request', (request) => {
+      if (request.requestedProtocols.indexOf(GRAPHQL_SUBSCRIPTIONS) === -1) {
+        request.reject(400, 'Unsupported protocol.');
+        return;
+      }
+
       // accept connection
-      const connection: Connection = request.accept('graphql-subscriptions', request.origin);
+      const connection: Connection = request.accept(GRAPHQL_SUBSCRIPTIONS, request.origin);
 
       const connectionSubscriptions: ConnectionSubscriptions = {};
       connection.on('message', this.onMessage(connection, connectionSubscriptions));

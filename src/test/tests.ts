@@ -24,6 +24,9 @@ import Client from '../client';
 import { SubscribeMessage } from '../server';
 import { SubscriptionOptions } from 'graphql-subscriptions/dist/pubsub';
 
+import * as websocket from 'websocket';
+const W3CWebSocket = (websocket as { [key: string]: any })['w3cwebsocket'];
+
 const TEST_PORT = 4953;
 
 const data: { [key: string]: { [key: string]: string } } = {
@@ -485,6 +488,13 @@ describe('Server', function() {
       if (JSON.parse(message.data).type === SUBSCRIPTION_DATA) {
         assert(false);
       }
+    };
+  });
+
+  it('rejects a client that does not specify a supported protocol', function(done) {
+    const client = new W3CWebSocket(`ws://localhost:${TEST_PORT}/`);
+    client.onerror = (message: any) => {
+      done();
     };
   });
 });
