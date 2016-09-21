@@ -8,6 +8,7 @@ import {
   SUBSCRIPTION_SUCCESS,
   SUBSCRIPTION_END,
 } from './messageTypes';
+import { GRAPHQL_SUBSCRIPTIONS } from './protocols';
 
 import isString = require('lodash.isstring');
 import isObject = require('lodash.isobject');
@@ -32,7 +33,7 @@ export default class Client {
 
   constructor(url: string, options?: { timeout: number }) {
 
-    this.client = new W3CWebSocket(url, 'graphql-subscriptions');
+    this.client = new W3CWebSocket(url, GRAPHQL_SUBSCRIPTIONS);
     this.subscriptionHandlers = {}; // id: handler
     this.maxId = 0;
     this.subscriptionTimeout = (options && options.timeout) || DEFAULT_SUBSCRIPTION_TIMEOUT;
