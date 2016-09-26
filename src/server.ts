@@ -10,6 +10,7 @@ import {
   SUBSCRIPTION_START,
   SUBSCRIPTION_END,
   SUBSCRIPTION_SUCCESS,
+  SUBSCRIPTION_KEEPALIVE,
 } from './messageTypes';
 import { GRAPHQL_SUBSCRIPTIONS } from './protocols';
 
@@ -37,6 +38,7 @@ interface SubscriptionData {
 export interface ServerOptions {
   subscriptionManager: SubscriptionManager;
   onSubscribe?: Function;
+  keepAlive?: number;
   // contextValue?: any;
   // rootValue?: any;
   // formatResponse?: (Object) => Object;
@@ -56,7 +58,7 @@ class Server {
   private subscriptionManager: SubscriptionManager;
 
   constructor(options: ServerOptions, httpServer: HttpServer) {
-    const { subscriptionManager, onSubscribe } = options;
+    const { subscriptionManager, onSubscribe, keepAlive } = options;
 
     if (!subscriptionManager) {
       throw new Error('Must provide `subscriptionManager` to websocket server constructor.');
@@ -80,6 +82,17 @@ class Server {
 
       // accept connection
       const connection: Connection = request.accept(GRAPHQL_SUBSCRIPTIONS, request.origin);
+
+      // Regular keep alive messages if keepAlive is set
+      if (keepAlive) {
+        const keepAliveTimer = setInterval(() => {
+          if (connection && connection.state === 'open') {
+            this.sendKeepAlive(connection);
+          } else {
+            clearInterval(keepAliveTimer);
+          }
+        }, keepAlive);
+      }
 
       const connectionSubscriptions: ConnectionSubscriptions = {};
       connection.on('message', this.onMessage(connection, connectionSubscriptions));
@@ -197,5 +210,12 @@ class Server {
     connection.sendUTF(JSON.stringify(message));
   }
 
+  private sendKeepAlive(connection: Connection): void {
+    let message = {
+      type: SUBSCRIPTION_KEEPALIVE,
+    };
+
+    connection.sendUTF(JSON.stringify(message));
+  }
 }
 export default Server;

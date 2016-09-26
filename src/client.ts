@@ -7,6 +7,7 @@ import {
   SUBSCRIPTION_START,
   SUBSCRIPTION_SUCCESS,
   SUBSCRIPTION_END,
+  SUBSCRIPTION_KEEPALIVE,
 } from './messageTypes';
 import { GRAPHQL_SUBSCRIPTIONS } from './protocols';
 
@@ -56,7 +57,7 @@ export default class Client {
         throw new Error('Message must be JSON-parseable.');
       }
       const subId = parsedMessage.id;
-      if (!this.subscriptionHandlers[subId]) {
+      if (parsedMessage.type !== SUBSCRIPTION_KEEPALIVE && !this.subscriptionHandlers[subId]) {
         this.unsubscribe(subId);
         return;
       }
@@ -84,8 +85,11 @@ export default class Client {
           }
           break;
 
+        case SUBSCRIPTION_KEEPALIVE:
+          break;
+
         default:
-          throw new Error('Invalid message type - must be of type `subscription_start` or `subscription_data`.');
+          throw new Error('Invalid message type - must be of type `subscription_start`, `subscription_data` or `subscription_keepalive`.');
       }
 
     };
