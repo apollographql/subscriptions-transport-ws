@@ -15,7 +15,12 @@ import { PubSub, SubscriptionManager } from 'graphql-subscriptions';
 import {
   SUBSCRIPTION_FAIL,
   SUBSCRIPTION_DATA,
+  SUBSCRIPTION_KEEPALIVE,
 } from '../messageTypes';
+
+import {
+  GRAPHQL_SUBSCRIPTIONS,
+} from '../protocols';
 
 import { createServer } from 'http';
 import SubscriptionServer from '../server';
@@ -124,6 +129,14 @@ httpServer.listen(TEST_PORT, function() {
   // console.log(`Server is listening on port ${TEST_PORT}`);
 });
 new SubscriptionServer(options, httpServer);
+
+const httpServerWithKA = createServer(function(request, response) {
+    response.writeHead(404);
+    response.end();
+  });
+
+httpServerWithKA.listen(TEST_PORT + 1);
+new SubscriptionServer(Object.assign({}, options, {keepAlive: 10}), httpServerWithKA);
 
 describe('Client', function() {
 
@@ -495,6 +508,21 @@ describe('Server', function() {
     const client = new W3CWebSocket(`ws://localhost:${TEST_PORT}/`);
     client.onerror = (message: any) => {
       done();
+    };
+  });
+
+  it('sends a keep alive signal in the socket', function(done) {
+    let client = new W3CWebSocket(`ws://localhost:${TEST_PORT + 1}/`, GRAPHQL_SUBSCRIPTIONS);
+    let yieldCount = 0;
+    client.onmessage = (message: any) => {
+      const parsedMessage = JSON.parse(message.data);
+      if (parsedMessage.type === SUBSCRIPTION_KEEPALIVE) {
+        yieldCount += 1;
+        if (yieldCount > 1) {
+          client.close();
+          done();
+        }
+      }
     };
   });
 });

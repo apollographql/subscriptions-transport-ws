@@ -83,27 +83,25 @@ class Server {
       // accept connection
       const connection: Connection = request.accept(GRAPHQL_SUBSCRIPTIONS, request.origin);
 
-      let keepAliveTimer: any = null;
-
       // Regular keep alive messages if keepAlive is set
       if (keepAlive) {
-        keepAliveTimer = setInterval(() => {
-          connection.sendUTF(JSON.stringify({
-            type: SUBSCRIPTION_KEEPALIVE,
-          }));
+        const keepAliveTimer = setInterval(() => {
+          if (connection && connection.state === 'open') {
+            this.sendKeepAlive(connection);
+          } else {
+            clearInterval(keepAliveTimer);
+          }
         }, keepAlive);
       }
 
       const connectionSubscriptions: ConnectionSubscriptions = {};
-      connection.on('message', this.onMessage(connection, connectionSubscriptions, keepAliveTimer));
-      connection.on('close', this.onClose(connection, connectionSubscriptions, keepAliveTimer));
+      connection.on('message', this.onMessage(connection, connectionSubscriptions));
+      connection.on('close', this.onClose(connection, connectionSubscriptions));
     });
   }
 
   // TODO test that this actually works
-  private onClose(connection: Connection, connectionSubscriptions: ConnectionSubscriptions, keepAliveTimer: any) {
-    this.connectionCleanup(connection, keepAliveTimer);
-
+  private onClose(connection: Connection, connectionSubscriptions: ConnectionSubscriptions) {
     return () => {
       Object.keys(connectionSubscriptions).forEach( (subId) => {
         this.subscriptionManager.unsubscribe(connectionSubscriptions[subId]);
@@ -112,7 +110,7 @@ class Server {
     }
   }
 
-  private onMessage(connection: Connection, connectionSubscriptions: ConnectionSubscriptions, keepAliveTimer: any) {
+  private onMessage(connection: Connection, connectionSubscriptions: ConnectionSubscriptions) {
     return  (message: IMessage) => {
       let parsedMessage: SubscribeMessage;
       try {
@@ -169,8 +167,6 @@ class Server {
           break;
 
         case SUBSCRIPTION_END:
-          this.connectionCleanup(connection, keepAliveTimer);
-
           // find subscription id. Call unsubscribe.
           // TODO untested. catch errors, etc.
           if (connectionSubscriptions[subId]) {
@@ -214,11 +210,12 @@ class Server {
     connection.sendUTF(JSON.stringify(message));
   }
 
-  private connectionCleanup(connection: Connection, keepAliveTimer: any) {
-    if (keepAliveTimer) {
-      clearInterval(keepAliveTimer);
-    }
-  }
+  private sendKeepAlive(connection: Connection): void {
+    let message = {
+      type: SUBSCRIPTION_KEEPALIVE,
+    };
 
+    connection.sendUTF(JSON.stringify(message));
+  }
 }
 export default Server;
