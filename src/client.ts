@@ -57,7 +57,7 @@ export default class Client {
         throw new Error('Message must be JSON-parseable.');
       }
       const subId = parsedMessage.id;
-      if (!this.subscriptionHandlers[subId]) {
+      if (parsedMessage.type !== SUBSCRIPTION_KEEPALIVE && !this.subscriptionHandlers[subId]) {
         this.unsubscribe(subId);
         return;
       }
