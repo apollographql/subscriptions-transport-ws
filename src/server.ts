@@ -97,10 +97,12 @@ class Server {
             this.sendKeepAlive(connection);
           } else {
             clearInterval(keepAliveTimer);
-            if (!this.emittedUnsubscribe[subId]) {
-              this.emittedUnsubscribe[subId] = true;
-              this.onUnsubscribe(connectionSubscriptions[subId], subId);
-            }
+            Object.keys(connectionSubscriptions).forEach((subId) => {
+              if (!this.emittedUnsubscribe[subId]) {
+                this.emittedUnsubscribe[subId] = true;
+                this.onUnsubscribe(connectionSubscriptions[subId], subId);
+              }
+            });
           }
         }, keepAlive);
       }
