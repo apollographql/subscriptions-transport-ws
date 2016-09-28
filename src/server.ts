@@ -172,7 +172,9 @@ class Server {
           break;
 
         default:
-          throw new Error('Invalid message type. Message type must be `subscription_start` or `subscription_end`.');
+          this.sendSubscriptionFail(connection, subId, {
+            errors: ['Invalid message type. Message type must be `subscription_start` or `subscription_end`.']
+          });
       }
     };
   }
