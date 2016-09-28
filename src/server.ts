@@ -58,6 +58,7 @@ class Server {
   private onUnsubscribe: Function;
   private wsServer: WebSocketServer;
   private subscriptionManager: SubscriptionManager;
+  private emittedUnsubscribe: {[subId: string]: boolean};
 
   constructor(options: ServerOptions, httpServer: HttpServer) {
     const { subscriptionManager, onSubscribe, onUnsubscribe, keepAlive } = options;
@@ -69,6 +70,7 @@ class Server {
     this.subscriptionManager = subscriptionManager;
     this.onSubscribe = onSubscribe;
     this.onUnsubscribe = onUnsubscribe;
+    this.emittedUnsubscribe = {};
 
     // init and connect websocket server to http
     this.wsServer = new WebSocketServer({
@@ -86,6 +88,8 @@ class Server {
       // accept connection
       const connection: Connection = request.accept(GRAPHQL_SUBSCRIPTIONS, request.origin);
 
+      const connectionSubscriptions: ConnectionSubscriptions = {};
+
       // Regular keep alive messages if keepAlive is set
       if (keepAlive) {
         const keepAliveTimer = setInterval(() => {
@@ -93,11 +97,14 @@ class Server {
             this.sendKeepAlive(connection);
           } else {
             clearInterval(keepAliveTimer);
+            if (!this.emittedUnsubscribe[subId]) {
+              this.emittedUnsubscribe[subId] = true;
+              this.onUnsubscribe(connectionSubscriptions[subId], subId);
+            }
           }
         }, keepAlive);
       }
 
-      const connectionSubscriptions: ConnectionSubscriptions = {};
       connection.on('message', this.onMessage(connection, connectionSubscriptions));
       connection.on('close', this.onClose(connection, connectionSubscriptions));
     });
@@ -107,7 +114,8 @@ class Server {
   private onClose(connection: Connection, connectionSubscriptions: ConnectionSubscriptions) {
     return () => {
       Object.keys(connectionSubscriptions).forEach( (subId) => {
-        if (this.onUnsubscribe) {
+        if (this.onUnsubscribe && !this.emittedUnsubscribe[subId]) {
+          this.emittedUnsubscribe[subId] = true;
           this.onUnsubscribe(connectionSubscriptions[subId], subId);
         }
         this.subscriptionManager.unsubscribe(connectionSubscriptions[subId]);
