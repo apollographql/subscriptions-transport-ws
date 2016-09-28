@@ -116,12 +116,8 @@ class Server {
       try {
         parsedMessage = JSON.parse(message.utf8Data);
       } catch (e) {
-        let failMessage = {
-          type: SUBSCRIPTION_FAIL,
-          errors: ['Message must be JSON-parseable.'],
-          id: parsedMessage.id,
-        };
-        connection.sendUTF(JSON.stringify(failMessage));
+        this.sendSubscriptionFail(connection, null, { errors: [e.message] });
+        return;
       }
 
       const subId = parsedMessage.id;

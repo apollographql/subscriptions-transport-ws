@@ -511,6 +511,20 @@ describe('Server', function() {
     };
   });
 
+  it('rejects unparsable message', function(done) {
+    const client = new W3CWebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
+    client.onmessage = (message: any) => {
+      let messageData = JSON.parse(message.data);
+      assert.equal(messageData.type, SUBSCRIPTION_FAIL);
+      assert.isAbove(messageData.payload.errors.length, 0, 'Number of errors is greater than 0.');
+      client.close();
+      done();
+    };
+    client.onopen = () => {
+      client.send('HI');
+    };
+  });
+
   it('sends a keep alive signal in the socket', function(done) {
     let client = new W3CWebSocket(`ws://localhost:${TEST_PORT + 1}/`, GRAPHQL_SUBSCRIPTIONS);
     let yieldCount = 0;
