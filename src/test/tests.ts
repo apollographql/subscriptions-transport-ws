@@ -539,6 +539,21 @@ describe('Server', function() {
     };
   });
 
+  it('sends back any type of error', function(done) {
+    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    client.subscribe({
+      query:
+        `invalid useInfo{
+          error
+        }`,
+      variables: {},
+    }, function(errors, result) {
+      client.unsubscribeAll();
+      assert.isAbove(errors.length, 0, 'Number of errors is greater than 0.');
+      done();
+    });
+  });
+
   it('sends a keep alive signal in the socket', function(done) {
     let client = new W3CWebSocket(`ws://localhost:${TEST_PORT + 1}/`, GRAPHQL_SUBSCRIPTIONS);
     let yieldCount = 0;

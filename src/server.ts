@@ -116,7 +116,7 @@ class Server {
       try {
         parsedMessage = JSON.parse(message.utf8Data);
       } catch (e) {
-        this.sendSubscriptionFail(connection, null, { errors: [e.message] });
+        this.sendSubscriptionFail(connection, null, { errors: [{ message: e.message }] });
         return;
       }
 
@@ -157,7 +157,11 @@ class Server {
             connectionSubscriptions[subId] = graphqlSubId;
             this.sendSubscriptionSuccess(connection, subId);
           }).catch( e => {
-            this.sendSubscriptionFail(connection, subId, { errors: e.errors });
+            if (e.errors) {
+              this.sendSubscriptionFail(connection, subId, { errors: e.errors });
+            } else {
+              this.sendSubscriptionFail(connection, subId, { errors: [{ message: e.message }] });
+            }
             return;
           });
           break;
@@ -173,7 +177,9 @@ class Server {
 
         default:
           this.sendSubscriptionFail(connection, subId, {
-            errors: ['Invalid message type. Message type must be `subscription_start` or `subscription_end`.']
+            errors: [{
+              message: 'Invalid message type. Message type must be `subscription_start` or `subscription_end`.'
+            }]
           });
       }
     };
