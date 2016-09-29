@@ -22,7 +22,7 @@ import {
   GRAPHQL_SUBSCRIPTIONS,
 } from '../protocols';
 
-import { createServer } from 'http';
+import { createServer, IncomingMessage, ServerResponse } from 'http';
 import SubscriptionServer from '../server';
 import Client from '../client';
 
@@ -33,6 +33,8 @@ import * as websocket from 'websocket';
 const W3CWebSocket = (websocket as { [key: string]: any })['w3cwebsocket'];
 
 const TEST_PORT = 4953;
+const KEEP_ALIVE_TEST_PORT = TEST_PORT + 1;
+const DELAYED_TEST_PORT = TEST_PORT + 2;
 
 const data: { [key: string]: { [key: string]: string } } = {
   '1': {
@@ -116,27 +118,34 @@ const subscriptionManager = new SubscriptionManager({
 const options = {
   subscriptionManager,
   onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions) => {
-      return Promise.resolve(Object.assign({}, params, { context: msg['context'] }));
+    return Promise.resolve(Object.assign({}, params, { context: msg['context'] }));
   },
 };
 
-const httpServer = createServer(function(request, response) {
-    response.writeHead(404);
-    response.end();
-  });
+function notFoundRequestListener(request: IncomingMessage, response: ServerResponse) {
+  response.writeHead(404);
+  response.end();
+}
 
-httpServer.listen(TEST_PORT, function() {
-  // console.log(`Server is listening on port ${TEST_PORT}`);
-});
+const httpServer = createServer(notFoundRequestListener);
+httpServer.listen(TEST_PORT);
 new SubscriptionServer(options, httpServer);
 
-const httpServerWithKA = createServer(function(request, response) {
-    response.writeHead(404);
-    response.end();
-  });
-
-httpServerWithKA.listen(TEST_PORT + 1);
+const httpServerWithKA = createServer(notFoundRequestListener);
+httpServerWithKA.listen(KEEP_ALIVE_TEST_PORT);
 new SubscriptionServer(Object.assign({}, options, {keepAlive: 10}), httpServerWithKA);
+
+const httpServerWithDelay = createServer(notFoundRequestListener);
+httpServerWithDelay.listen(DELAYED_TEST_PORT);
+new SubscriptionServer(Object.assign({}, options, {
+  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions) => {
+    return new Promise((resolve, reject) => {
+      setTimeout(() => {
+        resolve(Object.assign({}, params, { context: msg['context'] }));
+      }, 100);
+    });
+  },
+}), httpServerWithDelay);
 
 describe('Client', function() {
 
@@ -243,26 +252,25 @@ describe('Client', function() {
 
   it('should throw an error when the susbcription times out', function(done) {
     // hopefully 1ms is fast enough to time out before the server responds
-    const client = new Client(`ws://localhost:${TEST_PORT}/`, { timeout: 1 });
+    const client = new Client(`ws://localhost:${DELAYED_TEST_PORT}/`, { timeout: 1 });
 
     setTimeout( () => {
-    client.subscribe({
+      client.subscribe({
         query:
-        `subscription useInfo{
-          error
-        }`,
+          `subscription useInfo{
+            error
+          }`,
         operationName: 'useInfo',
         variables: {},
-        }, function(error, result) {
-          if (error) {
-            expect(error[0].message).to.equals('Subscription timed out - no response from server');
-            done();
-          }
-          if (result) {
-            assert(false);
-          }
+      }, function(error, result) {
+        if (error) {
+          expect(error[0].message).to.equals('Subscription timed out - no response from server');
+          done();
         }
-      );
+        if (result) {
+          assert(false);
+        }
+      });
     }, 100);
   });
 });
@@ -540,7 +548,7 @@ describe('Server', function() {
   });
 
   it('sends a keep alive signal in the socket', function(done) {
-    let client = new W3CWebSocket(`ws://localhost:${TEST_PORT + 1}/`, GRAPHQL_SUBSCRIPTIONS);
+    let client = new W3CWebSocket(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
     let yieldCount = 0;
     client.onmessage = (message: any) => {
       const parsedMessage = JSON.parse(message.data);
