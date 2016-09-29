@@ -35,6 +35,7 @@ const W3CWebSocket = (websocket as { [key: string]: any })['w3cwebsocket'];
 const TEST_PORT = 4953;
 const KEEP_ALIVE_TEST_PORT = TEST_PORT + 1;
 const DELAYED_TEST_PORT = TEST_PORT + 2;
+const CAPTURE_TEST_PORT = TEST_PORT + 3;
 
 const data: { [key: string]: { [key: string]: string } } = {
   '1': {
@@ -146,6 +147,16 @@ new SubscriptionServer(Object.assign({}, options, {
     });
   },
 }), httpServerWithDelay);
+
+let capturedParams: SubscriptionOptions;
+const httpServerWithCapture = createServer(notFoundRequestListener);
+httpServerWithCapture.listen(CAPTURE_TEST_PORT);
+new SubscriptionServer(Object.assign({}, options, {
+  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions) => {
+    capturedParams = params;
+    return params;
+  },
+}), httpServerWithCapture);
 
 describe('Client', function() {
 
@@ -477,6 +488,26 @@ describe('Server', function() {
     );
     setTimeout(() => {
       subscriptionManager.publish('context', {});
+    }, 100);
+  });
+
+  it('passes through webSocketRequest to onSubscribe', function(done) {
+    capturedParams = null;
+    const client = new Client(`ws://localhost:${CAPTURE_TEST_PORT}/`);
+    client.subscribe({
+      query: `
+        subscription context {
+          context
+        }
+      `,
+      variables: { },
+    }, (error, result) => {
+      assert(false);
+    });
+    setTimeout(() => {
+      assert.property(capturedParams, 'context');
+      assert.property(capturedParams.context, 'webSocketRequest');
+      done();
     }, 100);
   });
 

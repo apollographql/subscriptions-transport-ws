@@ -1,6 +1,7 @@
 import {
   server as WebSocketServer, // these are NOT the correct typings!
   connection as Connection,
+  request as WebSocketRequest,
   IMessage,
 } from 'websocket';
 
@@ -95,7 +96,7 @@ class Server {
       }
 
       const connectionSubscriptions: ConnectionSubscriptions = {};
-      connection.on('message', this.onMessage(connection, connectionSubscriptions));
+      connection.on('message', this.onMessage(request, connection, connectionSubscriptions));
       connection.on('close', this.onClose(connection, connectionSubscriptions));
     });
   }
@@ -110,7 +111,7 @@ class Server {
     }
   }
 
-  private onMessage(connection: Connection, connectionSubscriptions: ConnectionSubscriptions) {
+  private onMessage(webSocketRequest: WebSocketRequest, connection: Connection, connectionSubscriptions: ConnectionSubscriptions) {
     return  (message: IMessage) => {
       let parsedMessage: SubscribeMessage;
       try {
@@ -128,7 +129,9 @@ class Server {
             query: parsedMessage.query,
             variables: parsedMessage.variables,
             operationName: parsedMessage.operationName,
-            context: {},
+            context: {
+              webSocketRequest,
+            },
             formatResponse: undefined,
             formatError: undefined,
             callback: undefined,
