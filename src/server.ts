@@ -157,7 +157,7 @@ class Server {
             connectionSubscriptions[subId] = graphqlSubId;
             this.sendSubscriptionSuccess(connection, subId);
           }).catch( e => {
-            this.sendSubscriptionFail(connection, subId, { errors: e.errors });
+            this.sendSubscriptionFail(connection, subId, { errors: e.errors || e.message });
             return;
           });
           break;
