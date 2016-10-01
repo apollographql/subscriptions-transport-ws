@@ -71,7 +71,7 @@ export default class Client {
           break;
         case SUBSCRIPTION_FAIL:
           if (this.subscriptionHandlers[subId]) {
-            this.subscriptionHandlers[subId](parsedMessage.payload.errors, null);
+            this.subscriptionHandlers[subId](this.formatErrors(parsedMessage.payload.errors), null);
           }
           delete this.subscriptionHandlers[subId];
           delete this.waitingSubscriptions[subId];
@@ -81,7 +81,7 @@ export default class Client {
           if (parsedMessage.payload.data && !parsedMessage.payload.errors) {
               this.subscriptionHandlers[subId](null, parsedMessage.payload.data);
           } else {
-            this.subscriptionHandlers[subId](parsedMessage.payload.errors, null);
+            this.subscriptionHandlers[subId](this.formatErrors(parsedMessage.payload.errors), null);
           }
           break;
 
@@ -167,4 +167,14 @@ export default class Client {
     return id;
   }
 
+  // ensure we have an array of errors
+  private formatErrors(errors: any) {
+    if (Array.isArray(errors)) {
+      return errors;
+    }
+    if (errors && errors.message) {
+      return [errors];
+    }
+    return [{ message: 'Unknown error' }];
+  }
 };
