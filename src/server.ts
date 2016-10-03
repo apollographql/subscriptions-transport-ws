@@ -96,7 +96,7 @@ class Server {
       }
 
       const connectionSubscriptions: ConnectionSubscriptions = {};
-      connection.on('message', this.onMessage(request, connection, connectionSubscriptions));
+      connection.on('message', this.onMessage(connection, connectionSubscriptions, request));
       connection.on('close', this.onClose(connection, connectionSubscriptions));
     });
   }
@@ -111,7 +111,7 @@ class Server {
     }
   }
 
-  private onMessage(webSocketRequest: WebSocketRequest, connection: Connection, connectionSubscriptions: ConnectionSubscriptions) {
+  private onMessage(connection: Connection, connectionSubscriptions: ConnectionSubscriptions, webSocketRequest: WebSocketRequest) {
     return  (message: IMessage) => {
       let parsedMessage: SubscribeMessage;
       try {
@@ -129,9 +129,7 @@ class Server {
             query: parsedMessage.query,
             variables: parsedMessage.variables,
             operationName: parsedMessage.operationName,
-            context: {
-              webSocketRequest,
-            },
+            context: {},
             formatResponse: undefined,
             formatError: undefined,
             callback: undefined,
@@ -139,7 +137,7 @@ class Server {
           let promisedParams = Promise.resolve(baseParams);
 
           if (this.onSubscribe){
-            promisedParams = Promise.resolve(this.onSubscribe(parsedMessage, baseParams));
+            promisedParams = Promise.resolve(this.onSubscribe(parsedMessage, baseParams, webSocketRequest));
           }
 
           // if we already have a subscription with this id, unsubscribe from it first
