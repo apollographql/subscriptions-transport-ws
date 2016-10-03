@@ -3,6 +3,7 @@ import {
   assert,
   expect,
 } from 'chai';
+import * as sinon from 'sinon';
 
 import {
   GraphQLObjectType,
@@ -30,7 +31,11 @@ import Client from '../client';
 import { SubscribeMessage } from '../server';
 import { SubscriptionOptions } from 'graphql-subscriptions/dist/pubsub';
 
-import { server as WebSocketServer, connection as Connection } from 'websocket';
+import {
+  server as WebSocketServer,
+  connection as Connection,
+  request as WebSocketRequest,
+} from 'websocket';
 import * as websocket from 'websocket';
 const W3CWebSocket = (websocket as { [key: string]: any })['w3cwebsocket'];
 
@@ -118,10 +123,17 @@ const subscriptionManager = new SubscriptionManager({
   },
 });
 
+// indirect call to support spying
+const handlers = {
+  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest) => {
+    return Promise.resolve(Object.assign({}, params, { context: msg['context'] }));
+  },
+};
+
 const options = {
   subscriptionManager,
-  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions) => {
-    return Promise.resolve(Object.assign({}, params, { context: msg['context'] }));
+  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest) => {
+    return handlers.onSubscribe(msg, params, webSocketRequest);
   },
 };
 
@@ -344,6 +356,16 @@ describe('Client', function() {
 
 describe('Server', function() {
 
+  let onSubscribeSpy: sinon.SinonSpy;
+
+  beforeEach(() => {
+    onSubscribeSpy = sinon.spy(handlers, 'onSubscribe');
+  });
+
+  afterEach(() => {
+    onSubscribeSpy.restore();
+  });
+
   it('should send correct results to multiple clients with subscriptions', function(done) {
 
     const client = new Client(`ws://localhost:${TEST_PORT}/`);
@@ -544,6 +566,25 @@ describe('Server', function() {
     );
     setTimeout(() => {
       subscriptionManager.publish('context', {});
+    }, 100);
+  });
+
+  it('passes through webSocketRequest to onSubscribe', function(done) {
+    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    client.subscribe({
+      query: `
+        subscription context {
+          context
+        }
+      `,
+      variables: { },
+    }, (error, result) => {
+      assert(false);
+    });
+    setTimeout(() => {
+      assert(onSubscribeSpy.calledOnce);
+      expect(onSubscribeSpy.getCall(0).args[2]).to.not.be.undefined;
+      done();
     }, 100);
   });
 
