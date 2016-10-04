@@ -168,9 +168,12 @@ export default class Client {
   }
 
   // ensure we have an array of errors
-  private formatErrors(errors: Array<any>) {
+  private formatErrors(errors: any) {
     if (Array.isArray(errors)) {
       return errors;
+    }
+    if (errors && errors.message) {
+      return [errors];
     }
     return [{ message: 'Unknown error' }];
   }

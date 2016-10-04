@@ -3,6 +3,7 @@ import {
   assert,
   expect,
 } from 'chai';
+import * as sinon from 'sinon';
 
 import {
   GraphQLObjectType,
@@ -13,6 +14,7 @@ import {
 import { PubSub, SubscriptionManager } from 'graphql-subscriptions';
 
 import {
+  SUBSCRIPTION_START,
   SUBSCRIPTION_FAIL,
   SUBSCRIPTION_DATA,
   SUBSCRIPTION_KEEPALIVE,
@@ -29,12 +31,18 @@ import Client from '../client';
 import { SubscribeMessage } from '../server';
 import { SubscriptionOptions } from 'graphql-subscriptions/dist/pubsub';
 
+import {
+  server as WebSocketServer,
+  connection as Connection,
+  request as WebSocketRequest,
+} from 'websocket';
 import * as websocket from 'websocket';
 const W3CWebSocket = (websocket as { [key: string]: any })['w3cwebsocket'];
 
 const TEST_PORT = 4953;
 const KEEP_ALIVE_TEST_PORT = TEST_PORT + 1;
 const DELAYED_TEST_PORT = TEST_PORT + 2;
+const RAW_TEST_PORT = TEST_PORT + 4;
 
 const data: { [key: string]: { [key: string]: string } } = {
   '1': {
@@ -115,10 +123,17 @@ const subscriptionManager = new SubscriptionManager({
   },
 });
 
+// indirect call to support spying
+const handlers = {
+  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest) => {
+    return Promise.resolve(Object.assign({}, params, { context: msg['context'] }));
+  },
+};
+
 const options = {
   subscriptionManager,
-  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions) => {
-    return Promise.resolve(Object.assign({}, params, { context: msg['context'] }));
+  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest) => {
+    return handlers.onSubscribe(msg, params, webSocketRequest);
   },
 };
 
@@ -147,7 +162,25 @@ new SubscriptionServer(Object.assign({}, options, {
   },
 }), httpServerWithDelay);
 
+const httpServerRaw = createServer(notFoundRequestListener);
+httpServerRaw.listen(RAW_TEST_PORT);
+
 describe('Client', function() {
+
+  let wsServer: WebSocketServer;
+
+  beforeEach(() => {
+    wsServer = new WebSocketServer({
+      httpServer: httpServerRaw,
+      autoAcceptConnections: true,
+    });
+  });
+
+  afterEach(() => {
+    if (wsServer) {
+      wsServer.shutDown();
+    }
+  });
 
   it('removes subscription when it unsubscribes from it', function() {
     const client = new Client(`ws://localhost:${TEST_PORT}/`);
@@ -250,6 +283,52 @@ describe('Client', function() {
     }, 100);
   });
 
+  function testBadServer(payload: any, errorMessage: string, done: Function) {
+    wsServer.on('connect', (connection: Connection) => {
+      connection.on('message', (message) => {
+        const parsedMessage = JSON.parse(message.utf8Data);
+        if (parsedMessage.type === SUBSCRIPTION_START) {
+          connection.sendUTF(JSON.stringify({
+            type: SUBSCRIPTION_FAIL,
+            id: parsedMessage.id,
+            payload,
+          }));
+        }
+      });
+    });
+
+    const client = new Client(`ws://localhost:${RAW_TEST_PORT}/`);
+    client.subscribe({
+      query: `
+        subscription useInfo{
+          invalid
+        }
+      `,
+      variables: {},
+    }, function(errors: Error[], result: any) {
+      if (errors) {
+        expect(errors[0].message).to.equals(errorMessage);
+      } else {
+        assert(false);
+      }
+      done();
+    });
+  }
+
+  it('should handle missing errors', function(done) {
+    const errorMessage = 'Unknown error';
+    const payload = {};
+    testBadServer(payload, errorMessage, done);
+  });
+
+  it('should handle errors that are not an array', function(done) {
+    const errorMessage = 'Just an error';
+    const payload = {
+      errors: { message: errorMessage },
+    };
+    testBadServer(payload, errorMessage, done);
+  });
+
   it('should throw an error when the susbcription times out', function(done) {
     // hopefully 1ms is fast enough to time out before the server responds
     const client = new Client(`ws://localhost:${DELAYED_TEST_PORT}/`, { timeout: 1 });
@@ -276,6 +355,16 @@ describe('Client', function() {
 });
 
 describe('Server', function() {
+
+  let onSubscribeSpy: sinon.SinonSpy;
+
+  beforeEach(() => {
+    onSubscribeSpy = sinon.spy(handlers, 'onSubscribe');
+  });
+
+  afterEach(() => {
+    onSubscribeSpy.restore();
+  });
 
   it('should send correct results to multiple clients with subscriptions', function(done) {
 
@@ -477,6 +566,25 @@ describe('Server', function() {
     );
     setTimeout(() => {
       subscriptionManager.publish('context', {});
+    }, 100);
+  });
+
+  it('passes through webSocketRequest to onSubscribe', function(done) {
+    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    client.subscribe({
+      query: `
+        subscription context {
+          context
+        }
+      `,
+      variables: { },
+    }, (error, result) => {
+      assert(false);
+    });
+    setTimeout(() => {
+      assert(onSubscribeSpy.calledOnce);
+      expect(onSubscribeSpy.getCall(0).args[2]).to.not.be.undefined;
+      done();
     }, 100);
   });
 

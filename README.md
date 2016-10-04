@@ -1,40 +1,34 @@
-# test-websocket-server
+# subscriptions-transport-ws
+
 **(Work in progress!)**
-A GraphQL websocket server to facilitate GraphQL subscriptions.
-See the [websocket-integration branch](https://github.com/apollostack/GitHunt/branches) on GitHunt for example code.
+
+A GraphQL websocket server and client to facilitate GraphQL subscriptions.
+
+See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React](https://github.com/apollostack/GitHunt-React) for an example server and client integration.
+
 ## Client
-### Constructor
+### `Constructor(url, options)`
 - `url: string` : url that the client will connect to
+- `options?: Object` : optional object to modify default client behavior
+  * `timeout: number` : how long the client should wait in ms for a subscription to be started (default 5000 ms)
 
 ### Methods
-#### subscribe(options, handler)
+#### `subscribe(options, handler) => id`
 - `options: {SubscriptionOptions}`
-    * `query: string` : GraphQL subscription
-    * `variables: Object` : GraphQL subscription variables
-    * `operationName: string` : operation name of the subscription
-- `handler: (error: Object, data: Object) => void` : function to handle any errors and results from the subscription response
+  * `query: string` : GraphQL subscription
+  * `variables: Object` : GraphQL subscription variables
+  * `operationName: string` : operation name of the subscription
+- `handler: (errors: Error[], result?: any) => void` : function to handle any errors and results from the subscription response
 
-#### unsubscribe(id)
+#### `unsubscribe(id) => void`
 - `id: string` : the subscription ID of the subscription to unsubscribe from
 
 ## Server
-### Constructor
+### `Constructor(options, httpServer)`
 - `options: {ServerOptions}`
-    * `schema: GraphQLSchema` : the schema for the data
-    * `triggerGenerator: (name: string, args: Object, context?: Object) => Array<{name: string, filter: Function}>` : function which,
-     given the name ofa subscription, its arguments, and its operation name, will return a list of actions that trigger it, stored by
-     name and a filter function
-    * `contextValue?: any` : contextValue to be passed into graphql
-    * `rootValue?: any` : rootValue to be passed into graphql
-    * `formatResponse?: (GraphQLResult) => Object` : function to format GraphQL response before sending it to client
-    * `validationRules?: Array<any>` : array of addition rules to run when validating GraphQL subscription
-
-### Methods
-#### triggerAction(triggerObject)
-- `triggerObject` : object with information on an action
-    * `name: string` : name of the action
-    * `rootValue: any` : rootValue to be passed into the GraphQL call of any subscription that is called as a result of the action
-    * `contextValue?: any` : contextValue to be passed into the GraphQL call of any subscription that is called as a result of the action
+  * `subscriptionManager: SubscriptionManager` : GraphQL subscription manager
+  * `onSubscribe?: (message: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest)` : optional method to create custom params that will be used when resolving this subscription
+  * `keepAlive?: number` : optional interval in ms to send `SUBSCRIPTION_KEEPALIVE` messages to all clients
     
 ## Client-server messages
 Each message has a type, as well as associated fields depending on the message type.
@@ -66,3 +60,6 @@ at any point during the subscription to notify the client the the subscription h
 GraphQL result sent periodically from server to client according to subscription.
 - `payload: GraphQLResult` : GraphQL result from running the subscription
 - `id: string` : subscription ID
+
+#### SUBSCRIPTION_KEEPALIVE
+Server message sent periodically to keep the client connection alive.
