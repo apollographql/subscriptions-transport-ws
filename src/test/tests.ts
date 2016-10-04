@@ -203,7 +203,7 @@ describe('Client', function() {
         }
       );
       client.unsubscribe(subId);
-      assert.notProperty(client.subscriptionHandlers, `${subId}`);
+      assert.notProperty(client.subscriptions, `${subId}`);
     }, 100);
   });
 
@@ -351,6 +351,73 @@ describe('Client', function() {
         }
       });
     }, 100);
+  });
+
+  it('should reconnect to the server', function(done) {
+    let connections = 0;
+    let client: Client;
+    let originalClient: any;
+    wsServer.on('connect', (connection: Connection) => {
+      connections += 1;
+      if (connections === 1) {
+        wsServer.closeAllConnections();
+      } else {
+        expect(client.client).to.not.be.equal(originalClient);
+        done();
+      }
+    });
+    client = new Client(`ws://localhost:${RAW_TEST_PORT}/`, { reconnect: true });
+    originalClient = client.client;
+  });
+
+  it('should resubscribe after reconnect', function(done) {
+    let connections = 0;
+    wsServer.on('connect', (connection: Connection) => {
+      connections += 1;
+      connection.on('message', (message) => {
+        const parsedMessage = JSON.parse(message.utf8Data);
+        if (parsedMessage.type === SUBSCRIPTION_START) {
+          if (connections === 1) {
+            wsServer.closeAllConnections();
+          } else {
+            done();
+          }
+        }
+      });
+    });
+    const client = new Client(`ws://localhost:${RAW_TEST_PORT}/`, { reconnect: true });
+    client.subscribe({
+      query: `
+        subscription useInfo{
+          invalid
+        }
+      `,
+      variables: {},
+    }, function(errors: Error[], result: any) {
+      assert(false);
+    });
+  });
+
+  it('should stop trying to reconnect to the server', function(done) {
+    let connections = 0;
+    wsServer.on('connect', (connection: Connection) => {
+      connections += 1;
+      if (connections === 1) {
+        wsServer.unmount();
+        wsServer.closeAllConnections();
+      } else {
+        assert(false);
+      }
+    });
+    const client = new Client(`ws://localhost:${RAW_TEST_PORT}/`, {
+      timeout: 100,
+      reconnect: true,
+      reconnectionAttempts: 1,
+    });
+    setTimeout(() => {
+      expect(client.client.readyState).to.be.equal(client.client.CLOSED);
+      done();
+    }, 500);
   });
 });
 
