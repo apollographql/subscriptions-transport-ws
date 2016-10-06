@@ -25,7 +25,8 @@
     "watch": "tsc -w",
     "testonly": "mocha --compilers js:babel-core/register --reporter spec --full-trace ./dist/test/tests.js",
     "coverage": "babel-node ./node_modules/istanbul/lib/cli.js cover _mocha -- --full-trace ./dist/test/tests.js",
-    "postcoverage": "remap-istanbul --input coverage/coverage.raw.json --type lcovonly --output coverage/lcov.info"
+    "postcoverage": "remap-istanbul --input coverage/coverage.raw.json --type lcovonly --output coverage/lcov.info",
+    "prepublish": "npm run compile"
   },
   "devDependencies": {
     "@types/chai": "^3.4.32",
