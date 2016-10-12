@@ -4,6 +4,10 @@
 
 - ...
 
+### v0.2.6
+
+- Add `reconnect` and `reconnectionAttempts` options to the constructor which will enable reconnection with exponential backoff.
+
 ### v0.2.5
 
 - Pass WebSocketRequest to onSubscribe to support reading HTTP headers when creating a subscription
