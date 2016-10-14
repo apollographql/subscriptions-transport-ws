@@ -2,7 +2,7 @@
 
 ### vNEXT
 
-- ...
+- (SEMVER-MINOR) Bump graphql-subscriptions dependency to ^0.2.0 which changes the setupFunctions format
 
 ### v0.2.6
 

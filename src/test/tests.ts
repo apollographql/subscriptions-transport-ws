@@ -116,8 +116,10 @@ const subscriptionManager = new SubscriptionManager({
   pubsub: new PubSub(),
   setupFunctions: {
     'userFiltered': (options: SubscriptionOptions, args: { [key: string]: any }) => ({
-      'userFiltered': (user: any) => {
-        return !args['id'] || user.id === args['id'];
+      'userFiltered': {
+        filter: (user: any) => {
+          return !args['id'] || user.id === args['id'];
+        },
       },
     }),
   },
