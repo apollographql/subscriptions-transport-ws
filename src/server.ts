@@ -170,7 +170,7 @@ class Server {
         case SUBSCRIPTION_END:
           // find subscription id. Call unsubscribe.
           // TODO untested. catch errors, etc.
-          if (connectionSubscriptions[subId]) {
+          if (typeof connectionSubscriptions[subId] !== 'undefined') {
             this.subscriptionManager.unsubscribe(connectionSubscriptions[subId]);
             delete connectionSubscriptions[subId];
           }
