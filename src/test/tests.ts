@@ -623,6 +623,7 @@ describe('Server', function() {
         variables: { },
         context: CTX,
       }, (error, result) => {
+        client3.unsubscribeAll();
         if (error) {
           assert(false);
         }
@@ -737,6 +738,36 @@ describe('Server', function() {
       assert.isAbove(errors.length, 0, 'Number of errors is greater than 0.');
       done();
     });
+  });
+
+  it('handles errors prior to graphql execution', function(done) {
+    // replace the onSubscribeSpy with a custom handler, the spy will restore
+    // the original method
+    handlers.onSubscribe = (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest) => {
+      return Promise.resolve(Object.assign({}, params, { context: () => { throw new Error('bad'); } }));
+    };
+    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    client.subscribe({
+      query: `
+        subscription context {
+          context
+        }
+      `,
+      variables: {},
+      context: {},
+    }, (error: any, result: any) => {
+      client.unsubscribeAll();
+      if (error) {
+        assert(Array.isArray(error));
+        assert.equal(error[0].message, 'bad');
+      } else {
+        assert(false);
+      }
+      done();
+    });
+    setTimeout(() => {
+      subscriptionManager.publish('context', {});
+    }, 100);
   });
 
   it('sends a keep alive signal in the socket', function(done) {
