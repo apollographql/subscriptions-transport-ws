@@ -3,6 +3,7 @@
 ### vNEXT
 
 - ...
+- Server now passes back subscriptionManager errors encountered during publish
 
 ### v0.3.0
 
