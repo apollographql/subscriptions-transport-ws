@@ -149,9 +149,16 @@ class Server {
 
           promisedParams.then( params => {
             // create a callback
-            params['callback'] = (errors: Error[], data: any) => {
-              // TODO: we don't do anything with errors
-              this.sendSubscriptionData(connection, subId, data);
+            // error could be a runtime exception or an object with errors
+            // result is a GraphQL ExecutionResult, which has an optional errors property
+            params.callback = (error: any, result: any) => {
+              if (!error) {
+                this.sendSubscriptionData(connection, subId, result);
+              } else if (error.errors) {
+                this.sendSubscriptionData(connection, subId, { errors: error.errors });
+              } else {
+                this.sendSubscriptionData(connection, subId, { errors: [{ message: error.message }] });
+              }
             };
             return this.subscriptionManager.subscribe( params );
           }).then((graphqlSubId: number) => {
