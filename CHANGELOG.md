@@ -3,7 +3,11 @@
 ### vNEXT
 
 - ...
-- Server now passes back subscriptionManager errors encountered during publish
+
+### v0.3.1
+
+- Server now passes back subscriptionManager errors encountered during publish.
+[PR #42](https://github.com/apollostack/subscriptions-transport-ws/pull/42)
 
 ### v0.3.0
 
