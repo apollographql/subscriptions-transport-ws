@@ -8,4 +8,9 @@ declare module 'lodash.isstring' {
   export = isString;
 }
 
+declare module 'lodash.isfunction' {
+  import {isFunction} from 'lodash';
+  export = isFunction;
+}
+
 declare module 'backo2';

@@ -27,6 +27,7 @@ import {
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import SubscriptionServer from '../server';
 import Client from '../client';
+import { HeadersObject } from '../client';
 
 import { SubscribeMessage } from '../server';
 import { SubscriptionOptions } from 'graphql-subscriptions/dist/pubsub';
@@ -637,6 +638,33 @@ describe('Server', function() {
     setTimeout(() => {
       subscriptionManager.publish('context', {});
     }, 100);
+  });
+
+  it('headers middleware method should be called when creating a new connection', function(done) {
+    let headersMiddleware = sinon.spy();
+
+    new Client(`ws://localhost:${TEST_PORT}/`, undefined, headersMiddleware);
+
+    setTimeout(() => {
+      assert(headersMiddleware.calledOnce);
+      done();
+    }, 100);
+  });
+
+  it('headers middleware should set the correct headers on the socket object', function() {
+    let headerName: string = 'Authorization';
+
+    let headersMiddleware = () => {
+      let headers: HeadersObject = {};
+
+      headers[headerName] = 'xxx';
+
+      return headers;
+    };
+
+    let clientObject = new Client(`ws://localhost:${TEST_PORT}/`, undefined, headersMiddleware);
+    let innerSocketHeaderValue = clientObject.client._client._req._headers[headerName.toLowerCase()];
+    assert.equal(innerSocketHeaderValue, 'xxx');
   });
 
   it('passes through webSocketRequest to onSubscribe', function(done) {

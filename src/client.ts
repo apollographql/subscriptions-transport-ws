@@ -14,6 +14,7 @@ import { GRAPHQL_SUBSCRIPTIONS } from './protocols';
 
 import isString = require('lodash.isstring');
 import isObject = require('lodash.isobject');
+import isFunction = require('lodash.isfunction');
 
 export interface SubscriptionOptions {
   query: string;
@@ -37,6 +38,12 @@ export interface ClientOptions {
   reconnectionAttempts?: number;
 }
 
+export interface HeadersObject {
+  [headerName: string]: string
+}
+
+export type HeadersMiddleware = () => HeadersObject;
+
 const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
 
 export default class Client {
@@ -54,7 +61,7 @@ export default class Client {
   private reconnectSubscriptions: Subscriptions;
   private backoff: any;
 
-  constructor(url: string, options?: ClientOptions) {
+  constructor(url: string, options?: ClientOptions, private headersMiddleware?: HeadersMiddleware) {
     const {
       timeout = DEFAULT_SUBSCRIPTION_TIMEOUT,
       reconnect = false,
@@ -181,7 +188,13 @@ export default class Client {
   }
 
   private connect() {
-    this.client = new W3CWebSocket(this.url, GRAPHQL_SUBSCRIPTIONS);
+    let headersObject: HeadersObject;
+
+    if (this.headersMiddleware && isFunction(this.headersMiddleware)) {
+      headersObject = this.headersMiddleware();
+    }
+
+    this.client = new W3CWebSocket(this.url, GRAPHQL_SUBSCRIPTIONS, undefined, headersObject);
 
     this.client.onopen = () => {
       this.reconnecting = false;
