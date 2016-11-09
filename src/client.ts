@@ -19,7 +19,7 @@ export interface SubscriptionOptions {
   query: string;
   variables?: Object;
   operationName?: string;
-  context?: any;
+  context?: any
 }
 
 export interface Subscription {
@@ -34,6 +34,7 @@ export interface Subscriptions {
 export interface HeadersObject {
   [headerName: string]: string
 }
+
 export interface ClientOptions {
   timeout?: number;
   reconnect?: boolean;
@@ -103,7 +104,7 @@ export default class Client {
     }
 
     const subId = this.generateSubscriptionId();
-    let message = Object.assign(options, {type: SUBSCRIPTION_START, id: subId});
+    let message = Object.assign(options, {type: SUBSCRIPTION_START, id: subId, headers: this.connectRequestHeaders});
     this.sendMessage(message);
     this.subscriptions[subId] = {options, handler};
     this.waitingSubscriptions[subId] = true;
@@ -194,7 +195,7 @@ export default class Client {
       headersObject = this.connectRequestHeaders;
     }
 
-    this.client = new W3CWebSocket(this.url, GRAPHQL_SUBSCRIPTIONS, undefined, headersObject);
+    this.client = new W3CWebSocket(this.url, GRAPHQL_SUBSCRIPTIONS);
 
     this.client.onopen = () => {
       this.reconnecting = false;

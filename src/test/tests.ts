@@ -640,14 +640,31 @@ describe('Server', function() {
     }, 100);
   });
 
-  it('connectRequestHeaders should set the correct headers on the socket object', function() {
+  it('connectRequestHeaders should set the correct headers on the START message', function(done) {
     let headerName: string = 'Authorization';
     let headers: HeadersObject = {};
     headers[headerName] = 'xxx';
 
-    let clientObject = new Client(`ws://localhost:${TEST_PORT}/`, { connectRequestHeaders: headers });
-    let innerSocketHeaderValue = clientObject.client._client._req._headers[headerName.toLowerCase()];
-    assert.equal(innerSocketHeaderValue, 'xxx');
+    let client = new Client(`ws://localhost:${TEST_PORT}/`, { connectRequestHeaders: headers });
+    let sendMessageSpy = sinon.spy(client, 'sendMessage');
+
+    client.subscribe({
+      query: `
+        subscription context {
+          context
+        }
+      `,
+      variables: { },
+    }, (error, result) => {
+      assert(false);
+    });
+
+    setTimeout(() => {
+      assert(sendMessageSpy.calledOnce);
+      expect(sendMessageSpy.getCall(0).args[0].headers).to.not.be.undefined;
+      assert.equal(sendMessageSpy.getCall(0).args[0].headers[headerName], 'xxx');
+      done();
+    }, 100);
   });
 
   it('passes through webSocketRequest to onSubscribe', function(done) {
