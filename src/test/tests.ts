@@ -640,29 +640,12 @@ describe('Server', function() {
     }, 100);
   });
 
-  it('headers middleware method should be called when creating a new connection', function(done) {
-    let headersMiddleware = sinon.spy();
-
-    new Client(`ws://localhost:${TEST_PORT}/`, undefined, headersMiddleware);
-
-    setTimeout(() => {
-      assert(headersMiddleware.calledOnce);
-      done();
-    }, 100);
-  });
-
-  it('headers middleware should set the correct headers on the socket object', function() {
+  it('connectRequestHeaders should set the correct headers on the socket object', function() {
     let headerName: string = 'Authorization';
+    let headers: HeadersObject = {};
+    headers[headerName] = 'xxx';
 
-    let headersMiddleware = () => {
-      let headers: HeadersObject = {};
-
-      headers[headerName] = 'xxx';
-
-      return headers;
-    };
-
-    let clientObject = new Client(`ws://localhost:${TEST_PORT}/`, undefined, headersMiddleware);
+    let clientObject = new Client(`ws://localhost:${TEST_PORT}/`, { connectRequestHeaders: headers });
     let innerSocketHeaderValue = clientObject.client._client._req._headers[headerName.toLowerCase()];
     assert.equal(innerSocketHeaderValue, 'xxx');
   });

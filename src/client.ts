@@ -14,7 +14,6 @@ import { GRAPHQL_SUBSCRIPTIONS } from './protocols';
 
 import isString = require('lodash.isstring');
 import isObject = require('lodash.isobject');
-import isFunction = require('lodash.isfunction');
 
 export interface SubscriptionOptions {
   query: string;
@@ -32,17 +31,15 @@ export interface Subscriptions {
   [id: string]: Subscription;
 }
 
+export interface HeadersObject {
+  [headerName: string]: string
+}
 export interface ClientOptions {
   timeout?: number;
   reconnect?: boolean;
   reconnectionAttempts?: number;
+  connectRequestHeaders?: HeadersObject
 }
-
-export interface HeadersObject {
-  [headerName: string]: string
-}
-
-export type HeadersMiddleware = () => HeadersObject;
 
 const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
 
@@ -60,12 +57,14 @@ export default class Client {
   private reconnectionAttempts: number;
   private reconnectSubscriptions: Subscriptions;
   private backoff: any;
+  private connectRequestHeaders: HeadersObject;
 
-  constructor(url: string, options?: ClientOptions, private headersMiddleware?: HeadersMiddleware) {
+  constructor(url: string, options?: ClientOptions) {
     const {
       timeout = DEFAULT_SUBSCRIPTION_TIMEOUT,
       reconnect = false,
       reconnectionAttempts = Infinity,
+      connectRequestHeaders = undefined,
     } = (options || {});
 
     this.url = url;
@@ -79,6 +78,7 @@ export default class Client {
     this.reconnecting = false;
     this.reconnectionAttempts = reconnectionAttempts;
     this.backoff = new Backoff({ jitter: 0.5 });
+    this.connectRequestHeaders = connectRequestHeaders;
     this.connect();
   }
 
@@ -190,8 +190,8 @@ export default class Client {
   private connect() {
     let headersObject: HeadersObject;
 
-    if (this.headersMiddleware && isFunction(this.headersMiddleware)) {
-      headersObject = this.headersMiddleware();
+    if (this.connectRequestHeaders && isObject(this.connectRequestHeaders)) {
+      headersObject = this.connectRequestHeaders;
     }
 
     this.client = new W3CWebSocket(this.url, GRAPHQL_SUBSCRIPTIONS, undefined, headersObject);

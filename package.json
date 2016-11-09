@@ -10,7 +10,6 @@
   "dependencies": {
     "backo2": "^1.0.2",
     "graphql-subscriptions": "^0.2.0",
-    "lodash.isfunction": "^3.0.8",
     "lodash.isobject": "^3.0.2",
     "lodash.isstring": "^4.0.1",
     "websocket": "^1.0.23"
