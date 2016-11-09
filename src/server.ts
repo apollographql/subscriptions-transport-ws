@@ -28,7 +28,8 @@ export interface SubscribeMessage {
   operationName?: string;
   id: string;
   type: string;
-};
+  headers?: any;
+}
 
 interface SubscriptionData {
   query: string;
@@ -137,7 +138,7 @@ class Server {
           let promisedParams = Promise.resolve(baseParams);
 
           if (this.onSubscribe){
-            promisedParams = Promise.resolve(this.onSubscribe(parsedMessage, baseParams, webSocketRequest));
+            promisedParams = Promise.resolve(this.onSubscribe(parsedMessage, baseParams, webSocketRequest, parsedMessage.headers));
           }
 
           // if we already have a subscription with this id, unsubscribe from it first
