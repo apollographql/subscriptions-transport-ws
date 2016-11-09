@@ -30,7 +30,7 @@ See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React
 ### `Constructor(options, httpServer)`
 - `options: {ServerOptions}`
   * `subscriptionManager: SubscriptionManager` : GraphQL subscription manager
-  * `onSubscribe?: (message: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest, headers: HeadersObject)` : optional method to create custom params that will be used when resolving this subscription
+  * `onSubscribe?: (message: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest, headers: HeadersObject)` : optional method to create custom context, or abort the subscription in case of an error.
   * `keepAlive?: number` : optional interval in ms to send `SUBSCRIPTION_KEEPALIVE` messages to all clients
     
 ## Client-server messages
