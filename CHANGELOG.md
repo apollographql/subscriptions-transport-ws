@@ -2,7 +2,7 @@
 
 ### vNEXT
 
-- ...
+- Webpack configuration to export the generated code into a browser compatible bundle.
 
 ### v0.4.0
 
