@@ -11,8 +11,10 @@
     "backo2": "^1.0.2",
     "graphql-subscriptions": "^0.2.0",
     "graphql-tag": "^1.2.3",
+    "json-loader": "^0.5.4",
     "lodash.isobject": "^3.0.2",
     "lodash.isstring": "^4.0.1",
+    "ts-loader": "^1.2.1",
     "websocket": "^1.0.23"
   },
   "scripts": {
