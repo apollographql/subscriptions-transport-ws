@@ -50,5 +50,6 @@
   "typescript": {
     "definition": "dist/index.d.ts"
   },
+  "browser": "browser/bundle.js",
   "license": "MIT"
 }
