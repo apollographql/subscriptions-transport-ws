@@ -27,7 +27,8 @@
     "testonly": "mocha --reporter spec --full-trace ./dist/test/tests.js",
     "coverage": "node ./node_modules/istanbul/lib/cli.js cover _mocha -- --full-trace ./dist/test/tests.js",
     "postcoverage": "remap-istanbul --input coverage/coverage.raw.json --type lcovonly --output coverage/lcov.info",
-    "prepublish": "npm run compile"
+    "prepublish": "npm run compile",
+    "build": "webpack"
   },
   "devDependencies": {
     "@types/chai": "^3.4.32",
