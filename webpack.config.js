@@ -3,7 +3,9 @@ module.exports = {
   entry: './index.ts',
   output: {
     path: __dirname + '/browser',
-    filename: 'bundle.js'
+    filename: 'bundle.js',
+    library: 'apolloSubscriptions',
+    libraryTarget: 'umd'
   },
   resolve: {
     extensions: ['', '.webpack.js', '.web.js', '.ts', '.js']
