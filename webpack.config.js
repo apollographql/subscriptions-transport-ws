@@ -4,7 +4,7 @@ module.exports = {
   output: {
     path: __dirname + '/browser',
     filename: 'bundle.js',
-    library: 'apolloSubscriptions',
+    library: 'graphql-subscriptions',
     libraryTarget: 'umd'
   },
   resolve: {
