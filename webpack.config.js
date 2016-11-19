@@ -4,7 +4,7 @@ module.exports = {
   output: {
     path: __dirname + '/browser',
     filename: 'bundle.js',
-    library: 'graphql-subscriptions',
+    library: 'subscriptions-transport-ws',
     libraryTarget: 'umd'
   },
   resolve: {
