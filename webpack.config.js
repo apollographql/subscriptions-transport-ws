@@ -4,8 +4,7 @@ module.exports = {
   output: {
     path: __dirname + '/browser',
     filename: 'bundle.js',
-    library: 'subscriptions-transport-ws',
-    libraryTarget: 'umd'
+    library: 'subscriptions_transport_ws'
   },
   resolve: {
     extensions: ['', '.webpack.js', '.web.js', '.ts', '.js']
