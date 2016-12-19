@@ -37,6 +37,7 @@ const TEST_PORT = 4953;
 const KEEP_ALIVE_TEST_PORT = TEST_PORT + 1;
 const DELAYED_TEST_PORT = TEST_PORT + 2;
 const RAW_TEST_PORT = TEST_PORT + 4;
+const EVENTS_TEST_PORT = TEST_PORT + 5;
 
 const data: { [key: string]: { [key: string]: string } } = {
   '1': {
@@ -133,6 +134,18 @@ const options = {
   },
 };
 
+const eventsOptions = {
+  subscriptionManager,
+  onSubscribe: sinon.spy((msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+    return Promise.resolve(Object.assign({}, params, { context: msg['context'] }));
+  }),
+  onUnsubscribe: sinon.spy(),
+  onConnect: sinon.spy(() => {
+    return {};
+  }),
+  onDisconnect: sinon.spy(),
+};
+
 function notFoundRequestListener(request: IncomingMessage, response: ServerResponse) {
   response.writeHead(404);
   response.end();
@@ -145,6 +158,10 @@ new SubscriptionServer(options, httpServer);
 const httpServerWithKA = createServer(notFoundRequestListener);
 httpServerWithKA.listen(KEEP_ALIVE_TEST_PORT);
 new SubscriptionServer(Object.assign({}, options, {keepAlive: 10}), httpServerWithKA);
+
+const httpServerWithEvents = createServer(notFoundRequestListener);
+httpServerWithEvents.listen(EVENTS_TEST_PORT);
+new SubscriptionServer(eventsOptions, httpServerWithEvents);
 
 const httpServerWithDelay = createServer(notFoundRequestListener);
 httpServerWithDelay.listen(DELAYED_TEST_PORT);
@@ -418,7 +435,6 @@ describe('Client', function() {
 });
 
 describe('Server', function() {
-
   let onSubscribeSpy: sinon.SinonSpy;
 
   beforeEach(() => {
@@ -429,15 +445,91 @@ describe('Server', function() {
     if (onSubscribeSpy) {
       onSubscribeSpy.restore();
     }
+
+    if (eventsOptions) {
+      eventsOptions.onConnect.reset();
+      eventsOptions.onDisconnect.reset();
+      eventsOptions.onSubscribe.reset();
+      eventsOptions.onUnsubscribe.reset();
+    }
+  });
+
+  it('should trigger onConnect when client connects and validated', (done) => {
+    new Client(`ws://localhost:${EVENTS_TEST_PORT}/`);
+
+    setTimeout(() => {
+      assert(eventsOptions.onConnect.calledOnce);
+      done();
+    }, 200);
+  });
+
+  it('should trigger onDisconnect when client disconnects', (done) => {
+    const client = new Client(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    client.client.close();
+
+    setTimeout(() => {
+      assert(eventsOptions.onDisconnect.calledOnce);
+      done();
+    }, 200);
+  });
+
+  it('should trigger onSubscribe when client subscribes', (done) => {
+    const client = new Client(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    client.subscribe({
+      query: `subscription useInfo($id: String) {
+          user(id: $id) {
+            id
+            name
+          }
+        }`,
+      operationName: 'useInfo',
+      variables: {
+        id: 3,
+      },
+    }, (error, result) => {
+      if (error) {
+        assert(false);
+      }
+    });
+
+    setTimeout(() => {
+      assert(eventsOptions.onSubscribe.calledOnce);
+      done();
+    }, 200);
+  });
+
+  it('should trigger onUnsubscribe when client unsubscribes', (done) => {
+    const client = new Client(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    const subId = client.subscribe({
+      query:
+        `subscription useInfo($id: String) {
+          user(id: $id) {
+            id
+            name
+          }
+        }`,
+      operationName: 'useInfo',
+      variables: {
+        id: 3,
+      },
+    }, function(error, result) {
+      //do nothing
+    });
+
+    client.unsubscribe(subId);
+
+    setTimeout(() => {
+      assert(eventsOptions.onUnsubscribe.calledOnce);
+      done();
+    }, 200);
   });
 
   it('should send correct results to multiple clients with subscriptions', function(done) {
-
     const client = new Client(`ws://localhost:${TEST_PORT}/`);
     let client1 = new Client(`ws://localhost:${TEST_PORT}/`);
 
     let numResults = 0;
-    setTimeout( () => {
+    setTimeout(() => {
       client.subscribe({
         query:
         `subscription useInfo($id: String) {
@@ -484,7 +576,6 @@ describe('Server', function() {
         },
 
       }, function(error, result) {
-
       if (error) {
         assert(false);
       }
@@ -645,7 +736,9 @@ describe('Server', function() {
       `,
       variables: { },
     }, (error, result) => {
-      assert(false);
+       if (error) {
+         assert(false);
+       }
     });
     setTimeout(() => {
       assert(onSubscribeSpy.calledOnce);
