@@ -31,13 +31,7 @@ import Client from '../client';
 import { SubscribeMessage } from '../server';
 import { SubscriptionOptions } from 'graphql-subscriptions/dist/pubsub';
 
-import {
-  server as WebSocketServer,
-  connection as Connection,
-  request as WebSocketRequest,
-} from 'websocket';
-import * as websocket from 'websocket';
-const W3CWebSocket = (websocket as { [key: string]: any })['w3cwebsocket'];
+import * as WebSocket from 'ws';
 
 const TEST_PORT = 4953;
 const KEEP_ALIVE_TEST_PORT = TEST_PORT + 1;
@@ -127,14 +121,14 @@ const subscriptionManager = new SubscriptionManager({
 
 // indirect call to support spying
 const handlers = {
-  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest) => {
+  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
     return Promise.resolve(Object.assign({}, params, { context: msg['context'] }));
   },
 };
 
 const options = {
   subscriptionManager,
-  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest) => {
+  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
     return handlers.onSubscribe(msg, params, webSocketRequest);
   },
 };
@@ -169,18 +163,17 @@ httpServerRaw.listen(RAW_TEST_PORT);
 
 describe('Client', function() {
 
-  let wsServer: WebSocketServer;
+  let wsServer: WebSocket.Server;
 
   beforeEach(() => {
-    wsServer = new WebSocketServer({
-      httpServer: httpServerRaw,
-      autoAcceptConnections: true,
+    wsServer = new WebSocket.Server({
+      server: httpServerRaw,
     });
   });
 
   afterEach(() => {
     if (wsServer) {
-      wsServer.shutDown();
+      wsServer.close();
     }
   });
 
@@ -286,11 +279,11 @@ describe('Client', function() {
   });
 
   function testBadServer(payload: any, errorMessage: string, done: Function) {
-    wsServer.on('connect', (connection: Connection) => {
-      connection.on('message', (message) => {
-        const parsedMessage = JSON.parse(message.utf8Data);
+    wsServer.on('connection', (connection: WebSocket) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
         if (parsedMessage.type === SUBSCRIPTION_START) {
-          connection.sendUTF(JSON.stringify({
+          connection.send(JSON.stringify({
             type: SUBSCRIPTION_FAIL,
             id: parsedMessage.id,
             payload,
@@ -359,10 +352,10 @@ describe('Client', function() {
     let connections = 0;
     let client: Client;
     let originalClient: any;
-    wsServer.on('connect', (connection: Connection) => {
+    wsServer.on('connection', (connection: WebSocket) => {
       connections += 1;
       if (connections === 1) {
-        wsServer.closeAllConnections();
+        originalClient.close();
       } else {
         expect(client.client).to.not.be.equal(originalClient);
         done();
@@ -374,20 +367,21 @@ describe('Client', function() {
 
   it('should resubscribe after reconnect', function(done) {
     let connections = 0;
-    wsServer.on('connect', (connection: Connection) => {
+    let client: Client = null;
+    wsServer.on('connection', (connection: WebSocket) => {
       connections += 1;
-      connection.on('message', (message) => {
-        const parsedMessage = JSON.parse(message.utf8Data);
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
         if (parsedMessage.type === SUBSCRIPTION_START) {
           if (connections === 1) {
-            wsServer.closeAllConnections();
+            client.client.close();
           } else {
             done();
           }
         }
       });
     });
-    const client = new Client(`ws://localhost:${RAW_TEST_PORT}/`, { reconnect: true });
+    client = new Client(`ws://localhost:${RAW_TEST_PORT}/`, { reconnect: true });
     client.subscribe({
       query: `
         subscription useInfo{
@@ -402,15 +396,15 @@ describe('Client', function() {
 
   it('should stop trying to reconnect to the server', function(done) {
     let connections = 0;
-    wsServer.on('connect', (connection: Connection) => {
+    wsServer.on('connection', (connection: WebSocket) => {
       connections += 1;
       if (connections === 1) {
-        wsServer.unmount();
-        wsServer.closeAllConnections();
+        wsServer.close();
       } else {
         assert(false);
       }
     });
+
     const client = new Client(`ws://localhost:${RAW_TEST_PORT}/`, {
       timeout: 100,
       reconnect: true,
@@ -432,7 +426,9 @@ describe('Server', function() {
   });
 
   afterEach(() => {
-    onSubscribeSpy.restore();
+    if (onSubscribeSpy) {
+      onSubscribeSpy.restore();
+    }
   });
 
   it('should send correct results to multiple clients with subscriptions', function(done) {
@@ -691,14 +687,19 @@ describe('Server', function() {
   });
 
   it('rejects a client that does not specify a supported protocol', function(done) {
-    const client = new W3CWebSocket(`ws://localhost:${TEST_PORT}/`);
-    client.onerror = (message: any) => {
-      done();
-    };
+    const client = new WebSocket(`ws://localhost:${TEST_PORT}/`);
+
+    client.on('close', (code) => {
+      if (code === 1002) {
+        done();
+      } else {
+        assert(false);
+      }
+    });
   });
 
   it('rejects unparsable message', function(done) {
-    const client = new W3CWebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
+    const client = new WebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
     client.onmessage = (message: any) => {
       let messageData = JSON.parse(message.data);
       assert.equal(messageData.type, SUBSCRIPTION_FAIL);
@@ -712,7 +713,7 @@ describe('Server', function() {
   });
 
   it('rejects nonsense message', function(done) {
-    const client = new W3CWebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
+    const client = new WebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
     client.onmessage = (message: any) => {
       let messageData = JSON.parse(message.data);
       assert.equal(messageData.type, SUBSCRIPTION_FAIL);
@@ -743,7 +744,7 @@ describe('Server', function() {
   it('handles errors prior to graphql execution', function(done) {
     // replace the onSubscribeSpy with a custom handler, the spy will restore
     // the original method
-    handlers.onSubscribe = (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest) => {
+    handlers.onSubscribe = (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
       return Promise.resolve(Object.assign({}, params, { context: () => { throw new Error('bad'); } }));
     };
     const client = new Client(`ws://localhost:${TEST_PORT}/`);
@@ -771,7 +772,7 @@ describe('Server', function() {
   });
 
   it('sends a keep alive signal in the socket', function(done) {
-    let client = new W3CWebSocket(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
+    let client = new WebSocket(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
     let yieldCount = 0;
     client.onmessage = (message: any) => {
       const parsedMessage = JSON.parse(message.data);
