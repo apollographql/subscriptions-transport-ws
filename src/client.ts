@@ -30,7 +30,10 @@ export interface Subscriptions {
   [id: string]: Subscription;
 }
 
+export type TransportHeaders = {[headerName: string]: string};
+
 export interface ClientOptions {
+  headers?: TransportHeaders;
   timeout?: number;
   reconnect?: boolean;
   reconnectionAttempts?: number;
@@ -39,9 +42,9 @@ export interface ClientOptions {
 const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
 
 export default class Client {
-
   public client: any;
   public subscriptions: Subscriptions;
+  private headers: TransportHeaders;
   private url: string;
   private maxId: number;
   private subscriptionTimeout: number;
@@ -55,6 +58,7 @@ export default class Client {
 
   constructor(url: string, options?: ClientOptions) {
     const {
+      headers = {},
       timeout = DEFAULT_SUBSCRIPTION_TIMEOUT,
       reconnect = false,
       reconnectionAttempts = Infinity,
@@ -62,6 +66,7 @@ export default class Client {
 
     this.url = url;
     this.subscriptions = {};
+    this.headers = headers;
     this.maxId = 0;
     this.subscriptionTimeout = timeout;
     this.waitingSubscriptions = {};
@@ -181,7 +186,7 @@ export default class Client {
   }
 
   private connect() {
-    this.client = new WebSocket(this.url, { protocol: GRAPHQL_SUBSCRIPTIONS });
+    this.client = new WebSocket(this.url, { protocol: GRAPHQL_SUBSCRIPTIONS, headers: this.headers || {} });
 
     this.client.on('open', () => {
       this.reconnecting = false;
