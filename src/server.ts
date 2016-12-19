@@ -34,6 +34,9 @@ interface SubscriptionData {
 export interface ServerOptions {
   subscriptionManager: SubscriptionManager;
   onSubscribe?: Function;
+  onUnsubscribe?: Function;
+  onConnect?: Function;
+  onDisconnect?: Function;
   keepAlive?: number;
   // contextValue?: any;
   // rootValue?: any;
@@ -50,11 +53,14 @@ interface TriggerAction {
 
 class Server {
   private onSubscribe: Function;
+  private onUnsubscribe: Function;
+  private onConnect: Function;
+  private onDisconnect: Function;
   private wsServer: WebSocket.Server;
   private subscriptionManager: SubscriptionManager;
 
   constructor(options: ServerOptions, httpServer: HttpServer) {
-    const { subscriptionManager, onSubscribe, keepAlive } = options;
+    const { subscriptionManager, onSubscribe, onUnsubscribe, onConnect, onDisconnect, keepAlive } = options;
 
     if (!subscriptionManager) {
       throw new Error('Must provide `subscriptionManager` to websocket server constructor.');
@@ -62,12 +68,16 @@ class Server {
 
     this.subscriptionManager = subscriptionManager;
     this.onSubscribe = onSubscribe;
+    this.onUnsubscribe = onUnsubscribe;
+    this.onConnect = onConnect;
+    this.onDisconnect = onDisconnect;
 
     // init and connect websocket server to http
     this.wsServer = new WebSocket.Server({
       server: httpServer,
       // TODO: origin filter
     });
+
     this.wsServer.on('connection', (request: WebSocket) => {
       request.pause();
       if (request.protocol === undefined || request.protocol.indexOf(GRAPHQL_SUBSCRIPTIONS) === -1) {
@@ -77,31 +87,53 @@ class Server {
         return;
       }
 
-      // accept connection
-      request.resume();
+      let onConnectPromise = Promise.resolve();
 
-      // Regular keep alive messages if keepAlive is set
-      if (keepAlive) {
-        const keepAliveTimer = setInterval(() => {
-          if (request.readyState === WebSocket.OPEN) {
-            this.sendKeepAlive(request);
-          } else {
-            clearInterval(keepAliveTimer);
-          }
-        }, keepAlive);
+      if (this.onConnect) {
+        onConnectPromise = Promise.resolve(this.onConnect(request));
       }
 
-      const connectionSubscriptions: ConnectionSubscriptions = {};
-      request.on('message', this.onMessage(request, connectionSubscriptions));
-      request.on('close', this.onClose(request, connectionSubscriptions));
+      onConnectPromise.then(() => {
+        // accept connection
+        request.resume();
+
+        // Regular keep alive messages if keepAlive is set
+        if (keepAlive) {
+          const keepAliveTimer = setInterval(() => {
+            if (request.readyState === WebSocket.OPEN) {
+              this.sendKeepAlive(request);
+            } else {
+              clearInterval(keepAliveTimer);
+            }
+          }, keepAlive);
+        }
+
+        const connectionSubscriptions: ConnectionSubscriptions = {};
+        request.on('message', this.onMessage(request, connectionSubscriptions));
+        request.on('close', () => {
+          this.onClose(request, connectionSubscriptions);
+
+          if (this.onDisconnect) {
+            this.onDisconnect(request);
+          }
+        });
+      });
     });
+  }
+
+  private unsubscribe(connection: WebSocket, handleId: number) {
+    this.subscriptionManager.unsubscribe(handleId);
+
+    if (this.onUnsubscribe) {
+      this.onUnsubscribe();
+    }
   }
 
   // TODO test that this actually works
   private onClose(connection: WebSocket, connectionSubscriptions: ConnectionSubscriptions) {
     return () => {
       Object.keys(connectionSubscriptions).forEach( (subId) => {
-        this.subscriptionManager.unsubscribe(connectionSubscriptions[subId]);
+        this.unsubscribe(connection, connectionSubscriptions[subId]);
         delete connectionSubscriptions[subId];
       });
     };
@@ -139,11 +171,21 @@ class Server {
           // if we already have a subscription with this id, unsubscribe from it first
           // TODO: test that this actually works
           if (connectionSubscriptions[subId]) {
-            this.subscriptionManager.unsubscribe(connectionSubscriptions[subId]);
+            this.unsubscribe(connection, connectionSubscriptions[subId]);
             delete connectionSubscriptions[subId];
           }
 
           promisedParams.then(params => {
+            if (typeof params !== 'object') {
+              const error = `Invalid params returned from onSubscribe! return values must be an object!`;
+              this.sendSubscriptionFail(connection, subId, {
+                errors: [{
+                  message: error,
+                }],
+              });
+
+              throw new Error(error);
+            }
             // create a callback
             // error could be a runtime exception or an object with errors
             // result is a GraphQL ExecutionResult, which has an optional errors property
@@ -156,6 +198,7 @@ class Server {
                 this.sendSubscriptionData(connection, subId, { errors: [{ message: error.message }] });
               }
             };
+
             return this.subscriptionManager.subscribe( params );
           }).then((graphqlSubId: number) => {
             connectionSubscriptions[subId] = graphqlSubId;
@@ -174,7 +217,7 @@ class Server {
           // find subscription id. Call unsubscribe.
           // TODO untested. catch errors, etc.
           if (typeof connectionSubscriptions[subId] !== 'undefined') {
-            this.subscriptionManager.unsubscribe(connectionSubscriptions[subId]);
+            this.unsubscribe(connection, connectionSubscriptions[subId]);
             delete connectionSubscriptions[subId];
           }
           break;
@@ -183,7 +226,7 @@ class Server {
           this.sendSubscriptionFail(connection, subId, {
             errors: [{
               message: 'Invalid message type. Message type must be `subscription_start` or `subscription_end`.',
-            }]
+            }],
           });
       }
     };
