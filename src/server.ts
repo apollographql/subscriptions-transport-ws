@@ -1,9 +1,4 @@
-import {
-  server as WebSocketServer, // these are NOT the correct typings!
-  connection as Connection,
-  request as WebSocketRequest,
-  IMessage,
-} from 'websocket';
+import * as WebSocket from 'ws';
 
 import {
   SUBSCRIPTION_FAIL,
@@ -22,13 +17,13 @@ import { Server as HttpServer} from 'http';
 type ConnectionSubscriptions = { [subId: string]: number };
 
 export interface SubscribeMessage {
-  [key: string]: any, // any extention that will come with the message.
+  [key: string]: any; // any extention that will come with the message.
   query?: string;
   variables?: { [key: string]: any };
   operationName?: string;
   id: string;
   type: string;
-};
+}
 
 interface SubscriptionData {
   query: string;
@@ -55,7 +50,7 @@ interface TriggerAction {
 
 class Server {
   private onSubscribe: Function;
-  private wsServer: WebSocketServer;
+  private wsServer: WebSocket.Server;
   private subscriptionManager: SubscriptionManager;
 
   constructor(options: ServerOptions, httpServer: HttpServer) {
@@ -69,26 +64,27 @@ class Server {
     this.onSubscribe = onSubscribe;
 
     // init and connect websocket server to http
-    this.wsServer = new WebSocketServer({
-      httpServer: httpServer,
-      autoAcceptConnections: false,
+    this.wsServer = new WebSocket.Server({
+      server: httpServer,
       // TODO: origin filter
     });
+    this.wsServer.on('connection', (request: WebSocket) => {
+      request.pause();
+      if (request.protocol === undefined || request.protocol.indexOf(GRAPHQL_SUBSCRIPTIONS) === -1) {
+        request.close(1002);
+        request.terminate();
 
-    this.wsServer.on('request', (request) => {
-      if (request.requestedProtocols.indexOf(GRAPHQL_SUBSCRIPTIONS) === -1) {
-        request.reject(400, 'Unsupported protocol.');
         return;
       }
 
       // accept connection
-      const connection: Connection = request.accept(GRAPHQL_SUBSCRIPTIONS, request.origin);
+      request.resume();
 
       // Regular keep alive messages if keepAlive is set
       if (keepAlive) {
         const keepAliveTimer = setInterval(() => {
-          if (connection && connection.state === 'open') {
-            this.sendKeepAlive(connection);
+          if (request.readyState === WebSocket.OPEN) {
+            this.sendKeepAlive(request);
           } else {
             clearInterval(keepAliveTimer);
           }
@@ -96,26 +92,26 @@ class Server {
       }
 
       const connectionSubscriptions: ConnectionSubscriptions = {};
-      connection.on('message', this.onMessage(connection, connectionSubscriptions, request));
-      connection.on('close', this.onClose(connection, connectionSubscriptions));
+      request.on('message', this.onMessage(request, connectionSubscriptions));
+      request.on('close', this.onClose(request, connectionSubscriptions));
     });
   }
 
   // TODO test that this actually works
-  private onClose(connection: Connection, connectionSubscriptions: ConnectionSubscriptions) {
+  private onClose(connection: WebSocket, connectionSubscriptions: ConnectionSubscriptions) {
     return () => {
       Object.keys(connectionSubscriptions).forEach( (subId) => {
         this.subscriptionManager.unsubscribe(connectionSubscriptions[subId]);
         delete connectionSubscriptions[subId];
       });
-    }
+    };
   }
 
-  private onMessage(connection: Connection, connectionSubscriptions: ConnectionSubscriptions, webSocketRequest: WebSocketRequest) {
-    return  (message: IMessage) => {
+  private onMessage(connection: WebSocket, connectionSubscriptions: ConnectionSubscriptions) {
+    return  (message: any) => {
       let parsedMessage: SubscribeMessage;
       try {
-        parsedMessage = JSON.parse(message.utf8Data);
+        parsedMessage = JSON.parse(message);
       } catch (e) {
         this.sendSubscriptionFail(connection, null, { errors: [{ message: e.message }] });
         return;
@@ -136,8 +132,8 @@ class Server {
           };
           let promisedParams = Promise.resolve(baseParams);
 
-          if (this.onSubscribe){
-            promisedParams = Promise.resolve(this.onSubscribe(parsedMessage, baseParams, webSocketRequest));
+          if (this.onSubscribe) {
+            promisedParams = Promise.resolve(this.onSubscribe(parsedMessage, baseParams, connection));
           }
 
           // if we already have a subscription with this id, unsubscribe from it first
@@ -147,7 +143,7 @@ class Server {
             delete connectionSubscriptions[subId];
           }
 
-          promisedParams.then( params => {
+          promisedParams.then(params => {
             // create a callback
             // error could be a runtime exception or an object with errors
             // result is a GraphQL ExecutionResult, which has an optional errors property
@@ -186,48 +182,49 @@ class Server {
         default:
           this.sendSubscriptionFail(connection, subId, {
             errors: [{
-              message: 'Invalid message type. Message type must be `subscription_start` or `subscription_end`.'
+              message: 'Invalid message type. Message type must be `subscription_start` or `subscription_end`.',
             }]
           });
       }
     };
   }
 
-  private sendSubscriptionData(connection: Connection, subId: string, payload: any): void {
+  private sendSubscriptionData(connection: WebSocket, subId: string, payload: any): void {
     let message = {
       type: SUBSCRIPTION_DATA,
       id: subId,
       payload,
     };
 
-    connection.sendUTF(JSON.stringify(message));
+    connection.send(JSON.stringify(message));
   }
 
-  private sendSubscriptionFail(connection: Connection, subId: string, payload: any): void {
+  private sendSubscriptionFail(connection: WebSocket, subId: string, payload: any): void {
     let message = {
       type: SUBSCRIPTION_FAIL,
       id: subId,
       payload,
     };
 
-    connection.sendUTF(JSON.stringify(message));
+    connection.send(JSON.stringify(message));
   }
 
-  private sendSubscriptionSuccess(connection: Connection, subId: string): void {
+  private sendSubscriptionSuccess(connection: WebSocket, subId: string): void {
     let message = {
       type: SUBSCRIPTION_SUCCESS,
       id: subId,
     };
 
-    connection.sendUTF(JSON.stringify(message));
+    connection.send(JSON.stringify(message));
   }
 
-  private sendKeepAlive(connection: Connection): void {
+  private sendKeepAlive(connection: WebSocket): void {
     let message = {
       type: SUBSCRIPTION_KEEPALIVE,
     };
 
-    connection.sendUTF(JSON.stringify(message));
+    connection.send(JSON.stringify(message));
   }
 }
+
 export default Server;

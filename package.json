@@ -8,11 +8,12 @@
     "url": "git+https://github.com/apollostack/subscriptions-transport-ws.git"
   },
   "dependencies": {
+    "@types/ws": "0.0.37",
     "backo2": "^1.0.2",
     "graphql-subscriptions": "^0.2.0",
     "lodash.isobject": "^3.0.2",
     "lodash.isstring": "^4.0.1",
-    "websocket": "^1.0.23"
+    "ws": "^1.1.1"
   },
   "scripts": {
     "compile": "tsc",
@@ -32,7 +33,6 @@
     "@types/mocha": "^2.2.31",
     "@types/node": "^6.0.38",
     "@types/sinon": "^1.16.31",
-    "@types/websocket": "^0.0.32",
     "chai": "^3.5.0",
     "graphql": "^0.7.0",
     "istanbul": "^1.0.0-alpha.2",

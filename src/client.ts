@@ -1,5 +1,4 @@
-import * as websocket from 'websocket';
-const W3CWebSocket = (websocket as { [key: string]: any })['w3cwebsocket'];
+import * as WebSocket from 'ws';
 import * as Backoff from 'backo2';
 
 import {
@@ -23,8 +22,8 @@ export interface SubscriptionOptions {
 }
 
 export interface Subscription {
-  options: SubscriptionOptions,
-  handler: (error: Error[], result?: any) => void,
+  options: SubscriptionOptions;
+  handler: (error: Error[], result?: any) => void;
 }
 
 export interface Subscriptions {
@@ -168,6 +167,7 @@ export default class Client {
     if (this.backoff.attempts > this.reconnectionAttempts) {
       return;
     }
+
     if (!this.reconnecting) {
       this.reconnectSubscriptions = this.subscriptions;
       this.subscriptions = {};
@@ -181,29 +181,33 @@ export default class Client {
   }
 
   private connect() {
-    this.client = new W3CWebSocket(this.url, GRAPHQL_SUBSCRIPTIONS);
+    this.client = new WebSocket(this.url, { protocol: GRAPHQL_SUBSCRIPTIONS });
 
-    this.client.onopen = () => {
+    this.client.on('open', () => {
       this.reconnecting = false;
       this.backoff.reset();
       Object.keys(this.reconnectSubscriptions).forEach((key) => {
         const { options, handler } = this.reconnectSubscriptions[key];
         this.subscribe(options, handler);
-      })
+      });
       this.unsentMessagesQueue.forEach((message) => {
         this.client.send(JSON.stringify(message));
       });
       this.unsentMessagesQueue = [];
-    };
+    });
 
-    this.client.onclose = () => {
+    this.client.on('close', () => {
       this.tryReconnect();
-    };
+    });
 
-    this.client.onmessage = (message: { data: string }) => {
+    this.client.on('error', () => {
+      this.tryReconnect();
+    });
+
+    this.client.on('message', (message: any) => {
       let parsedMessage: any;
       try {
-        parsedMessage = JSON.parse(message.data);
+        parsedMessage = JSON.parse(message);
       } catch (e) {
         throw new Error('Message must be JSON-parseable.');
       }
@@ -215,7 +219,6 @@ export default class Client {
 
       // console.log('MSG', JSON.stringify(parsedMessage, null, 2));
       switch (parsedMessage.type) {
-
         case SUBSCRIPTION_SUCCESS:
           delete this.waitingSubscriptions[subId];
 
@@ -240,6 +243,6 @@ export default class Client {
         default:
           throw new Error('Invalid message type - must be of type `subscription_start`, `subscription_data` or `subscription_keepalive`.');
       }
-    };
+    });
   }
 };
