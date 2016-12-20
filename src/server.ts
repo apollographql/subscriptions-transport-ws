@@ -103,7 +103,7 @@ class Server {
     this.subscriptionManager.unsubscribe(handleId);
 
     if (this.onUnsubscribe) {
-      this.onUnsubscribe();
+      this.onUnsubscribe(connection);
     }
   }
 
