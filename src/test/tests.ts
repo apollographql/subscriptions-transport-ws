@@ -153,15 +153,15 @@ function notFoundRequestListener(request: IncomingMessage, response: ServerRespo
 
 const httpServer = createServer(notFoundRequestListener);
 httpServer.listen(TEST_PORT);
-new SubscriptionServer(options, httpServer);
+new SubscriptionServer(options, { server: httpServer});
 
 const httpServerWithKA = createServer(notFoundRequestListener);
 httpServerWithKA.listen(KEEP_ALIVE_TEST_PORT);
-new SubscriptionServer(Object.assign({}, options, {keepAlive: 10}), httpServerWithKA);
+new SubscriptionServer(Object.assign({}, options, {keepAlive: 10}), { server: httpServerWithKA});
 
 const httpServerWithEvents = createServer(notFoundRequestListener);
 httpServerWithEvents.listen(EVENTS_TEST_PORT);
-new SubscriptionServer(eventsOptions, httpServerWithEvents);
+new SubscriptionServer(eventsOptions, { server: httpServerWithEvents});
 
 const httpServerWithDelay = createServer(notFoundRequestListener);
 httpServerWithDelay.listen(DELAYED_TEST_PORT);
@@ -173,7 +173,7 @@ new SubscriptionServer(Object.assign({}, options, {
       }, 100);
     });
   },
-}), httpServerWithDelay);
+}), { server: httpServerWithDelay});
 
 const httpServerRaw = createServer(notFoundRequestListener);
 httpServerRaw.listen(RAW_TEST_PORT);

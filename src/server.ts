@@ -192,8 +192,6 @@ class Server {
               throw new Error(error);
             }
 
-            console.log(params.context);
-
             // create a callback
             // error could be a runtime exception or an object with errors
             // result is a GraphQL ExecutionResult, which has an optional errors property
