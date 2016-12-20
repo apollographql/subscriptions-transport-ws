@@ -6,7 +6,7 @@ const SUBSCRIPTION_SUCCESS = 'subscription_success';
 const SUBSCRIPTION_KEEPALIVE = 'subscription_keepalive';
 const INIT = 'init';
 const INIT_SUCCESS = 'init_success';
-const INIT_FAIL = 'init_failed';
+const INIT_FAIL = 'init_fail';
 export {
     SUBSCRIPTION_DATA,
     SUBSCRIPTION_END,
