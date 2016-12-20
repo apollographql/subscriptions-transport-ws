@@ -141,7 +141,7 @@ const eventsOptions = {
   }),
   onUnsubscribe: sinon.spy(),
   onConnect: sinon.spy(() => {
-    return {};
+    return { test: 'test context' };
   }),
   onDisconnect: sinon.spy(),
 };
@@ -161,7 +161,7 @@ new SubscriptionServer(Object.assign({}, options, {keepAlive: 10}), { server: ht
 
 const httpServerWithEvents = createServer(notFoundRequestListener);
 httpServerWithEvents.listen(EVENTS_TEST_PORT);
-new SubscriptionServer(eventsOptions, { server: httpServerWithEvents});
+const eventsServer = new SubscriptionServer(eventsOptions, { server: httpServerWithEvents });
 
 const httpServerWithDelay = createServer(notFoundRequestListener);
 httpServerWithDelay.listen(DELAYED_TEST_PORT);
@@ -534,6 +534,39 @@ describe('Server', function() {
 
     setTimeout(() => {
       assert(eventsOptions.onConnect.calledOnce);
+      done();
+    }, 200);
+  });
+
+
+  it('should trigger onConnect with the correct connectionParams', (done) => {
+    const connectionParams: any = {
+      test: true,
+    };
+
+    new Client(`ws://localhost:${EVENTS_TEST_PORT}/`, {
+      connectionParams: connectionParams,
+    });
+
+    setTimeout(() => {
+      assert(eventsOptions.onConnect.calledOnce);
+      expect(JSON.stringify(eventsOptions.onConnect.getCall(0).args[0])).to.equal(JSON.stringify(connectionParams));
+      done();
+    }, 200);
+  });
+
+  it('should extend ws context with onConnect return value', (done) => {
+    const connectionParams: any = {
+      test: true,
+    };
+
+    new Client(`ws://localhost:${EVENTS_TEST_PORT}/`, {
+      connectionParams: connectionParams,
+    });
+
+    setTimeout(() => {
+      assert(eventsOptions.onConnect.calledOnce);
+      expect(JSON.stringify(eventsServer['initResult'])).to.equal(JSON.stringify({test: 'test context'}));
       done();
     }, 200);
   });
