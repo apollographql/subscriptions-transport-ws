@@ -7,7 +7,7 @@ import {
   SUBSCRIPTION_START,
   SUBSCRIPTION_SUCCESS,
   SUBSCRIPTION_END,
-  SUBSCRIPTION_KEEPALIVE,
+  SUBSCRIPTION_KEEPALIVE, INIT, INIT_FAIL, INIT_SUCCESS,
 } from './messageTypes';
 import { GRAPHQL_SUBSCRIPTIONS } from './protocols';
 
@@ -30,10 +30,10 @@ export interface Subscriptions {
   [id: string]: Subscription;
 }
 
-export type TransportHeaders = {[headerName: string]: string};
+export type ConnectionParams = {[paramName: string]: string};
 
 export interface ClientOptions {
-  headers?: TransportHeaders;
+  connectionParams?: ConnectionParams;
   timeout?: number;
   reconnect?: boolean;
   reconnectionAttempts?: number;
@@ -44,9 +44,9 @@ const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
 export default class Client {
   public client: any;
   public subscriptions: Subscriptions;
-  private headers: TransportHeaders;
   private url: string;
   private maxId: number;
+  private connectionParams: ConnectionParams;
   private subscriptionTimeout: number;
   private waitingSubscriptions: {[id: string]: boolean}; // subscriptions waiting for SUBSCRIPTION_SUCCESS
   private unsentMessagesQueue: Array<any>; // queued messages while websocket is opening.
@@ -55,18 +55,20 @@ export default class Client {
   private reconnectionAttempts: number;
   private reconnectSubscriptions: Subscriptions;
   private backoff: any;
+  private connectionCallback: any;
 
-  constructor(url: string, options?: ClientOptions) {
+  constructor(url: string, options?: ClientOptions, connectionCallback?: (error: Error[], result?: any) => void) {
     const {
-      headers = {},
+      connectionParams = {},
       timeout = DEFAULT_SUBSCRIPTION_TIMEOUT,
       reconnect = false,
       reconnectionAttempts = Infinity,
     } = (options || {});
 
+    this.connectionParams = connectionParams;
+    this.connectionCallback = connectionCallback;
     this.url = url;
     this.subscriptions = {};
-    this.headers = headers;
     this.maxId = 0;
     this.subscriptionTimeout = timeout;
     this.waitingSubscriptions = {};
@@ -199,6 +201,9 @@ export default class Client {
         this.client.send(JSON.stringify(message));
       });
       this.unsentMessagesQueue = [];
+
+      let message = Object.assign({type: INIT, payload: this.connectionParams});
+      this.sendMessage(message);
     };
 
     this.client.onclose = () => {
@@ -217,13 +222,24 @@ export default class Client {
         throw new Error(`Message must be JSON-parseable. Got: ${data}`);
       }
       const subId = parsedMessage.id;
-      if (parsedMessage.type !== SUBSCRIPTION_KEEPALIVE && !this.subscriptions[subId]) {
+      if ([SUBSCRIPTION_KEEPALIVE, INIT_SUCCESS, INIT_FAIL].indexOf(parsedMessage.type) === -1 && !this.subscriptions[subId]) {
         this.unsubscribe(subId);
         return;
       }
 
       // console.log('MSG', JSON.stringify(parsedMessage, null, 2));
       switch (parsedMessage.type) {
+        case INIT_FAIL:
+          if (this.connectionCallback) {
+            this.connectionCallback(parsedMessage.error);
+          }
+
+          throw new Error(parsedMessage.payload);
+        case INIT_SUCCESS:
+          if (this.connectionCallback) {
+            this.connectionCallback();
+          }
+          break;
         case SUBSCRIPTION_SUCCESS:
           delete this.waitingSubscriptions[subId];
 
@@ -246,7 +262,7 @@ export default class Client {
           break;
 
         default:
-          throw new Error('Invalid message type - must be of type `subscription_start`, `subscription_data` or `subscription_keepalive`.');
+          throw new Error('Invalid message type!');
       }
     };
   }
