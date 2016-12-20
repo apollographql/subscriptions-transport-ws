@@ -9,7 +9,7 @@ A GraphQL websocket server and client to facilitate GraphQL subscriptions.
 See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React](https://github.com/apollostack/GitHunt-React) for an example server and client integration.
 
 ## Client
-### `Constructor(url, options)`
+### `Constructor(url, options, connectionCallback)`
 - `url: string` : url that the client will connect to
 - `options?: Object` : optional, object to modify default client behavior
   * `timeout?: number` : how long the client should wait in ms for a subscription to be started (default 5000 ms)how long the client should wait in ms for a subscription to be started (default 5000 ms)
