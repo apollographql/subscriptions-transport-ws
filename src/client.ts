@@ -1,4 +1,4 @@
-import * as WebSocket from 'ws';
+import {WebSocket}from './client-websocket';
 import * as Backoff from 'backo2';
 
 import {
@@ -105,7 +105,7 @@ export default class Client {
     this.subscriptions[subId] = {options, handler};
     this.waitingSubscriptions[subId] = true;
     setTimeout( () => {
-      if (this.waitingSubscriptions[subId]){
+      if (this.waitingSubscriptions[subId]) {
         handler([new Error('Subscription timed out - no response from server')]);
         this.unsubscribe(subId);
       }
@@ -186,9 +186,9 @@ export default class Client {
   }
 
   private connect() {
-    this.client = new WebSocket(this.url, { protocol: GRAPHQL_SUBSCRIPTIONS, headers: this.headers || {} });
+    this.client = new WebSocket(this.url, GRAPHQL_SUBSCRIPTIONS);
 
-    this.client.on('open', () => {
+    this.client.onopen = () => {
       this.reconnecting = false;
       this.backoff.reset();
       Object.keys(this.reconnectSubscriptions).forEach((key) => {
@@ -199,22 +199,22 @@ export default class Client {
         this.client.send(JSON.stringify(message));
       });
       this.unsentMessagesQueue = [];
-    });
+    };
 
-    this.client.on('close', () => {
+    this.client.onclose = () => {
       this.tryReconnect();
-    });
+    };
 
-    this.client.on('error', () => {
+    this.client.onerror = () => {
       this.tryReconnect();
-    });
+    };
 
-    this.client.on('message', (message: any) => {
+    this.client.onmessage = ({ data }: {data: any}) => {
       let parsedMessage: any;
       try {
-        parsedMessage = JSON.parse(message);
+        parsedMessage = JSON.parse(data);
       } catch (e) {
-        throw new Error('Message must be JSON-parseable.');
+        throw new Error(`Message must be JSON-parseable. Got: ${data}`);
       }
       const subId = parsedMessage.id;
       if (parsedMessage.type !== SUBSCRIPTION_KEEPALIVE && !this.subscriptions[subId]) {
@@ -248,6 +248,6 @@ export default class Client {
         default:
           throw new Error('Invalid message type - must be of type `subscription_start`, `subscription_data` or `subscription_keepalive`.');
       }
-    });
+    };
   }
 };
