@@ -231,7 +231,7 @@ export default class Client {
       switch (parsedMessage.type) {
         case INIT_FAIL:
           if (this.connectionCallback) {
-            this.connectionCallback(parsedMessage.error);
+            this.connectionCallback(parsedMessage.payload.error);
           }
 
           throw new Error(parsedMessage.payload);

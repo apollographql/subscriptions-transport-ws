@@ -194,6 +194,81 @@ describe('Client', function() {
     }
   });
 
+  it('should send INIT message when creating the connection', (done) => {
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        expect(parsedMessage.type).to.equals('init');
+        done();
+      });
+    });
+
+    new Client(`ws://localhost:${RAW_TEST_PORT}/`);
+  });
+
+  it('should send connectionParams along with init message', (done) => {
+    const connectionParams: any = {
+      test: true,
+    };
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        expect(JSON.stringify(parsedMessage.payload)).to.equal(JSON.stringify(connectionParams));
+        done();
+      });
+    });
+
+    new Client(`ws://localhost:${RAW_TEST_PORT}/`, {
+      connectionParams: connectionParams,
+    });
+  });
+
+  it('should handle correctly init_fail message', (done) => {
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        connection.send(JSON.stringify({type: 'init_fail', payload: {error: 'test error'}}));
+      });
+    });
+
+    new Client(`ws://localhost:${RAW_TEST_PORT}/`, {}, (error) => {
+      expect(error).to.equals('test error');
+      done();
+    });
+  });
+
+  it('should handle init_fail message and handle server that closes connection', (done) => {
+    let client: any = null;
+
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        connection.send(JSON.stringify({type: 'init_fail', payload: {error: 'test error'}}), () => {
+          connection.close();
+          connection.terminate();
+
+          setTimeout(() => {
+            expect(client.client.readyState).to.equals(WebSocket.CLOSED);
+            done();
+          }, 500);
+        });
+      });
+    });
+
+    client = new Client(`ws://localhost:${RAW_TEST_PORT}/`);
+  });
+
+  it('should handle correctly init_success message', (done) => {
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        connection.send(JSON.stringify({type: 'init_success'}));
+      });
+    });
+
+    new Client(`ws://localhost:${RAW_TEST_PORT}/`, {}, (error) => {
+      expect(error).to.equals(undefined);
+      done();
+    });
+  });
+
   it('removes subscription when it unsubscribes from it', function() {
     const client = new Client(`ws://localhost:${TEST_PORT}/`);
 
