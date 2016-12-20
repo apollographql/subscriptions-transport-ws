@@ -12,7 +12,6 @@ import { GRAPHQL_SUBSCRIPTIONS } from './protocols';
 
 import { SubscriptionManager } from 'graphql-subscriptions';
 import { SubscriptionOptions } from 'graphql-subscriptions/dist/pubsub';
-import { Server as HttpServer} from 'http';
 
 type ConnectionSubscriptions = { [subId: string]: number };
 
@@ -23,12 +22,6 @@ export interface SubscribeMessage {
   operationName?: string;
   id: string;
   type: string;
-}
-
-interface SubscriptionData {
-  query: string;
-  variables?: { [key: string]: any };
-  operationName: string;
 }
 
 export interface ServerOptions {
@@ -45,12 +38,6 @@ export interface ServerOptions {
   // triggerGenerator?: (name: string, args: Object, context?: Object) => Array<{name: string, filter: Function}>;
 }
 
-interface TriggerAction {
-  name: string;
-  rootValue: any;
-  contextValue?: any;
-}
-
 class Server {
   private onSubscribe: Function;
   private onUnsubscribe: Function;
@@ -59,7 +46,7 @@ class Server {
   private wsServer: WebSocket.Server;
   private subscriptionManager: SubscriptionManager;
 
-  constructor(options: ServerOptions, httpServer: HttpServer) {
+  constructor(options: ServerOptions, socketOptions: WebSocket.IServerOptions) {
     const { subscriptionManager, onSubscribe, onUnsubscribe, onConnect, onDisconnect, keepAlive } = options;
 
     if (!subscriptionManager) {
@@ -73,10 +60,7 @@ class Server {
     this.onDisconnect = onDisconnect;
 
     // init and connect websocket server to http
-    this.wsServer = new WebSocket.Server({
-      server: httpServer,
-      // TODO: origin filter
-    });
+    this.wsServer = new WebSocket.Server(socketOptions || {});
 
     this.wsServer.on('connection', (request: WebSocket) => {
       request.pause();
