@@ -206,6 +206,58 @@ describe('Client', function() {
     new Client(`ws://localhost:${RAW_TEST_PORT}/`);
   });
 
+  it('should throw an exception when query is not provided', () => {
+    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+
+    expect(() => {
+      client.subscribe({
+          query: undefined,
+          operationName: 'useInfo',
+          variables: {
+            id: 3,
+          },
+        }, function(error, result) {
+          //do nothing
+        }
+      );
+    }).to.throw();
+  });
+
+  it('should throw an exception when query is not valid', () => {
+    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+
+    expect(() => {
+      client.subscribe({
+          query: <string>{},
+          operationName: 'useInfo',
+          variables: {
+            id: 3,
+          },
+        }, function(error, result) {
+          //do nothing
+        }
+      );
+    }).to.throw();
+  });
+
+  it('should throw an exception when handler is not provided', () => {
+    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+
+    expect(() => {
+      client.subscribe({
+        query:
+            `subscription useInfo($id: String) {
+            user(id: $id) {
+              id
+              name
+            }
+          }`,
+        },
+        undefined
+      );
+    }).to.throw();
+  });
+
   it('should send connectionParams along with init message', (done) => {
     const connectionParams: any = {
       test: true,
@@ -486,6 +538,51 @@ describe('Client', function() {
     });
   });
 
+  it('should throw an exception when trying to subscribe when socket is closed', function(done) {
+    let client: Client = null;
+
+    client = new Client(`ws://localhost:${TEST_PORT}/`, { reconnect: true });
+
+    setTimeout(() => {
+      client.client.close();
+    }, 500);
+
+    setTimeout(() => {
+      expect(() => {
+        client.subscribe({
+          query: `
+        subscription useInfo{
+          invalid
+        }
+      `,
+          variables: {},
+        }, function(errors: Error[], result: any) {
+          // nothing
+        });
+
+        done();
+      }).to.throw();
+    }, 1000);
+  });
+
+  it('should throw an exception when the sent message is not a valid json', function(done) {
+    let client: Client = null;
+
+
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        connection.send('invalid json');
+      });
+    });
+
+    setTimeout(() => {
+      expect(() => {
+        client = new Client(`ws://localhost:${RAW_TEST_PORT}/`);
+        done();
+      }).to.throw();
+    }, 1000);
+  });
+
   it('should stop trying to reconnect to the server', function(done) {
     let connections = 0;
     wsServer.on('connection', (connection: WebSocket) => {
@@ -529,6 +626,12 @@ describe('Server', function() {
     }
   });
 
+  it('should throw an exception when creating a server without subscriptionManager', () => {
+    expect(() => {
+      new SubscriptionServer({ subscriptionManager: undefined }, { server: httpServer});
+    }).to.throw();
+  });
+
   it('should trigger onConnect when client connects and validated', (done) => {
     new Client(`ws://localhost:${EVENTS_TEST_PORT}/`);
 
@@ -537,7 +640,6 @@ describe('Server', function() {
       done();
     }, 200);
   });
-
 
   it('should trigger onConnect with the correct connectionParams', (done) => {
     const connectionParams: any = {
@@ -579,6 +681,37 @@ describe('Server', function() {
       assert(eventsOptions.onDisconnect.calledOnce);
       done();
     }, 200);
+  });
+
+  it('should call unsubscribe when client closes the connection', (done) => {
+    const client = new Client(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    const spy = sinon.spy(eventsServer, 'unsubscribe');
+
+    client.subscribe({
+        query:
+          `subscription useInfo($id: String) {
+        user(id: $id) {
+          id
+          name
+        }
+      }`,
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
+        },
+      }, function(error, result) {
+        // nothing
+      }
+    );
+
+    setTimeout(() => {
+      client.client.close();
+    }, 500);
+
+    setTimeout(() => {
+      assert(spy.calledOnce);
+      done();
+    }, 1000);
   });
 
   it('should trigger onSubscribe when client subscribes', (done) => {

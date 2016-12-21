@@ -90,7 +90,7 @@ class Server {
       const connectionSubscriptions: ConnectionSubscriptions = {};
       request.on('message', this.onMessage(request, connectionSubscriptions));
       request.on('close', () => {
-        this.onClose(request, connectionSubscriptions);
+        this.onClose(request, connectionSubscriptions)();
 
         if (this.onDisconnect) {
           this.onDisconnect(request);
@@ -107,7 +107,6 @@ class Server {
     }
   }
 
-  // TODO test that this actually works
   private onClose(connection: WebSocket, connectionSubscriptions: ConnectionSubscriptions) {
     return () => {
       Object.keys(connectionSubscriptions).forEach((subId) => {
