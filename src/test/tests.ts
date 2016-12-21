@@ -566,17 +566,18 @@ describe('Client', function() {
   });
 
   it('should throw an exception when the sent message is not a valid json', function(done) {
-    let client: Client = null;
 
-
-    wsServer.on('connection', (connection: any) => {
-      connection.on('message', (message: any) => {
-        connection.send('invalid json');
-      });
-    });
 
     setTimeout(() => {
       expect(() => {
+        let client: Client = null;
+
+        wsServer.on('connection', (connection: any) => {
+          connection.on('message', (message: any) => {
+            connection.send('invalid json');
+          });
+        });
+
         client = new Client(`ws://localhost:${RAW_TEST_PORT}/`);
         done();
       }).to.throw();
