@@ -1,13 +1,15 @@
+var path = require('path');
+
 module.exports = {
-  context: __dirname + "/src",
-  entry: './index.ts',
+  context: path.join(__dirname, '/src'),
+  entry: './client.ts',
   output: {
-    path: __dirname + '/browser',
+    path: path.join(__dirname, '/browser'),
     filename: 'bundle.js',
-    library: 'subscriptions_transport_ws'
+    library: 'SubscriptionsTransportWs'
   },
   resolve: {
-    extensions: ['', '.webpack.js', '.web.js', '.ts', '.js']
+    extensions: ['', '.json', '.ts', '.js']
   },
   module: {
     loaders: [
