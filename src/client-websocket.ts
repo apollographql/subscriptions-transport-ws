@@ -1,11 +1,9 @@
 declare let window: any;
-let _global = typeof global !== 'undefined' ? global : (typeof window !== 'undefined' ? window: {});
-
-import * as NodeSocket from 'ws';
+const _global = typeof global !== 'undefined' ? global : (typeof window !== 'undefined' ? window : {});
 let NativeSocket: any = _global.WebSocket || _global.MozWebSocket;
 
 if (!NativeSocket) {
-  NativeSocket = NodeSocket;
+  NativeSocket = require('ws');
 }
 
 export const WebSocket = NativeSocket;

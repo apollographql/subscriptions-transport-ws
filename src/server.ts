@@ -6,18 +6,20 @@ import {
   SUBSCRIPTION_START,
   SUBSCRIPTION_END,
   SUBSCRIPTION_SUCCESS,
-  SUBSCRIPTION_KEEPALIVE, INIT, INIT_FAIL, INIT_SUCCESS,
+  KEEPALIVE,
+  INIT,
+  INIT_FAIL,
+  INIT_SUCCESS,
 } from './messageTypes';
 import {GRAPHQL_SUBSCRIPTIONS} from './protocols';
-
 import {SubscriptionManager} from 'graphql-subscriptions';
-import {SubscriptionOptions} from 'graphql-subscriptions/dist/pubsub';
+import isObject = require('lodash.isobject');
 
 type ConnectionSubscriptions = {[subId: string]: number};
 
 export interface SubscribeMessage {
-  payload: string;
   [key: string]: any; // any extention that will come with the message.
+  payload: string;
   query?: string;
   variables?: {[key: string]: any};
   operationName?: string;
@@ -47,6 +49,7 @@ class Server {
   private wsServer: WebSocket.Server;
   private initResult: any;
   private subscriptionManager: SubscriptionManager;
+  private initPromise: Promise<any>;
 
   constructor(options: ServerOptions, socketOptions: WebSocket.IServerOptions) {
     const {subscriptionManager, onSubscribe, onUnsubscribe, onConnect, onDisconnect, keepAlive} = options;
@@ -65,16 +68,15 @@ class Server {
     this.wsServer = new WebSocket.Server(socketOptions || {});
 
     this.wsServer.on('connection', (request: WebSocket) => {
-      request.pause();
       if (request.protocol === undefined || request.protocol.indexOf(GRAPHQL_SUBSCRIPTIONS) === -1) {
+        // Close the connection with an error code, and
+        // then terminates the actual network connection (sends FIN packet)
+        // 1002: protocol error
         request.close(1002);
         request.terminate();
 
         return;
       }
-
-      // accept connection
-      request.resume();
 
       // Regular keep alive messages if keepAlive is set
       if (keepAlive) {
@@ -134,12 +136,15 @@ class Server {
             onConnectPromise = Promise.resolve(this.onConnect(parsedMessage.payload, connection));
           }
 
+          this.initPromise = onConnectPromise;
           onConnectPromise.then((result) => {
             if (result === false) {
               throw new Error('Prohibited connection!');
             }
 
-            this.initResult = result;
+            if (isObject(result)) {
+              this.initResult = result;
+            }
 
             return {
               type: INIT_SUCCESS,
@@ -156,81 +161,85 @@ class Server {
           break;
 
         case SUBSCRIPTION_START:
-          const baseParams: SubscriptionOptions = {
-            query: parsedMessage.query,
-            variables: parsedMessage.variables,
-            operationName: parsedMessage.operationName,
-            context: Object.assign({}, this.initResult),
-            formatResponse: undefined,
-            formatError: undefined,
-            callback: undefined,
-          };
-          let promisedParams = Promise.resolve(baseParams);
-
-          if (this.onSubscribe) {
-            promisedParams = Promise.resolve(this.onSubscribe(parsedMessage, baseParams, connection));
-          }
-
-          // if we already have a subscription with this id, unsubscribe from it first
-          // TODO: test that this actually works
-          if (connectionSubscriptions[subId]) {
-            this.unsubscribe(connection, connectionSubscriptions[subId]);
-            delete connectionSubscriptions[subId];
-          }
-
-
-          promisedParams.then(params => {
-            if (typeof params !== 'object') {
-              const error = `Invalid params returned from onSubscribe! return values must be an object!`;
-              this.sendSubscriptionFail(connection, subId, {
-                errors: [{
-                  message: error,
-                }],
-              });
-
-              throw new Error(error);
-            }
-
-            // create a callback
-            // error could be a runtime exception or an object with errors
-            // result is a GraphQL ExecutionResult, which has an optional errors property
-            params.callback = (error: any, result: any) => {
-              if (!error) {
-                this.sendSubscriptionData(connection, subId, result);
-              } else if (error.errors) {
-                this.sendSubscriptionData(connection, subId, {errors: error.errors});
-              } else {
-                this.sendSubscriptionData(connection, subId, {errors: [{message: error.message}]});
-              }
+          this.initPromise.then(() => {
+            const baseParams = {
+              query: parsedMessage.query,
+              variables: parsedMessage.variables,
+              operationName: parsedMessage.operationName,
+              context: Object.assign({}, this.initResult),
+              formatResponse: <any>undefined,
+              formatError: <any>undefined,
+              callback: <any>undefined,
             };
+            let promisedParams = Promise.resolve(baseParams);
 
-            return this.subscriptionManager.subscribe(params);
-          }).then((graphqlSubId: number) => {
-            connectionSubscriptions[subId] = graphqlSubId;
-            this.sendSubscriptionSuccess(connection, subId);
-          }).catch(e => {
-            if (e.errors) {
-              this.sendSubscriptionFail(connection, subId, {errors: e.errors});
-            } else {
-              this.sendSubscriptionFail(connection, subId, {errors: [{message: e.message}]});
+            if (this.onSubscribe) {
+              promisedParams = Promise.resolve(this.onSubscribe(parsedMessage, baseParams, connection));
             }
-            return;
+
+            // if we already have a subscription with this id, unsubscribe from it first
+            // TODO: test that this actually works
+            if (connectionSubscriptions[subId]) {
+              this.unsubscribe(connection, connectionSubscriptions[subId]);
+              delete connectionSubscriptions[subId];
+            }
+
+
+            promisedParams.then(params => {
+              if (typeof params !== 'object') {
+                const error = `Invalid params returned from onSubscribe! return values must be an object!`;
+                this.sendSubscriptionFail(connection, subId, {
+                  errors: [{
+                    message: error,
+                  }],
+                });
+
+                throw new Error(error);
+              }
+
+              // create a callback
+              // error could be a runtime exception or an object with errors
+              // result is a GraphQL ExecutionResult, which has an optional errors property
+              params.callback = (error: any, result: any) => {
+                if (!error) {
+                  this.sendSubscriptionData(connection, subId, result);
+                } else if (error.errors) {
+                  this.sendSubscriptionData(connection, subId, {errors: error.errors});
+                } else {
+                  this.sendSubscriptionData(connection, subId, {errors: [{message: error.message}]});
+                }
+              };
+
+              return this.subscriptionManager.subscribe(params);
+            }).then((graphqlSubId: number) => {
+              connectionSubscriptions[subId] = graphqlSubId;
+              this.sendSubscriptionSuccess(connection, subId);
+            }).catch(e => {
+              if (e.errors) {
+                this.sendSubscriptionFail(connection, subId, {errors: e.errors});
+              } else {
+                this.sendSubscriptionFail(connection, subId, {errors: [{message: e.message}]});
+              }
+              return;
+            });
           });
           break;
 
         case SUBSCRIPTION_END:
-          // find subscription id. Call unsubscribe.
-          // TODO untested. catch errors, etc.
-          if (typeof connectionSubscriptions[subId] !== 'undefined') {
-            this.unsubscribe(connection, connectionSubscriptions[subId]);
-            delete connectionSubscriptions[subId];
-          }
+          this.initPromise.then(() => {
+            // find subscription id. Call unsubscribe.
+            // TODO untested. catch errors, etc.
+            if (typeof connectionSubscriptions[subId] !== 'undefined') {
+              this.unsubscribe(connection, connectionSubscriptions[subId]);
+              delete connectionSubscriptions[subId];
+            }
+          });
           break;
 
         default:
           this.sendSubscriptionFail(connection, subId, {
             errors: [{
-              message: 'Invalid message type!.',
+              message: 'Invalid message type!',
             }],
           });
       }
@@ -269,7 +278,10 @@ class Server {
   private sendInitResult(connection: WebSocket, result: any): void {
     connection.send(JSON.stringify(result), () => {
       if (result.type === INIT_FAIL) {
-        connection.close();
+        // Close the connection with an error code, and
+        // then terminates the actual network connection (sends FIN packet)
+        // 1011: an unexpected condition prevented the request from being fulfilled
+        connection.close(1011);
         connection.terminate();
       }
     });
@@ -277,7 +289,7 @@ class Server {
 
   private sendKeepAlive(connection: WebSocket): void {
     let message = {
-      type: SUBSCRIPTION_KEEPALIVE,
+      type: KEEPALIVE,
     };
 
     connection.send(JSON.stringify(message));

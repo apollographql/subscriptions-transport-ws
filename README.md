@@ -16,7 +16,7 @@ See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React
   * `connectionParams?: Object` : object that will be available as first argument of `onConnect` (in server side)
   * `reconnect?: boolean` : automatic reconnect in case of connection error
   * `reconnectionAttempts?: number` : how much reconnect attempts
-- `connectionCallback?: (error) => {}` : optional, callback that called after the first init message, with the error (if there is one)
+  * `connectionCallback?: (error) => {}` : optional, callback that called after the first init message, with the error (if there is one)
 
 ### Methods
 #### `subscribe(options, handler) => id`
@@ -35,7 +35,7 @@ See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React
   * `subscriptionManager: SubscriptionManager` : GraphQL subscription manager
   * `onSubscribe?: (message: SubscribeMessage, params: SubscriptionOptions, webSocket: WebSocket)` : optional method to create custom params that will be used when resolving this subscription
   * `onUnsubscribe?: (webSocket: WebSocket)` : optional method that called when a client unsubscribe
-  * `onConnect?: (connectionParams: Object, webSocket: WebSocket)` : optional method that called when a client connects to the socket, called with the `connectionParams` from the client, the return value of this callback will be available as part of the `context` of the subscription. return `false` or throw and exception to reject the connection.
+  * `onConnect?: (connectionParams: Object, webSocket: WebSocket)` : optional method that called when a client connects to the socket, called with the `connectionParams` from the client, if the return value is an object, its elements will be added to the context. return `false` or throw an exception to reject the connection. May return a Promise.
   * `onDisconnect?: (webSocket: WebSocket)` : optional method that called when a client disconnects
   * `keepAlive?: number` : optional interval in ms to send `SUBSCRIPTION_KEEPALIVE` messages to all clients
 - `socketOptions: {WebSocket.IServerOptions}` : options to pass to the WebSocket object (full docs [here](https://github.com/websockets/ws/blob/master/doc/ws.md))    

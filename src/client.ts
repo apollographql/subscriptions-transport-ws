@@ -1,4 +1,4 @@
-import {WebSocket}from './client-websocket';
+import {WebSocket} from './client-websocket';
 import * as Backoff from 'backo2';
 
 import {
@@ -7,7 +7,10 @@ import {
   SUBSCRIPTION_START,
   SUBSCRIPTION_SUCCESS,
   SUBSCRIPTION_END,
-  SUBSCRIPTION_KEEPALIVE, INIT, INIT_FAIL, INIT_SUCCESS,
+  KEEPALIVE,
+  INIT,
+  INIT_FAIL,
+  INIT_SUCCESS,
 } from './messageTypes';
 import { GRAPHQL_SUBSCRIPTIONS } from './protocols';
 
@@ -30,13 +33,14 @@ export interface Subscriptions {
   [id: string]: Subscription;
 }
 
-export type ConnectionParams = {[paramName: string]: string};
+export type ConnectionParams = {[paramName: string]: any};
 
 export interface ClientOptions {
   connectionParams?: ConnectionParams;
   timeout?: number;
   reconnect?: boolean;
   reconnectionAttempts?: number;
+  connectionCallback?: (error: Error[], result?: any) => void
 }
 
 const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
@@ -57,8 +61,9 @@ export default class Client {
   private backoff: any;
   private connectionCallback: any;
 
-  constructor(url: string, options?: ClientOptions, connectionCallback?: (error: Error[], result?: any) => void) {
+  constructor(url: string, options?: ClientOptions) {
     const {
+      connectionCallback = undefined,
       connectionParams = {},
       timeout = DEFAULT_SUBSCRIPTION_TIMEOUT,
       reconnect = false,
@@ -202,8 +207,8 @@ export default class Client {
       });
       this.unsentMessagesQueue = [];
 
-      let message = Object.assign({type: INIT, payload: this.connectionParams});
-      this.sendMessage(message);
+      // Send INIT message, no need to wait for connection to success (reduce roundtrips)
+      this.sendMessage({type: INIT, payload: this.connectionParams});
     };
 
     this.client.onclose = () => {
@@ -222,7 +227,7 @@ export default class Client {
         throw new Error(`Message must be JSON-parseable. Got: ${data}`);
       }
       const subId = parsedMessage.id;
-      if ([SUBSCRIPTION_KEEPALIVE, INIT_SUCCESS, INIT_FAIL].indexOf(parsedMessage.type) === -1 && !this.subscriptions[subId]) {
+      if ([KEEPALIVE, INIT_SUCCESS, INIT_FAIL].indexOf(parsedMessage.type) === -1 && !this.subscriptions[subId]) {
         this.unsubscribe(subId);
         return;
       }
@@ -233,8 +238,7 @@ export default class Client {
           if (this.connectionCallback) {
             this.connectionCallback(parsedMessage.payload.error);
           }
-
-          throw new Error(parsedMessage.payload);
+          break;
         case INIT_SUCCESS:
           if (this.connectionCallback) {
             this.connectionCallback();
@@ -258,7 +262,7 @@ export default class Client {
           }
           break;
 
-        case SUBSCRIPTION_KEEPALIVE:
+        case KEEPALIVE:
           break;
 
         default:

@@ -3,6 +3,7 @@
   "version": "0.3.1",
   "description": "A websocket transport for GraphQL subscriptions",
   "main": "dist/index.js",
+  "browser": "dist/client.js",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/apollostack/subscriptions-transport-ws.git"
