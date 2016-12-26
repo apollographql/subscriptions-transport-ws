@@ -1,5 +1,6 @@
 import {WebSocket} from './client-websocket';
 import * as Backoff from 'backo2';
+import {EventEmitter, ListenerFn} from 'eventemitter3';
 
 import {
   SUBSCRIPTION_FAIL,
@@ -60,6 +61,7 @@ export default class Client {
   private reconnectSubscriptions: Subscriptions;
   private backoff: any;
   private connectionCallback: any;
+  private eventEmitter: EventEmitter;
 
   constructor(url: string, options?: ClientOptions) {
     const {
@@ -83,6 +85,8 @@ export default class Client {
     this.reconnecting = false;
     this.reconnectionAttempts = reconnectionAttempts;
     this.backoff = new Backoff({ jitter: 0.5 });
+    this.eventEmitter = new EventEmitter();
+
     this.connect();
   }
 
@@ -118,6 +122,26 @@ export default class Client {
       }
     }, this.subscriptionTimeout);
     return subId;
+  }
+
+  public on(eventName: string, callback: ListenerFn, context?: any): Function {
+    const handler = this.eventEmitter.on(eventName, callback, context);
+
+    return () => {
+      handler.off(eventName, callback, context);
+    }
+  }
+
+  public onConnect(callback: ListenerFn, context?: any): Function {
+    return this.on('connect', callback, context);
+  }
+
+  public onDisconnect(callback: ListenerFn, context?: any): Function {
+    return this.on('disconnect', callback, context);
+  }
+
+  public onReconnect(callback: ListenerFn, context?: any): Function {
+    return this.on('reconnect', callback, context);
   }
 
   public unsubscribe(id: number) {
@@ -188,14 +212,15 @@ export default class Client {
     }
     const delay = this.backoff.duration();
     setTimeout(() => {
-      this.connect();
+      this.connect(true);
     }, delay);
   }
 
-  private connect() {
+  private connect(isReconnect: boolean = false) {
     this.client = new WebSocket(this.url, GRAPHQL_SUBSCRIPTIONS);
 
     this.client.onopen = () => {
+      this.eventEmitter.emit(isReconnect ? 'reconnect' : 'connect');
       this.reconnecting = false;
       this.backoff.reset();
       Object.keys(this.reconnectSubscriptions).forEach((key) => {
@@ -212,6 +237,8 @@ export default class Client {
     };
 
     this.client.onclose = () => {
+      this.eventEmitter.emit('disconnect');
+
       this.tryReconnect();
     };
 

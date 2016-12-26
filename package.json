@@ -11,6 +11,7 @@
   "dependencies": {
     "@types/ws": "0.0.37",
     "backo2": "^1.0.2",
+    "eventemitter3": "^2.0.2",
     "graphql-subscriptions": "^0.2.0",
     "lodash.isobject": "^3.0.2",
     "lodash.isstring": "^4.0.1",

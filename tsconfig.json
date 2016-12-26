@@ -18,7 +18,8 @@
     "types": [
         "@types/node",
         "typed-graphql",
-        "@types/ws"
+        "@types/ws",
+        "eventemitter3"
     ]
   },
   "exclude": [

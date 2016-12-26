@@ -210,6 +210,43 @@ describe('Client', function () {
     new Client(`ws://localhost:${RAW_TEST_PORT}/`);
   });
 
+  it('should emit connect event for client side when socket is open', (done) => {
+    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+
+    const unregister = client.onConnect(() => {
+      unregister();
+      done();
+    });
+  });
+
+  it('should emit disconnect event for client side when socket closed', (done) => {
+    const client = new Client(`ws://localhost:${TEST_PORT}/`, {
+      connectionCallback: () => {
+        client.client.close();
+      },
+    });
+
+    const unregister = client.onDisconnect(() => {
+      unregister();
+      done();
+    });
+  });
+
+  it('should emit reconnect event for client side when socket closed', (done) => {
+    const client = new Client(`ws://localhost:${TEST_PORT}/`, {
+      reconnect: true,
+      reconnectionAttempts: 1,
+      connectionCallback: () => {
+        client.client.close();
+      },
+    });
+
+    const unregister = client.onReconnect(() => {
+      unregister();
+      done();
+    });
+  });
+
   it('should throw an exception when query is not provided', () => {
     const client = new Client(`ws://localhost:${TEST_PORT}/`);
 
