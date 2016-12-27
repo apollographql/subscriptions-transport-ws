@@ -17,6 +17,11 @@ import isObject = require('lodash.isobject');
 
 type ConnectionSubscriptions = {[subId: string]: number};
 
+type ConnectionContext = {
+  initPromise?: Promise<any>
+  initResult?: any
+};
+
 export interface SubscribeMessage {
   [key: string]: any; // any extention that will come with the message.
   payload: string;
@@ -47,9 +52,7 @@ export class SubscriptionServer {
   private onConnect: Function;
   private onDisconnect: Function;
   private wsServer: WebSocket.Server;
-  private initResult: any;
   private subscriptionManager: SubscriptionManager;
-  private initPromise: Promise<any>;
 
   constructor(options: ServerOptions, socketOptions: WebSocket.IServerOptions) {
     const {subscriptionManager, onSubscribe, onUnsubscribe, onConnect, onDisconnect, keepAlive} = options;
@@ -90,7 +93,8 @@ export class SubscriptionServer {
       }
 
       const connectionSubscriptions: ConnectionSubscriptions = {};
-      request.on('message', this.onMessage(request, connectionSubscriptions));
+      const connectionContext: ConnectionContext = {};
+      request.on('message', this.onMessage(request, connectionSubscriptions, connectionContext));
       request.on('close', () => {
         this.onClose(request, connectionSubscriptions)();
 
@@ -118,7 +122,14 @@ export class SubscriptionServer {
     };
   }
 
-  private onMessage(connection: WebSocket, connectionSubscriptions: ConnectionSubscriptions) {
+  private onMessage(connection: WebSocket, connectionSubscriptions: ConnectionSubscriptions, connectionContext: ConnectionContext) {
+    let onInitResolve: any = null, onInitReject: any = null;
+
+    connectionContext.initPromise = new Promise((resolve, reject) => {
+      onInitResolve = resolve;
+      onInitReject = reject;
+    });
+
     return (message: any) => {
       let parsedMessage: SubscribeMessage;
       try {
@@ -136,14 +147,15 @@ export class SubscriptionServer {
             onConnectPromise = Promise.resolve(this.onConnect(parsedMessage.payload, connection));
           }
 
-          this.initPromise = onConnectPromise;
+          onInitResolve(onConnectPromise);
+
           onConnectPromise.then((result) => {
             if (result === false) {
               throw new Error('Prohibited connection!');
             }
 
             if (isObject(result)) {
-              this.initResult = result;
+              connectionContext.initResult = result;
             }
 
             return {
@@ -161,12 +173,12 @@ export class SubscriptionServer {
           break;
 
         case SUBSCRIPTION_START:
-          this.initPromise.then(() => {
+          connectionContext.initPromise.then(() => {
             const baseParams = {
               query: parsedMessage.query,
               variables: parsedMessage.variables,
               operationName: parsedMessage.operationName,
-              context: Object.assign({}, this.initResult),
+              context: Object.assign({}, connectionContext.initResult),
               formatResponse: <any>undefined,
               formatError: <any>undefined,
               callback: <any>undefined,
@@ -183,7 +195,6 @@ export class SubscriptionServer {
               this.unsubscribe(connection, connectionSubscriptions[subId]);
               delete connectionSubscriptions[subId];
             }
-
 
             promisedParams.then(params => {
               if (typeof params !== 'object') {
@@ -226,7 +237,7 @@ export class SubscriptionServer {
           break;
 
         case SUBSCRIPTION_END:
-          this.initPromise.then(() => {
+          connectionContext.initPromise.then(() => {
             // find subscription id. Call unsubscribe.
             // TODO untested. catch errors, etc.
             if (typeof connectionSubscriptions[subId] !== 'undefined') {

@@ -696,22 +696,6 @@ describe('Server', function () {
     }, 200);
   });
 
-  it('should extend ws context with onConnect return value', (done) => {
-    const connectionParams: any = {
-      test: true,
-    };
-
-    new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`, {
-      connectionParams: connectionParams,
-    });
-
-    setTimeout(() => {
-      assert(eventsOptions.onConnect.calledOnce);
-      expect(JSON.stringify(eventsServer['initResult'])).to.equal(JSON.stringify({test: 'test context'}));
-      done();
-    }, 200);
-  });
-
   it('should trigger onDisconnect when client disconnects', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
     client.client.close();

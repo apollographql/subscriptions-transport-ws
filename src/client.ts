@@ -36,6 +36,13 @@ export interface Subscriptions {
 
 export type ConnectionParams = {[paramName: string]: any};
 
+export enum ConnectionStatus {
+  OPEN = WebSocket.OPEN,
+  CONNECTING = WebSocket.CONNECTING,
+  CLOSING = WebSocket.CLOSING,
+  CLOSED = WebSocket.CLOSED,
+}
+
 export interface ClientOptions {
   connectionParams?: ConnectionParams;
   timeout?: number;
@@ -88,6 +95,14 @@ export class SubscriptionClient {
     this.eventEmitter = new EventEmitter();
 
     this.connect();
+  }
+
+  public get status() {
+    return this.client.readyState;
+  }
+
+  public close() {
+    this.client.close();
   }
 
   public subscribe(options: SubscriptionOptions, handler: (error: Error[], result?: any) => void) {
