@@ -46,7 +46,7 @@ export interface ClientOptions {
 
 const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
 
-export default class Client {
+export class SubscriptionClient {
   public client: any;
   public subscriptions: Subscriptions;
   private url: string;
@@ -129,7 +129,7 @@ export default class Client {
 
     return () => {
       handler.off(eventName, callback, context);
-    }
+    };
   }
 
   public onConnect(callback: ListenerFn, context?: any): Function {

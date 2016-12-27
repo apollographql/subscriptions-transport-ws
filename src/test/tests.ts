@@ -25,9 +25,8 @@ import {
 } from '../protocols';
 
 import {createServer, IncomingMessage, ServerResponse} from 'http';
-import SubscriptionServer from '../server';
-import Client from '../client';
-
+import {SubscriptionServer} from '../server';
+import {SubscriptionClient} from '../client';
 import {SubscribeMessage} from '../server';
 import {SubscriptionOptions} from 'graphql-subscriptions/dist/pubsub';
 
@@ -207,11 +206,11 @@ describe('Client', function () {
       });
     });
 
-    new Client(`ws://localhost:${RAW_TEST_PORT}/`);
+    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
   });
 
   it('should emit connect event for client side when socket is open', (done) => {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     const unregister = client.onConnect(() => {
       unregister();
@@ -220,7 +219,7 @@ describe('Client', function () {
   });
 
   it('should emit disconnect event for client side when socket closed', (done) => {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`, {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`, {
       connectionCallback: () => {
         client.client.close();
       },
@@ -233,7 +232,7 @@ describe('Client', function () {
   });
 
   it('should emit reconnect event for client side when socket closed', (done) => {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`, {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`, {
       reconnect: true,
       reconnectionAttempts: 1,
       connectionCallback: () => {
@@ -248,7 +247,7 @@ describe('Client', function () {
   });
 
   it('should throw an exception when query is not provided', () => {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     expect(() => {
       client.subscribe({
@@ -257,7 +256,7 @@ describe('Client', function () {
           variables: {
             id: 3,
           },
-        }, function (error, result) {
+        }, function (error: any, result: any) {
           //do nothing
         }
       );
@@ -265,7 +264,7 @@ describe('Client', function () {
   });
 
   it('should throw an exception when query is not valid', () => {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     expect(() => {
       client.subscribe({
@@ -274,7 +273,7 @@ describe('Client', function () {
           variables: {
             id: 3,
           },
-        }, function (error, result) {
+        }, function (error: any, result: any) {
           //do nothing
         }
       );
@@ -282,7 +281,7 @@ describe('Client', function () {
   });
 
   it('should throw an exception when handler is not provided', () => {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     expect(() => {
       client.subscribe({
@@ -310,7 +309,7 @@ describe('Client', function () {
       });
     });
 
-    new Client(`ws://localhost:${RAW_TEST_PORT}/`, {
+    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       connectionParams: connectionParams,
     });
   });
@@ -322,7 +321,7 @@ describe('Client', function () {
       });
     });
 
-    new Client(`ws://localhost:${RAW_TEST_PORT}/`, {
+    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       connectionCallback: (error: any) => {
         expect(error).to.equals('test error');
         done();
@@ -347,7 +346,7 @@ describe('Client', function () {
       });
     });
 
-    client = new Client(`ws://localhost:${RAW_TEST_PORT}/`);
+    client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
   });
 
   it('should handle correctly init_success message', (done) => {
@@ -357,7 +356,7 @@ describe('Client', function () {
       });
     });
 
-    new Client(`ws://localhost:${RAW_TEST_PORT}/`, {
+    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       connectionCallback: (error: any) => {
         expect(error).to.equals(undefined);
         done();
@@ -366,7 +365,7 @@ describe('Client', function () {
   });
 
   it('removes subscription when it unsubscribes from it', function () {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     setTimeout(() => {
       let subId = client.subscribe({
@@ -380,7 +379,7 @@ describe('Client', function () {
           variables: {
             id: 3,
           },
-        }, function (error, result) {
+        }, function (error: any, result: any) {
           //do nothing
         }
       );
@@ -390,7 +389,7 @@ describe('Client', function () {
   });
 
   it('queues messages while websocket is still connecting', function () {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     let subId = client.subscribe({
         query: `subscription useInfo($id: String) {
@@ -403,7 +402,7 @@ describe('Client', function () {
         variables: {
           id: 3,
         },
-      }, function (error, result) {
+      }, function (error: any, result: any) {
         //do nothing
       }
     );
@@ -416,7 +415,7 @@ describe('Client', function () {
   });
 
   it('should call error handler when graphql result has errors', function (done) {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     setTimeout(() => {
       client.subscribe({
@@ -424,7 +423,7 @@ describe('Client', function () {
           error
         }`,
           variables: {},
-        }, function (error, result) {
+        }, function (error: any, result: any) {
           if (error) {
             client.unsubscribeAll();
             done();
@@ -442,7 +441,7 @@ describe('Client', function () {
   });
 
   it('should call error handler when graphql query is not valid', function (done) {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     setTimeout(() => {
       client.subscribe({
@@ -476,7 +475,7 @@ describe('Client', function () {
       });
     });
 
-    const client = new Client(`ws://localhost:${RAW_TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
     client.subscribe({
       query: `
         subscription useInfo{
@@ -510,7 +509,7 @@ describe('Client', function () {
 
   it('should throw an error when the susbcription times out', function (done) {
     // hopefully 1ms is fast enough to time out before the server responds
-    const client = new Client(`ws://localhost:${DELAYED_TEST_PORT}/`, {timeout: 1});
+    const client = new SubscriptionClient(`ws://localhost:${DELAYED_TEST_PORT}/`, {timeout: 1});
 
     setTimeout(() => {
       client.subscribe({
@@ -519,7 +518,7 @@ describe('Client', function () {
           }`,
         operationName: 'useInfo',
         variables: {},
-      }, function (error, result) {
+      }, function (error: any, result: any) {
         if (error) {
           expect(error[0].message).to.equals('Subscription timed out - no response from server');
           done();
@@ -533,7 +532,7 @@ describe('Client', function () {
 
   it('should reconnect to the server', function (done) {
     let connections = 0;
-    let client: Client;
+    let client: SubscriptionClient;
     let originalClient: any;
     wsServer.on('connection', (connection: WebSocket) => {
       connections += 1;
@@ -544,13 +543,13 @@ describe('Client', function () {
         done();
       }
     });
-    client = new Client(`ws://localhost:${RAW_TEST_PORT}/`, {reconnect: true});
+    client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {reconnect: true});
     originalClient = client.client;
   });
 
   it('should resubscribe after reconnect', function (done) {
     let connections = 0;
-    let client: Client = null;
+    let client: SubscriptionClient = null;
     wsServer.on('connection', (connection: WebSocket) => {
       connections += 1;
       connection.on('message', (message: any) => {
@@ -564,7 +563,7 @@ describe('Client', function () {
         }
       });
     });
-    client = new Client(`ws://localhost:${RAW_TEST_PORT}/`, {reconnect: true});
+    client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {reconnect: true});
     client.subscribe({
       query: `
         subscription useInfo{
@@ -578,9 +577,9 @@ describe('Client', function () {
   });
 
   it('should throw an exception when trying to subscribe when socket is closed', function (done) {
-    let client: Client = null;
+    let client: SubscriptionClient = null;
 
-    client = new Client(`ws://localhost:${TEST_PORT}/`, {reconnect: true});
+    client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`, {reconnect: true});
 
     setTimeout(() => {
       client.client.close();
@@ -609,7 +608,7 @@ describe('Client', function () {
 
     setTimeout(() => {
       expect(() => {
-        let client: Client = null;
+        let client: SubscriptionClient = null;
 
         wsServer.on('connection', (connection: any) => {
           connection.on('message', (message: any) => {
@@ -617,7 +616,7 @@ describe('Client', function () {
           });
         });
 
-        client = new Client(`ws://localhost:${RAW_TEST_PORT}/`);
+        client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
         done();
       }).to.throw();
     }, 1000);
@@ -634,7 +633,7 @@ describe('Client', function () {
       }
     });
 
-    const client = new Client(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       timeout: 100,
       reconnect: true,
       reconnectionAttempts: 1,
@@ -673,7 +672,7 @@ describe('Server', function () {
   });
 
   it('should trigger onConnect when client connects and validated', (done) => {
-    new Client(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
 
     setTimeout(() => {
       assert(eventsOptions.onConnect.calledOnce);
@@ -686,7 +685,7 @@ describe('Server', function () {
       test: true,
     };
 
-    new Client(`ws://localhost:${EVENTS_TEST_PORT}/`, {
+    new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`, {
       connectionParams: connectionParams,
     });
 
@@ -702,7 +701,7 @@ describe('Server', function () {
       test: true,
     };
 
-    new Client(`ws://localhost:${EVENTS_TEST_PORT}/`, {
+    new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`, {
       connectionParams: connectionParams,
     });
 
@@ -714,7 +713,7 @@ describe('Server', function () {
   });
 
   it('should trigger onDisconnect when client disconnects', (done) => {
-    const client = new Client(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
     client.client.close();
 
     setTimeout(() => {
@@ -724,7 +723,7 @@ describe('Server', function () {
   });
 
   it('should call unsubscribe when client closes the connection', (done) => {
-    const client = new Client(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
     const spy = sinon.spy(eventsServer, 'unsubscribe');
 
     client.subscribe({
@@ -738,7 +737,7 @@ describe('Server', function () {
         variables: {
           id: 3,
         },
-      }, function (error, result) {
+      }, function (error: any, result: any) {
         // nothing
       }
     );
@@ -754,7 +753,7 @@ describe('Server', function () {
   });
 
   it('should trigger onSubscribe when client subscribes', (done) => {
-    const client = new Client(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
     client.subscribe({
       query: `subscription useInfo($id: String) {
           user(id: $id) {
@@ -766,7 +765,7 @@ describe('Server', function () {
       variables: {
         id: 3,
       },
-    }, (error, result) => {
+    }, (error: any, result: any) => {
       if (error) {
         assert(false);
       }
@@ -779,7 +778,7 @@ describe('Server', function () {
   });
 
   it('should trigger onUnsubscribe when client unsubscribes', (done) => {
-    const client = new Client(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
     const subId = client.subscribe({
       query: `subscription useInfo($id: String) {
           user(id: $id) {
@@ -791,7 +790,7 @@ describe('Server', function () {
       variables: {
         id: 3,
       },
-    }, function (error, result) {
+    }, function (error: any, result: any) {
       //do nothing
     });
 
@@ -804,8 +803,8 @@ describe('Server', function () {
   });
 
   it('should send correct results to multiple clients with subscriptions', function (done) {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
-    let client1 = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    let client1 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     let numResults = 0;
     setTimeout(() => {
@@ -821,7 +820,7 @@ describe('Server', function () {
           id: 3,
         },
 
-      }, function (error, result) {
+      }, function (error: any, result: any) {
         if (error) {
           assert(false);
         }
@@ -837,7 +836,7 @@ describe('Server', function () {
       });
     }, 100);
 
-    const client11 = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client11 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     let numResults1 = 0;
     setTimeout(function () {
       client11.subscribe({
@@ -852,7 +851,7 @@ describe('Server', function () {
           id: 2,
         },
 
-      }, function (error, result) {
+      }, function (error: any, result: any) {
         if (error) {
           assert(false);
         }
@@ -881,7 +880,7 @@ describe('Server', function () {
   });
 
   it('should send a subscription_fail message to client with invalid query', function (done) {
-    const client1 = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client1 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     setTimeout(function () {
       client1.client.onmessage = (message: any) => {
         let messageData = JSON.parse(message.data);
@@ -900,7 +899,7 @@ describe('Server', function () {
           variables: {
             id: 3,
           },
-        }, function (error, result) {
+        }, function (error: any, result: any) {
           //do nothing
         }
       );
@@ -910,8 +909,8 @@ describe('Server', function () {
 
   it('should set up the proper filters when subscribing', function (done) {
     let numTriggers = 0;
-    const client3 = new Client(`ws://localhost:${TEST_PORT}/`);
-    const client4 = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client3 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    const client4 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     setTimeout(() => {
       client3.subscribe({
           query: `subscription userInfoFilter1($id: String) {
@@ -924,7 +923,7 @@ describe('Server', function () {
           variables: {
             id: 3,
           },
-        }, (error, result) => {
+        }, (error: any, result: any) => {
           if (error) {
             assert(false);
           }
@@ -948,7 +947,7 @@ describe('Server', function () {
           variables: {
             id: 1,
           },
-        }, (error, result) => {
+        }, (error: any, result: any) => {
           if (result) {
             numTriggers += 1;
             assert.property(result, 'userFiltered');
@@ -975,14 +974,14 @@ describe('Server', function () {
 
   it('correctly sets the context in onSubscribe', function (done) {
     const CTX = 'testContext';
-    const client3 = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client3 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     client3.subscribe({
         query: `subscription context {
           context
         }`,
         variables: {},
         context: CTX,
-      }, (error, result) => {
+      }, (error: any, result: any) => {
         client3.unsubscribeAll();
         if (error) {
           assert(false);
@@ -1000,7 +999,7 @@ describe('Server', function () {
   });
 
   it('passes through webSocketRequest to onSubscribe', function (done) {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     client.subscribe({
       query: `
         subscription context {
@@ -1008,7 +1007,7 @@ describe('Server', function () {
         }
       `,
       variables: {},
-    }, (error, result) => {
+    }, (error: any, result: any) => {
       if (error) {
         assert(false);
       }
@@ -1021,7 +1020,7 @@ describe('Server', function () {
   });
 
   it('does not send more subscription data after client unsubscribes', function () {
-    const client4 = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client4 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     setTimeout(() => {
       let subId = client4.subscribe({
           query: `subscription useInfo($id: String) {
@@ -1034,7 +1033,7 @@ describe('Server', function () {
           variables: {
             id: 3,
           },
-        }, function (error, result) {
+        }, function (error: any, result: any) {
           //do nothing
         }
       );
@@ -1092,13 +1091,13 @@ describe('Server', function () {
   });
 
   it('sends back any type of error', function (done) {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     client.subscribe({
       query: `invalid useInfo{
           error
         }`,
       variables: {},
-    }, function (errors, result) {
+    }, function (errors: any, result: any) {
       client.unsubscribeAll();
       assert.isAbove(errors.length, 0, 'Number of errors is greater than 0.');
       done();
@@ -1115,7 +1114,7 @@ describe('Server', function () {
         },
       }));
     };
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     client.subscribe({
       query: `
         subscription context {

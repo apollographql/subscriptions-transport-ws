@@ -41,7 +41,7 @@ export interface ServerOptions {
   // triggerGenerator?: (name: string, args: Object, context?: Object) => Array<{name: string, filter: Function}>;
 }
 
-class Server {
+export class SubscriptionServer {
   private onSubscribe: Function;
   private onUnsubscribe: Function;
   private onConnect: Function;
@@ -295,5 +295,3 @@ class Server {
     connection.send(JSON.stringify(message));
   }
 }
-
-export default Server;
