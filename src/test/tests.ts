@@ -18,6 +18,7 @@ import {
   SUBSCRIPTION_FAIL,
   SUBSCRIPTION_DATA,
   KEEPALIVE,
+  SUBSCRIPTION_END,
 } from '../messageTypes';
 
 import {
@@ -1071,6 +1072,19 @@ describe('Server', function () {
     };
     client.onopen = () => {
       client.send(JSON.stringify({}));
+    };
+  });
+
+  it('does not crash on unsub for Object.prototype member', function(done) {
+    // Use websocket because Client.unsubscribe will only take a number.
+    const client = new W3CWebSocket(`ws://localhost:${TEST_PORT}/`,
+      GRAPHQL_SUBSCRIPTIONS);
+    client.onopen = () => {
+      client.send(JSON.stringify({type: SUBSCRIPTION_END, id: 'toString'}));
+      // Strangely we don't send any acknowledgement for unsubbing from an
+      // unknown sub, so we just set a timeout and implicitly assert that
+      // there's no uncaught exception within the server code.
+      setTimeout(done, 10);
     };
   });
 
