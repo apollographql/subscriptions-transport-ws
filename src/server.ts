@@ -95,7 +95,7 @@ class Server {
         }, keepAlive);
       }
 
-      const connectionSubscriptions: ConnectionSubscriptions = {};
+      const connectionSubscriptions: ConnectionSubscriptions = Object.create(null);
       connection.on('message', this.onMessage(connection, connectionSubscriptions, request));
       connection.on('close', this.onClose(connection, connectionSubscriptions));
     });
