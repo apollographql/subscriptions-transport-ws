@@ -1077,8 +1077,8 @@ describe('Server', function () {
 
   it('does not crash on unsub for Object.prototype member', function(done) {
     // Use websocket because Client.unsubscribe will only take a number.
-    const client = new W3CWebSocket(`ws://localhost:${TEST_PORT}/`,
-      GRAPHQL_SUBSCRIPTIONS);
+    const client = new WebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
+
     client.onopen = () => {
       client.send(JSON.stringify({type: SUBSCRIPTION_END, id: 'toString'}));
       // Strangely we don't send any acknowledgement for unsubbing from an
