@@ -19,7 +19,6 @@ type ConnectionSubscriptions = {[subId: string]: number};
 
 type ConnectionContext = {
   initPromise?: Promise<any>
-  initResult?: any
 };
 
 export interface SubscribeMessage {
@@ -94,6 +93,7 @@ export class SubscriptionServer {
 
       const connectionSubscriptions: ConnectionSubscriptions = Object.create(null);
       const connectionContext: ConnectionContext = Object.create(null);
+
       request.on('message', this.onMessage(request, connectionSubscriptions, connectionContext));
       request.on('close', () => {
         this.onClose(request, connectionSubscriptions)();
@@ -149,13 +149,9 @@ export class SubscriptionServer {
 
           onInitResolve(onConnectPromise);
 
-          onConnectPromise.then((result) => {
+          connectionContext.initPromise.then((result) => {
             if (result === false) {
               throw new Error('Prohibited connection!');
-            }
-
-            if (isObject(result)) {
-              connectionContext.initResult = result;
             }
 
             return {
@@ -173,12 +169,12 @@ export class SubscriptionServer {
           break;
 
         case SUBSCRIPTION_START:
-          connectionContext.initPromise.then(() => {
+          connectionContext.initPromise.then((initResult) => {
             const baseParams = {
               query: parsedMessage.query,
               variables: parsedMessage.variables,
               operationName: parsedMessage.operationName,
-              context: Object.assign({}, connectionContext.initResult),
+              context: Object.assign({}, isObject(initResult) ? initResult : {}),
               formatResponse: <any>undefined,
               formatError: <any>undefined,
               callback: <any>undefined,

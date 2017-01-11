@@ -37,7 +37,7 @@ See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React
   * `onUnsubscribe?: (webSocket: WebSocket)` : optional method that called when a client unsubscribe
   * `onConnect?: (connectionParams: Object, webSocket: WebSocket)` : optional method that called when a client connects to the socket, called with the `connectionParams` from the client, if the return value is an object, its elements will be added to the context. return `false` or throw an exception to reject the connection. May return a Promise.
   * `onDisconnect?: (webSocket: WebSocket)` : optional method that called when a client disconnects
-  * `keepAlive?: number` : optional interval in ms to send `SUBSCRIPTION_KEEPALIVE` messages to all clients
+  * `keepAlive?: number` : optional interval in ms to send `KEEPALIVE` messages to all clients
 - `socketOptions: {WebSocket.IServerOptions}` : options to pass to the WebSocket object (full docs [here](https://github.com/websockets/ws/blob/master/doc/ws.md))    
   * `server?: HttpServer` - existing HTTP server to use (use without `host`/`port`)
   * `host?: string` - server host
@@ -87,5 +87,5 @@ GraphQL result sent periodically from server to client according to subscription
 - `payload: GraphQLResult` : GraphQL result from running the subscription
 - `id: string` : subscription ID
 
-#### SUBSCRIPTION_KEEPALIVE
+#### KEEPALIVE
 Server message sent periodically to keep the client connection alive.
