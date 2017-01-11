@@ -22,7 +22,7 @@ type ConnectionContext = {
 };
 
 export interface SubscribeMessage {
-  [key: string]: any; // any extention that will come with the message.
+  [key: string]: any; // any extension that will come with the message.
   payload: string;
   query?: string;
   variables?: {[key: string]: any};
