@@ -55,7 +55,7 @@ is subscribed to the triggers.
 #### SUBSCRIPTION_FAIL
 Server sends this message upon failing to register a subscription. It may also send this message
 at any point during the subscription to notify the client the the subscription has been stopped.
-- `errors: Array<Object>` : array of errors attributed to the subscription failing on the server
+- `payload: { errors: Array<Object> }` : payload with an array of errors attributed to the subscription failing on the server
 - `id: string` : subscription ID of the subscription that failed on the server
 
 #### SUBSCRIPTION_DATA
