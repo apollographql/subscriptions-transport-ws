@@ -1,6 +1,9 @@
-import {WebSocket} from './client-websocket';
 import * as Backoff from 'backo2';
 import {EventEmitter, ListenerFn} from 'eventemitter3';
+
+declare let window: any;
+const _global = typeof global !== 'undefined' ? global : (typeof window !== 'undefined' ? window : {});
+const NativeWebSocket = _global.WebSocket || _global.MozWebSocket;
 
 import {
   SUBSCRIPTION_FAIL,
@@ -37,10 +40,10 @@ export interface Subscriptions {
 export type ConnectionParams = {[paramName: string]: any};
 
 export enum ConnectionStatus {
-  OPEN = WebSocket.OPEN,
-  CONNECTING = WebSocket.CONNECTING,
-  CLOSING = WebSocket.CLOSING,
-  CLOSED = WebSocket.CLOSED,
+  OPEN = NativeWebSocket.OPEN,
+  CONNECTING = NativeWebSocket.CONNECTING,
+  CLOSING = NativeWebSocket.CLOSING,
+  CLOSED = NativeWebSocket.CLOSED,
 }
 
 export interface ClientOptions {
@@ -48,7 +51,7 @@ export interface ClientOptions {
   timeout?: number;
   reconnect?: boolean;
   reconnectionAttempts?: number;
-  connectionCallback?: (error: Error[], result?: any) => void
+  connectionCallback?: (error: Error[], result?: any) => void;
 }
 
 const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
@@ -69,8 +72,9 @@ export class SubscriptionClient {
   private backoff: any;
   private connectionCallback: any;
   private eventEmitter: EventEmitter;
+  private wsImpl: any;
 
-  constructor(url: string, options?: ClientOptions) {
+  constructor(url: string, options?: ClientOptions, webSocketImpl?: any) {
     const {
       connectionCallback = undefined,
       connectionParams = {},
@@ -78,6 +82,12 @@ export class SubscriptionClient {
       reconnect = false,
       reconnectionAttempts = Infinity,
     } = (options || {});
+
+    this.wsImpl = webSocketImpl || NativeWebSocket;
+
+    if (!this.wsImpl) {
+      throw new Error('Unable to find native implementation, or alternative implementation for WebSocket!');
+    }
 
     this.connectionParams = connectionParams;
     this.connectionCallback = connectionCallback;
@@ -232,7 +242,7 @@ export class SubscriptionClient {
   }
 
   private connect(isReconnect: boolean = false) {
-    this.client = new WebSocket(this.url, GRAPHQL_SUBSCRIPTIONS);
+    this.client = new this.wsImpl(this.url, GRAPHQL_SUBSCRIPTIONS);
 
     this.client.onopen = () => {
       this.eventEmitter.emit(isReconnect ? 'reconnect' : 'connect');
@@ -312,4 +322,4 @@ export class SubscriptionClient {
       }
     };
   }
-};
+}
