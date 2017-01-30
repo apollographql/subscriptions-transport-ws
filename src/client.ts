@@ -39,13 +39,6 @@ export interface Subscriptions {
 
 export type ConnectionParams = {[paramName: string]: any};
 
-export enum ConnectionStatus {
-  OPEN = NativeWebSocket.OPEN,
-  CONNECTING = NativeWebSocket.CONNECTING,
-  CLOSING = NativeWebSocket.CLOSING,
-  CLOSED = NativeWebSocket.CLOSED,
-}
-
 export interface ClientOptions {
   connectionParams?: ConnectionParams;
   timeout?: number;
