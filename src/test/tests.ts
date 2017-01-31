@@ -4,6 +4,11 @@ import {
   expect,
 } from 'chai';
 import * as sinon from 'sinon';
+import * as WebSocket from 'ws';
+
+Object.assign(global, {
+  WebSocket: WebSocket,
+});
 
 import {
   GraphQLObjectType,
@@ -30,8 +35,6 @@ import {SubscriptionServer} from '../server';
 import {SubscriptionClient} from '../client';
 import {SubscribeMessage} from '../server';
 import {SubscriptionOptions} from 'graphql-subscriptions/dist/pubsub';
-
-import * as WebSocket from 'ws';
 
 const TEST_PORT = 4953;
 const KEEP_ALIVE_TEST_PORT = TEST_PORT + 1;
