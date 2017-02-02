@@ -16,8 +16,7 @@
         "node_modules/@types"
     ],
     "types": [
-        "@types/node",
-        "typed-graphql"
+        "@types/node"
     ]
   },
   "exclude": [
