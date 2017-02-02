@@ -1,3 +1,4 @@
 import Client from './client';
 import SubscriptionServer from './server';
-export { SubscriptionServer, Client };
+import { addGraphQLSubscriptions } from './helpers';
+export { addGraphQLSubscriptions, SubscriptionServer, Client };

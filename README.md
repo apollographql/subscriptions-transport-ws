@@ -32,6 +32,9 @@ See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React
   * `onSubscribe?: (message: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest)` : optional method to create custom params that will be used when resolving this subscription
   * `keepAlive?: number` : optional interval in ms to send `SUBSCRIPTION_KEEPALIVE` messages to all clients
     
+### `addGraphQLSubscriptions(networkInterface, Client)`
+A Quick way to add the subscribe and unsubscribe functions to the [network interface](http://dev.apollodata.com/core/network.html#createNetworkInterface)
+
 ## Client-server messages
 Each message has a type, as well as associated fields depending on the message type.
 ### Client -> Server

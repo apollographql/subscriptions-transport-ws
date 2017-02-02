@@ -1,6 +1,6 @@
 {
   "name": "subscriptions-transport-ws",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "A websocket transport for GraphQL subscriptions",
   "main": "dist/index.js",
   "repository": {
@@ -10,6 +10,7 @@
   "dependencies": {
     "backo2": "^1.0.2",
     "graphql-subscriptions": "^0.2.0",
+    "graphql-tag": "^1.2.3",
     "lodash.isobject": "^3.0.2",
     "lodash.isstring": "^4.0.1",
     "websocket": "^1.0.23"
