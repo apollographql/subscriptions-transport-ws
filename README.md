@@ -13,6 +13,7 @@ See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React
 - `url: string` : url that the client will connect to
 - `options?: Object` : optional object to modify default client behavior
   * `timeout: number` : how long the client should wait in ms for a subscription to be started (default 5000 ms)
+  * `connectRequestHeaders: Object` : object defines the headers for the WebSocket - those will be added to the `SUBSCRIPTION_START` message and will be available in the server side on `onSubscribe`
 
 ### Methods
 #### `subscribe(options, handler) => id`
@@ -29,7 +30,7 @@ See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React
 ### `Constructor(options, httpServer)`
 - `options: {ServerOptions}`
   * `subscriptionManager: SubscriptionManager` : GraphQL subscription manager
-  * `onSubscribe?: (message: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest)` : optional method to create custom params that will be used when resolving this subscription
+  * `onSubscribe?: (message: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest, headers: HeadersObject)` : optional method to create custom context, or abort the subscription in case of an error.
   * `keepAlive?: number` : optional interval in ms to send `SUBSCRIPTION_KEEPALIVE` messages to all clients
     
 ### `addGraphQLSubscriptions(networkInterface, Client)`

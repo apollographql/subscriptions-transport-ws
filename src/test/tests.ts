@@ -28,6 +28,7 @@ import {
 import { createServer, IncomingMessage, ServerResponse } from 'http';
 import SubscriptionServer from '../server';
 import Client from '../client';
+import { HeadersObject } from '../client';
 
 import { SubscribeMessage } from '../server';
 import { SubscriptionOptions } from 'graphql-subscriptions/dist/pubsub';
@@ -637,6 +638,33 @@ describe('Server', function() {
     );
     setTimeout(() => {
       subscriptionManager.publish('context', {});
+    }, 100);
+  });
+
+  it('connectRequestHeaders should set the correct headers on the START message', function(done) {
+    let headerName: string = 'Authorization';
+    let headers: HeadersObject = {};
+    headers[headerName] = 'xxx';
+
+    let client = new Client(`ws://localhost:${TEST_PORT}/`, { connectRequestHeaders: headers });
+    let sendMessageSpy = sinon.spy(client, 'sendMessage');
+
+    client.subscribe({
+      query: `
+        subscription context {
+          context
+        }
+      `,
+      variables: { },
+    }, (error, result) => {
+      assert(false);
+    });
+
+    setTimeout(() => {
+      assert(sendMessageSpy.calledOnce);
+      expect(sendMessageSpy.getCall(0).args[0].headers).to.not.be.undefined;
+      assert.equal(sendMessageSpy.getCall(0).args[0].headers[headerName], 'xxx');
+      done();
     }, 100);
   });
 

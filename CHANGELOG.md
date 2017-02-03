@@ -2,6 +2,7 @@
 
 ### vNEXT
 
+- Added ability to send headers on connection (sent on `SUBSCRIPTION_START` message), and use them on the server side using `onSubscribe` callback (useful for authorization, custom connection properties). You can use this feature to authorize the custom and then build the context object in the server side.
 - ...
 
 ### v0.4.0
