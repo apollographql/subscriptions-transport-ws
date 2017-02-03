@@ -1,8 +1,8 @@
-import Client from './client';
+import { SubscriptionClient } from './client';
 import { print } from 'graphql-tag/printer';
 
-// quick way to add the subscribe and unsubscribe functions to the network interface
-function addGraphQLSubscriptions(networkInterface: any, wsClient: Client): any {
+// Quick way to add the subscribe and unsubscribe functions to the network interface
+export function addGraphQLSubscriptions(networkInterface: any, wsClient: SubscriptionClient): any {
   return Object.assign(networkInterface, {
     subscribe(request: any, handler: any): number {
       return wsClient.subscribe({
@@ -12,8 +12,6 @@ function addGraphQLSubscriptions(networkInterface: any, wsClient: Client): any {
     },
     unsubscribe(id: number): void {
       wsClient.unsubscribe(id);
-    }
+    },
   });
 }
-
-export { addGraphQLSubscriptions };

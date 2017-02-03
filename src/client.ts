@@ -21,6 +21,8 @@ import { GRAPHQL_SUBSCRIPTIONS } from './protocols';
 import isString = require('lodash.isstring');
 import isObject = require('lodash.isobject');
 
+export * from './helpers';
+
 export interface SubscriptionOptions {
   query: string;
   variables?: Object;
