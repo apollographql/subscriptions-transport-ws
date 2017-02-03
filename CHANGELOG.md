@@ -4,6 +4,13 @@
 
 - ...
 
+### v0.4.0
+
+- Don't throw in the server on certain unsub messages. 
+[PR #54](https://github.com/apollostack/subscriptions-transport-ws/pull/54)
+- Moved typings to `@types/graphql`.
+[PR #60](https://github.com/apollostack/subscriptions-transport-ws/pull/60)
+
 ### v0.3.1
 
 - Server now passes back subscriptionManager errors encountered during publish.
