@@ -7,13 +7,13 @@
 ### 0.5.0
 
 - Updated `graphql-subscriptions@0.3.0`.
-- Added `addGraphQLSubscriptions` - use it to extend your network interface to work with `SubscriptionsClient` instance.
-- Client now uses native WebSocket by default, and has optional field to provide another implementation (for NodeJS clients)
-- Client now support INIT with custom object, so you can use if for authorization, or any other init params.
-- Server and client are now separated with `browser` and `main` fields of `package.json`
-- Client exposes workflow events for connect, disconnect and reconnect.
-- Server exposes new events: `onUnsubscribe`, `onSubscribe`, `onConnect` and `onDisconnect`.
-- Use `ws` package on server side, and expose it's options from server constructor.
+- Added `addGraphQLSubscriptions` - use it to extend your network interface to work with `SubscriptionsClient` instance. [PR #64](https://github.com/apollographql/subscriptions-transport-ws/pull/64)
+- Client now uses native WebSocket by default, and has optional field to provide another implementation (for NodeJS clients)[PR #53](https://github.com/apollographql/subscriptions-transport-ws/pull/53)
+- Client now support INIT with custom object, so you can use if for authorization, or any other init params. [PR #53](https://github.com/apollographql/subscriptions-transport-ws/pull/53)
+- Server and client are now separated with `browser` and `main` fields of `package.json`. [PR #53](https://github.com/apollographql/subscriptions-transport-ws/pull/53)
+- Client exposes workflow events for connect, disconnect and reconnect. [PR #53](https://github.com/apollographql/subscriptions-transport-ws/pull/53)
+- Server exposes new events: `onUnsubscribe`, `onSubscribe`, `onConnect` and `onDisconnect`. [PR #53](https://github.com/apollographql/subscriptions-transport-ws/pull/53)
+- Use `ws` package on server side, and expose it's options from server constructor. [PR #53](https://github.com/apollographql/subscriptions-transport-ws/pull/53)
 
 ### v0.4.0
 
