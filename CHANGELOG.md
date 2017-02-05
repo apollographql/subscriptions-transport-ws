@@ -2,6 +2,11 @@
 
 ### vNEXT
 
+- ...
+
+### 0.5.0
+
+- Updated `graphql-subscriptions@0.3.0`.
 - Added `addGraphQLSubscriptions` - use it to extend your network interface to work with `SubscriptionsClient` instance.
 - Client now uses native WebSocket by default, and has optional field to provide another implementation (for NodeJS clients)
 - Client now support INIT with custom object, so you can use if for authorization, or any other init params.
@@ -9,7 +14,6 @@
 - Client exposes workflow events for connect, disconnect and reconnect.
 - Server exposes new events: `onUnsubscribe`, `onSubscribe`, `onConnect` and `onDisconnect`.
 - Use `ws` package on server side, and expose it's options from server constructor.
-- ...
 
 ### v0.4.0
 
