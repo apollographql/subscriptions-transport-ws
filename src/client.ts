@@ -1,6 +1,9 @@
-import * as websocket from 'websocket';
-const W3CWebSocket = (websocket as { [key: string]: any })['w3cwebsocket'];
 import * as Backoff from 'backo2';
+import {EventEmitter, ListenerFn} from 'eventemitter3';
+
+declare let window: any;
+const _global = typeof global !== 'undefined' ? global : (typeof window !== 'undefined' ? window : {});
+const NativeWebSocket = _global.WebSocket || _global.MozWebSocket;
 
 import {
   SUBSCRIPTION_FAIL,
@@ -8,12 +11,17 @@ import {
   SUBSCRIPTION_START,
   SUBSCRIPTION_SUCCESS,
   SUBSCRIPTION_END,
-  SUBSCRIPTION_KEEPALIVE,
+  KEEPALIVE,
+  INIT,
+  INIT_FAIL,
+  INIT_SUCCESS,
 } from './messageTypes';
 import { GRAPHQL_SUBSCRIPTIONS } from './protocols';
 
 import isString = require('lodash.isstring');
 import isObject = require('lodash.isobject');
+
+export * from './helpers';
 
 export interface SubscriptionOptions {
   query: string;
@@ -23,28 +31,32 @@ export interface SubscriptionOptions {
 }
 
 export interface Subscription {
-  options: SubscriptionOptions,
-  handler: (error: Error[], result?: any) => void,
+  options: SubscriptionOptions;
+  handler: (error: Error[], result?: any) => void;
 }
 
 export interface Subscriptions {
   [id: string]: Subscription;
 }
 
+export type ConnectionParams = {[paramName: string]: any};
+
 export interface ClientOptions {
+  connectionParams?: ConnectionParams;
   timeout?: number;
   reconnect?: boolean;
   reconnectionAttempts?: number;
+  connectionCallback?: (error: Error[], result?: any) => void;
 }
 
 const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
 
-export default class Client {
-
+export class SubscriptionClient {
   public client: any;
   public subscriptions: Subscriptions;
   private url: string;
   private maxId: number;
+  private connectionParams: ConnectionParams;
   private subscriptionTimeout: number;
   private waitingSubscriptions: {[id: string]: boolean}; // subscriptions waiting for SUBSCRIPTION_SUCCESS
   private unsentMessagesQueue: Array<any>; // queued messages while websocket is opening.
@@ -53,14 +65,27 @@ export default class Client {
   private reconnectionAttempts: number;
   private reconnectSubscriptions: Subscriptions;
   private backoff: any;
+  private connectionCallback: any;
+  private eventEmitter: EventEmitter;
+  private wsImpl: any;
 
-  constructor(url: string, options?: ClientOptions) {
+  constructor(url: string, options?: ClientOptions, webSocketImpl?: any) {
     const {
+      connectionCallback = undefined,
+      connectionParams = {},
       timeout = DEFAULT_SUBSCRIPTION_TIMEOUT,
       reconnect = false,
       reconnectionAttempts = Infinity,
     } = (options || {});
 
+    this.wsImpl = webSocketImpl || NativeWebSocket;
+
+    if (!this.wsImpl) {
+      throw new Error('Unable to find native implementation, or alternative implementation for WebSocket!');
+    }
+
+    this.connectionParams = connectionParams;
+    this.connectionCallback = connectionCallback;
     this.url = url;
     this.subscriptions = {};
     this.maxId = 0;
@@ -72,7 +97,17 @@ export default class Client {
     this.reconnecting = false;
     this.reconnectionAttempts = reconnectionAttempts;
     this.backoff = new Backoff({ jitter: 0.5 });
+    this.eventEmitter = new EventEmitter();
+
     this.connect();
+  }
+
+  public get status() {
+    return this.client.readyState;
+  }
+
+  public close() {
+    this.client.close();
   }
 
   public subscribe(options: SubscriptionOptions, handler: (error: Error[], result?: any) => void) {
@@ -101,12 +136,32 @@ export default class Client {
     this.subscriptions[subId] = {options, handler};
     this.waitingSubscriptions[subId] = true;
     setTimeout( () => {
-      if (this.waitingSubscriptions[subId]){
+      if (this.waitingSubscriptions[subId]) {
         handler([new Error('Subscription timed out - no response from server')]);
         this.unsubscribe(subId);
       }
     }, this.subscriptionTimeout);
     return subId;
+  }
+
+  public on(eventName: string, callback: ListenerFn, context?: any): Function {
+    const handler = this.eventEmitter.on(eventName, callback, context);
+
+    return () => {
+      handler.off(eventName, callback, context);
+    };
+  }
+
+  public onConnect(callback: ListenerFn, context?: any): Function {
+    return this.on('connect', callback, context);
+  }
+
+  public onDisconnect(callback: ListenerFn, context?: any): Function {
+    return this.on('disconnect', callback, context);
+  }
+
+  public onReconnect(callback: ListenerFn, context?: any): Function {
+    return this.on('reconnect', callback, context);
   }
 
   public unsubscribe(id: number) {
@@ -168,6 +223,7 @@ export default class Client {
     if (this.backoff.attempts > this.reconnectionAttempts) {
       return;
     }
+
     if (!this.reconnecting) {
       this.reconnectSubscriptions = this.subscriptions;
       this.subscriptions = {};
@@ -176,46 +232,65 @@ export default class Client {
     }
     const delay = this.backoff.duration();
     setTimeout(() => {
-      this.connect();
+      this.connect(true);
     }, delay);
   }
 
-  private connect() {
-    this.client = new W3CWebSocket(this.url, GRAPHQL_SUBSCRIPTIONS);
+  private connect(isReconnect: boolean = false) {
+    this.client = new this.wsImpl(this.url, GRAPHQL_SUBSCRIPTIONS);
 
     this.client.onopen = () => {
+      this.eventEmitter.emit(isReconnect ? 'reconnect' : 'connect');
       this.reconnecting = false;
       this.backoff.reset();
       Object.keys(this.reconnectSubscriptions).forEach((key) => {
         const { options, handler } = this.reconnectSubscriptions[key];
         this.subscribe(options, handler);
-      })
+      });
       this.unsentMessagesQueue.forEach((message) => {
         this.client.send(JSON.stringify(message));
       });
       this.unsentMessagesQueue = [];
+
+      // Send INIT message, no need to wait for connection to success (reduce roundtrips)
+      this.sendMessage({type: INIT, payload: this.connectionParams});
     };
 
     this.client.onclose = () => {
+      this.eventEmitter.emit('disconnect');
+
       this.tryReconnect();
     };
 
-    this.client.onmessage = (message: { data: string }) => {
+    this.client.onerror = () => {
+      this.tryReconnect();
+    };
+
+    this.client.onmessage = ({ data }: {data: any}) => {
       let parsedMessage: any;
       try {
-        parsedMessage = JSON.parse(message.data);
+        parsedMessage = JSON.parse(data);
       } catch (e) {
-        throw new Error('Message must be JSON-parseable.');
+        throw new Error(`Message must be JSON-parseable. Got: ${data}`);
       }
       const subId = parsedMessage.id;
-      if (parsedMessage.type !== SUBSCRIPTION_KEEPALIVE && !this.subscriptions[subId]) {
+      if ([KEEPALIVE, INIT_SUCCESS, INIT_FAIL].indexOf(parsedMessage.type) === -1 && !this.subscriptions[subId]) {
         this.unsubscribe(subId);
         return;
       }
 
       // console.log('MSG', JSON.stringify(parsedMessage, null, 2));
       switch (parsedMessage.type) {
-
+        case INIT_FAIL:
+          if (this.connectionCallback) {
+            this.connectionCallback(parsedMessage.payload.error);
+          }
+          break;
+        case INIT_SUCCESS:
+          if (this.connectionCallback) {
+            this.connectionCallback();
+          }
+          break;
         case SUBSCRIPTION_SUCCESS:
           delete this.waitingSubscriptions[subId];
 
@@ -234,12 +309,12 @@ export default class Client {
           }
           break;
 
-        case SUBSCRIPTION_KEEPALIVE:
+        case KEEPALIVE:
           break;
 
         default:
-          throw new Error('Invalid message type - must be of type `subscription_start`, `subscription_data` or `subscription_keepalive`.');
+          throw new Error('Invalid message type!');
       }
     };
   }
-};
+}

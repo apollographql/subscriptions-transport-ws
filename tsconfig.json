@@ -16,7 +16,9 @@
         "node_modules/@types"
     ],
     "types": [
-        "@types/node"
+        "@types/node",
+        "@types/ws",
+        "eventemitter3"
     ]
   },
   "exclude": [

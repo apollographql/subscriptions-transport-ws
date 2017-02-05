@@ -4,6 +4,11 @@ import {
   expect,
 } from 'chai';
 import * as sinon from 'sinon';
+import * as WebSocket from 'ws';
+
+Object.assign(global, {
+  WebSocket: WebSocket,
+});
 
 import {
   GraphQLObjectType,
@@ -11,13 +16,13 @@ import {
   GraphQLString,
 } from 'graphql';
 
-import { PubSub, SubscriptionManager } from 'graphql-subscriptions';
+import {PubSub, SubscriptionManager} from 'graphql-subscriptions';
 
 import {
   SUBSCRIPTION_START,
   SUBSCRIPTION_FAIL,
   SUBSCRIPTION_DATA,
-  SUBSCRIPTION_KEEPALIVE,
+  KEEPALIVE,
   SUBSCRIPTION_END,
 } from '../messageTypes';
 
@@ -25,27 +30,19 @@ import {
   GRAPHQL_SUBSCRIPTIONS,
 } from '../protocols';
 
-import { createServer, IncomingMessage, ServerResponse } from 'http';
-import SubscriptionServer from '../server';
-import Client from '../client';
-
-import { SubscribeMessage } from '../server';
-import { SubscriptionOptions } from 'graphql-subscriptions/dist/pubsub';
-
-import {
-  server as WebSocketServer,
-  connection as Connection,
-  request as WebSocketRequest,
-} from 'websocket';
-import * as websocket from 'websocket';
-const W3CWebSocket = (websocket as { [key: string]: any })['w3cwebsocket'];
+import {createServer, IncomingMessage, ServerResponse} from 'http';
+import {SubscriptionServer} from '../server';
+import {SubscriptionClient} from '../client';
+import {SubscribeMessage} from '../server';
+import {SubscriptionOptions} from 'graphql-subscriptions/dist/pubsub';
 
 const TEST_PORT = 4953;
 const KEEP_ALIVE_TEST_PORT = TEST_PORT + 1;
 const DELAYED_TEST_PORT = TEST_PORT + 2;
 const RAW_TEST_PORT = TEST_PORT + 4;
+const EVENTS_TEST_PORT = TEST_PORT + 5;
 
-const data: { [key: string]: { [key: string]: string } } = {
+const data: {[key: string]: {[key: string]: string}} = {
   '1': {
     'id': '1',
     'name': 'Dan',
@@ -63,8 +60,8 @@ const data: { [key: string]: { [key: string]: string } } = {
 const userType = new GraphQLObjectType({
   name: 'User',
   fields: {
-    id: { type: GraphQLString },
-    name: { type: GraphQLString },
+    id: {type: GraphQLString},
+    name: {type: GraphQLString},
   },
 });
 
@@ -72,7 +69,7 @@ const schema = new GraphQLSchema({
   query: new GraphQLObjectType({
     name: 'Query',
     fields: {
-      testString: { type: GraphQLString },
+      testString: {type: GraphQLString},
     },
   }),
   subscription: new GraphQLObjectType({
@@ -82,7 +79,7 @@ const schema = new GraphQLSchema({
         type: userType,
         // `args` describes the arguments that the `user` query accepts
         args: {
-          id: { type: GraphQLString },
+          id: {type: GraphQLString},
         },
         // The resolve function describes how to 'resolve' or fulfill
         // the incoming query.
@@ -95,7 +92,7 @@ const schema = new GraphQLSchema({
       userFiltered: {
         type: userType,
         args: {
-          id: { type: GraphQLString },
+          id: {type: GraphQLString},
         },
         resolve: function (_, {id}) {
           return data[id];
@@ -107,7 +104,11 @@ const schema = new GraphQLSchema({
           return ctx;
         },
       },
-      error: { type: GraphQLString, resolve: () => { throw new Error('E1'); } },
+      error: {
+        type: GraphQLString, resolve: () => {
+          throw new Error('E1');
+        },
+      },
     },
   }),
 });
@@ -116,7 +117,7 @@ const subscriptionManager = new SubscriptionManager({
   schema,
   pubsub: new PubSub(),
   setupFunctions: {
-    'userFiltered': (options: SubscriptionOptions, args: { [key: string]: any }) => ({
+    'userFiltered': (options: SubscriptionOptions, args: {[key: string]: any}) => ({
       'userFiltered': {
         filter: (user: any) => {
           return !args['id'] || user.id === args['id'];
@@ -128,16 +129,28 @@ const subscriptionManager = new SubscriptionManager({
 
 // indirect call to support spying
 const handlers = {
-  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest) => {
-    return Promise.resolve(Object.assign({}, params, { context: msg['context'] }));
+  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+    return Promise.resolve(Object.assign({}, params, {context: msg['context']}));
   },
 };
 
 const options = {
   subscriptionManager,
-  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest) => {
+  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
     return handlers.onSubscribe(msg, params, webSocketRequest);
   },
+};
+
+const eventsOptions = {
+  subscriptionManager,
+  onSubscribe: sinon.spy((msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+    return Promise.resolve(Object.assign({}, params, {context: msg['context']}));
+  }),
+  onUnsubscribe: sinon.spy(),
+  onConnect: sinon.spy(() => {
+    return {test: 'test context'};
+  }),
+  onDisconnect: sinon.spy(),
 };
 
 function notFoundRequestListener(request: IncomingMessage, response: ServerResponse) {
@@ -147,11 +160,15 @@ function notFoundRequestListener(request: IncomingMessage, response: ServerRespo
 
 const httpServer = createServer(notFoundRequestListener);
 httpServer.listen(TEST_PORT);
-new SubscriptionServer(options, httpServer);
+new SubscriptionServer(options, {server: httpServer});
 
 const httpServerWithKA = createServer(notFoundRequestListener);
 httpServerWithKA.listen(KEEP_ALIVE_TEST_PORT);
-new SubscriptionServer(Object.assign({}, options, {keepAlive: 10}), httpServerWithKA);
+new SubscriptionServer(Object.assign({}, options, {keepAlive: 10}), {server: httpServerWithKA});
+
+const httpServerWithEvents = createServer(notFoundRequestListener);
+httpServerWithEvents.listen(EVENTS_TEST_PORT);
+const eventsServer = new SubscriptionServer(eventsOptions, {server: httpServerWithEvents});
 
 const httpServerWithDelay = createServer(notFoundRequestListener);
 httpServerWithDelay.listen(DELAYED_TEST_PORT);
@@ -159,49 +176,214 @@ new SubscriptionServer(Object.assign({}, options, {
   onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions) => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        resolve(Object.assign({}, params, { context: msg['context'] }));
+        resolve(Object.assign({}, params, {context: msg['context']}));
       }, 100);
     });
   },
-}), httpServerWithDelay);
+}), {server: httpServerWithDelay});
 
 const httpServerRaw = createServer(notFoundRequestListener);
 httpServerRaw.listen(RAW_TEST_PORT);
 
-describe('Client', function() {
+describe('Client', function () {
 
-  let wsServer: WebSocketServer;
+  let wsServer: WebSocket.Server;
 
   beforeEach(() => {
-    wsServer = new WebSocketServer({
-      httpServer: httpServerRaw,
-      autoAcceptConnections: true,
+    wsServer = new WebSocket.Server({
+      server: httpServerRaw,
     });
   });
 
   afterEach(() => {
     if (wsServer) {
-      wsServer.shutDown();
+      wsServer.close();
     }
   });
 
-  it('removes subscription when it unsubscribes from it', function() {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+  it('should send INIT message when creating the connection', (done) => {
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        expect(parsedMessage.type).to.equals('init');
+        done();
+      });
+    });
 
-    setTimeout( () => {
+    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+  });
+
+  it('should emit connect event for client side when socket is open', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+
+    const unregister = client.onConnect(() => {
+      unregister();
+      done();
+    });
+  });
+
+  it('should emit disconnect event for client side when socket closed', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`, {
+      connectionCallback: () => {
+        client.client.close();
+      },
+    });
+
+    const unregister = client.onDisconnect(() => {
+      unregister();
+      done();
+    });
+  });
+
+  it('should emit reconnect event for client side when socket closed', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`, {
+      reconnect: true,
+      reconnectionAttempts: 1,
+      connectionCallback: () => {
+        client.client.close();
+      },
+    });
+
+    const unregister = client.onReconnect(() => {
+      unregister();
+      done();
+    });
+  });
+
+  it('should throw an exception when query is not provided', () => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+
+    expect(() => {
+      client.subscribe({
+          query: undefined,
+          operationName: 'useInfo',
+          variables: {
+            id: 3,
+          },
+        }, function (error: any, result: any) {
+          //do nothing
+        }
+      );
+    }).to.throw();
+  });
+
+  it('should throw an exception when query is not valid', () => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+
+    expect(() => {
+      client.subscribe({
+          query: <string>{},
+          operationName: 'useInfo',
+          variables: {
+            id: 3,
+          },
+        }, function (error: any, result: any) {
+          //do nothing
+        }
+      );
+    }).to.throw();
+  });
+
+  it('should throw an exception when handler is not provided', () => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+
+    expect(() => {
+      client.subscribe({
+          query: `subscription useInfo($id: String) {
+            user(id: $id) {
+              id
+              name
+            }
+          }`,
+        },
+        undefined
+      );
+    }).to.throw();
+  });
+
+  it('should send connectionParams along with init message', (done) => {
+    const connectionParams: any = {
+      test: true,
+    };
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        expect(JSON.stringify(parsedMessage.payload)).to.equal(JSON.stringify(connectionParams));
+        done();
+      });
+    });
+
+    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      connectionParams: connectionParams,
+    });
+  });
+
+  it('should handle correctly init_fail message', (done) => {
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        connection.send(JSON.stringify({type: 'init_fail', payload: {error: 'test error'}}));
+      });
+    });
+
+    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      connectionCallback: (error: any) => {
+        expect(error).to.equals('test error');
+        done();
+      },
+    });
+  });
+
+  it('should handle init_fail message and handle server that closes connection', (done) => {
+    let client: any = null;
+
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        connection.send(JSON.stringify({type: 'init_fail', payload: {error: 'test error'}}), () => {
+          connection.close();
+          connection.terminate();
+
+          setTimeout(() => {
+            expect(client.client.readyState).to.equals(WebSocket.CLOSED);
+            done();
+          }, 500);
+        });
+      });
+    });
+
+    client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+  });
+
+  it('should handle correctly init_success message', (done) => {
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        connection.send(JSON.stringify({type: 'init_success'}));
+      });
+    });
+
+    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      connectionCallback: (error: any) => {
+        expect(error).to.equals(undefined);
+        done();
+      },
+    });
+  });
+
+  it('removes subscription when it unsubscribes from it', function () {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+
+    setTimeout(() => {
       let subId = client.subscribe({
-        query:
-        `subscription useInfo($id: String) {
+          query: `subscription useInfo($id: String) {
           user(id: $id) {
             id
             name
           }
         }`,
-        operationName: 'useInfo',
-        variables: {
-          id: 3,
-        },
-        }, function(error, result) {
+          operationName: 'useInfo',
+          variables: {
+            id: 3,
+          },
+        }, function (error: any, result: any) {
           //do nothing
         }
       );
@@ -210,22 +392,21 @@ describe('Client', function() {
     }, 100);
   });
 
-  it('queues messages while websocket is still connecting', function() {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+  it('queues messages while websocket is still connecting', function () {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     let subId = client.subscribe({
-      query:
-      `subscription useInfo($id: String) {
+        query: `subscription useInfo($id: String) {
         user(id: $id) {
           id
           name
         }
       }`,
-      operationName: 'useInfo',
-      variables: {
-        id: 3,
-      },
-      }, function(error, result) {
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
+        },
+      }, function (error: any, result: any) {
         //do nothing
       }
     );
@@ -237,17 +418,16 @@ describe('Client', function() {
     }, 100);
   });
 
-  it('should call error handler when graphql result has errors', function(done) {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+  it('should call error handler when graphql result has errors', function (done) {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
-    setTimeout( () => {
-    client.subscribe({
-        query:
-        `subscription useInfo{
+    setTimeout(() => {
+      client.subscribe({
+          query: `subscription useInfo{
           error
         }`,
-        variables: {},
-        }, function(error, result) {
+          variables: {},
+        }, function (error: any, result: any) {
           if (error) {
             client.unsubscribeAll();
             done();
@@ -259,22 +439,21 @@ describe('Client', function() {
         }
       );
     }, 100);
-    setTimeout( () => {
+    setTimeout(() => {
       subscriptionManager.publish('error', {});
     }, 200);
   });
 
-  it('should call error handler when graphql query is not valid', function(done) {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+  it('should call error handler when graphql query is not valid', function (done) {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
-    setTimeout( () => {
-    client.subscribe({
-        query:
-        `subscription useInfo{
+    setTimeout(() => {
+      client.subscribe({
+          query: `subscription useInfo{
           invalid
         }`,
-        variables: {},
-      }, function(error: Error[], result: any) {
+          variables: {},
+        }, function (error: Error[], result: any) {
           if (error) {
             expect(error[0].message).to.equals('Cannot query field "invalid" on type "Subscription".');
             done();
@@ -287,11 +466,11 @@ describe('Client', function() {
   });
 
   function testBadServer(payload: any, errorMessage: string, done: Function) {
-    wsServer.on('connect', (connection: Connection) => {
-      connection.on('message', (message) => {
-        const parsedMessage = JSON.parse(message.utf8Data);
+    wsServer.on('connection', (connection: WebSocket) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
         if (parsedMessage.type === SUBSCRIPTION_START) {
-          connection.sendUTF(JSON.stringify({
+          connection.send(JSON.stringify({
             type: SUBSCRIPTION_FAIL,
             id: parsedMessage.id,
             payload,
@@ -300,7 +479,7 @@ describe('Client', function() {
       });
     });
 
-    const client = new Client(`ws://localhost:${RAW_TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
     client.subscribe({
       query: `
         subscription useInfo{
@@ -308,7 +487,7 @@ describe('Client', function() {
         }
       `,
       variables: {},
-    }, function(errors: Error[], result: any) {
+    }, function (errors: Error[], result: any) {
       if (errors) {
         expect(errors[0].message).to.equals(errorMessage);
       } else {
@@ -318,33 +497,32 @@ describe('Client', function() {
     });
   }
 
-  it('should handle missing errors', function(done) {
+  it('should handle missing errors', function (done) {
     const errorMessage = 'Unknown error';
     const payload = {};
     testBadServer(payload, errorMessage, done);
   });
 
-  it('should handle errors that are not an array', function(done) {
+  it('should handle errors that are not an array', function (done) {
     const errorMessage = 'Just an error';
     const payload = {
-      errors: { message: errorMessage },
+      errors: {message: errorMessage},
     };
     testBadServer(payload, errorMessage, done);
   });
 
-  it('should throw an error when the susbcription times out', function(done) {
+  it('should throw an error when the susbcription times out', function (done) {
     // hopefully 1ms is fast enough to time out before the server responds
-    const client = new Client(`ws://localhost:${DELAYED_TEST_PORT}/`, { timeout: 1 });
+    const client = new SubscriptionClient(`ws://localhost:${DELAYED_TEST_PORT}/`, {timeout: 1});
 
-    setTimeout( () => {
+    setTimeout(() => {
       client.subscribe({
-        query:
-          `subscription useInfo{
+        query: `subscription useInfo{
             error
           }`,
         operationName: 'useInfo',
         variables: {},
-      }, function(error, result) {
+      }, function (error: any, result: any) {
         if (error) {
           expect(error[0].message).to.equals('Subscription timed out - no response from server');
           done();
@@ -356,39 +534,40 @@ describe('Client', function() {
     }, 100);
   });
 
-  it('should reconnect to the server', function(done) {
+  it('should reconnect to the server', function (done) {
     let connections = 0;
-    let client: Client;
+    let client: SubscriptionClient;
     let originalClient: any;
-    wsServer.on('connect', (connection: Connection) => {
+    wsServer.on('connection', (connection: WebSocket) => {
       connections += 1;
       if (connections === 1) {
-        wsServer.closeAllConnections();
+        originalClient.close();
       } else {
         expect(client.client).to.not.be.equal(originalClient);
         done();
       }
     });
-    client = new Client(`ws://localhost:${RAW_TEST_PORT}/`, { reconnect: true });
+    client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {reconnect: true});
     originalClient = client.client;
   });
 
-  it('should resubscribe after reconnect', function(done) {
+  it('should resubscribe after reconnect', function (done) {
     let connections = 0;
-    wsServer.on('connect', (connection: Connection) => {
+    let client: SubscriptionClient = null;
+    wsServer.on('connection', (connection: WebSocket) => {
       connections += 1;
-      connection.on('message', (message) => {
-        const parsedMessage = JSON.parse(message.utf8Data);
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
         if (parsedMessage.type === SUBSCRIPTION_START) {
           if (connections === 1) {
-            wsServer.closeAllConnections();
+            client.client.close();
           } else {
             done();
           }
         }
       });
     });
-    const client = new Client(`ws://localhost:${RAW_TEST_PORT}/`, { reconnect: true });
+    client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {reconnect: true});
     client.subscribe({
       query: `
         subscription useInfo{
@@ -396,23 +575,69 @@ describe('Client', function() {
         }
       `,
       variables: {},
-    }, function(errors: Error[], result: any) {
+    }, function (errors: Error[], result: any) {
       assert(false);
     });
   });
 
-  it('should stop trying to reconnect to the server', function(done) {
+  it('should throw an exception when trying to subscribe when socket is closed', function (done) {
+    let client: SubscriptionClient = null;
+
+    client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`, {reconnect: true});
+
+    setTimeout(() => {
+      client.client.close();
+    }, 500);
+
+    setTimeout(() => {
+      expect(() => {
+        client.subscribe({
+          query: `
+        subscription useInfo{
+          invalid
+        }
+      `,
+          variables: {},
+        }, function (errors: Error[], result: any) {
+          // nothing
+        });
+
+        done();
+      }).to.throw();
+    }, 1000);
+  });
+
+  it('should throw an exception when the sent message is not a valid json', function (done) {
+
+
+    setTimeout(() => {
+      expect(() => {
+        let client: SubscriptionClient = null;
+
+        wsServer.on('connection', (connection: any) => {
+          connection.on('message', (message: any) => {
+            connection.send('invalid json');
+          });
+        });
+
+        client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+        done();
+      }).to.throw();
+    }, 1000);
+  });
+
+  it('should stop trying to reconnect to the server', function (done) {
     let connections = 0;
-    wsServer.on('connect', (connection: Connection) => {
+    wsServer.on('connection', (connection: WebSocket) => {
       connections += 1;
       if (connections === 1) {
-        wsServer.unmount();
-        wsServer.closeAllConnections();
+        wsServer.close();
       } else {
         assert(false);
       }
     });
-    const client = new Client(`ws://localhost:${RAW_TEST_PORT}/`, {
+
+    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       timeout: 100,
       reconnect: true,
       reconnectionAttempts: 1,
@@ -424,8 +649,7 @@ describe('Client', function() {
   });
 });
 
-describe('Server', function() {
-
+describe('Server', function () {
   let onSubscribeSpy: sinon.SinonSpy;
 
   beforeEach(() => {
@@ -433,19 +657,147 @@ describe('Server', function() {
   });
 
   afterEach(() => {
-    onSubscribeSpy.restore();
+    if (onSubscribeSpy) {
+      onSubscribeSpy.restore();
+    }
+
+    if (eventsOptions) {
+      eventsOptions.onConnect.reset();
+      eventsOptions.onDisconnect.reset();
+      eventsOptions.onSubscribe.reset();
+      eventsOptions.onUnsubscribe.reset();
+    }
   });
 
-  it('should send correct results to multiple clients with subscriptions', function(done) {
+  it('should throw an exception when creating a server without subscriptionManager', () => {
+    expect(() => {
+      new SubscriptionServer({subscriptionManager: undefined}, {server: httpServer});
+    }).to.throw();
+  });
 
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
-    let client1 = new Client(`ws://localhost:${TEST_PORT}/`);
+  it('should trigger onConnect when client connects and validated', (done) => {
+    new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
+
+    setTimeout(() => {
+      assert(eventsOptions.onConnect.calledOnce);
+      done();
+    }, 200);
+  });
+
+  it('should trigger onConnect with the correct connectionParams', (done) => {
+    const connectionParams: any = {
+      test: true,
+    };
+
+    new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`, {
+      connectionParams: connectionParams,
+    });
+
+    setTimeout(() => {
+      assert(eventsOptions.onConnect.calledOnce);
+      expect(JSON.stringify(eventsOptions.onConnect.getCall(0).args[0])).to.equal(JSON.stringify(connectionParams));
+      done();
+    }, 200);
+  });
+
+  it('should trigger onDisconnect when client disconnects', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    client.client.close();
+
+    setTimeout(() => {
+      assert(eventsOptions.onDisconnect.calledOnce);
+      done();
+    }, 200);
+  });
+
+  it('should call unsubscribe when client closes the connection', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    const spy = sinon.spy(eventsServer, 'unsubscribe');
+
+    client.subscribe({
+        query: `subscription useInfo($id: String) {
+        user(id: $id) {
+          id
+          name
+        }
+      }`,
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
+        },
+      }, function (error: any, result: any) {
+        // nothing
+      }
+    );
+
+    setTimeout(() => {
+      client.client.close();
+    }, 500);
+
+    setTimeout(() => {
+      assert(spy.calledOnce);
+      done();
+    }, 1000);
+  });
+
+  it('should trigger onSubscribe when client subscribes', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    client.subscribe({
+      query: `subscription useInfo($id: String) {
+          user(id: $id) {
+            id
+            name
+          }
+        }`,
+      operationName: 'useInfo',
+      variables: {
+        id: 3,
+      },
+    }, (error: any, result: any) => {
+      if (error) {
+        assert(false);
+      }
+    });
+
+    setTimeout(() => {
+      assert(eventsOptions.onSubscribe.calledOnce);
+      done();
+    }, 200);
+  });
+
+  it('should trigger onUnsubscribe when client unsubscribes', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    const subId = client.subscribe({
+      query: `subscription useInfo($id: String) {
+          user(id: $id) {
+            id
+            name
+          }
+        }`,
+      operationName: 'useInfo',
+      variables: {
+        id: 3,
+      },
+    }, function (error: any, result: any) {
+      //do nothing
+    });
+
+    client.unsubscribe(subId);
+
+    setTimeout(() => {
+      assert(eventsOptions.onUnsubscribe.calledOnce);
+      done();
+    }, 200);
+  });
+
+  it('should send correct results to multiple clients with subscriptions', function (done) {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    let client1 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     let numResults = 0;
-    setTimeout( () => {
+    setTimeout(() => {
       client.subscribe({
-        query:
-        `subscription useInfo($id: String) {
+        query: `subscription useInfo($id: String) {
           user(id: $id) {
             id
             name
@@ -456,7 +808,7 @@ describe('Server', function() {
           id: 3,
         },
 
-      }, function(error, result) {
+      }, function (error: any, result: any) {
         if (error) {
           assert(false);
         }
@@ -472,12 +824,11 @@ describe('Server', function() {
       });
     }, 100);
 
-    const client11 = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client11 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     let numResults1 = 0;
-    setTimeout(function() {
+    setTimeout(function () {
       client11.subscribe({
-        query:
-        `subscription useInfo($id: String) {
+        query: `subscription useInfo($id: String) {
           user(id: $id) {
             id
             name
@@ -488,18 +839,17 @@ describe('Server', function() {
           id: 2,
         },
 
-      }, function(error, result) {
-
-      if (error) {
-        assert(false);
-      }
-      if (result) {
-        assert.property(result, 'user');
-        assert.equal(result.user.id, '2');
-        assert.equal(result.user.name, 'Marie');
-        numResults1++;
-      }
-      // if both error and result are null, this was a SUBSCRIPTION_SUCCESS message.
+      }, function (error: any, result: any) {
+        if (error) {
+          assert(false);
+        }
+        if (result) {
+          assert.property(result, 'user');
+          assert.equal(result.user.id, '2');
+          assert.equal(result.user.name, 'Marie');
+          numResults1++;
+        }
+        // if both error and result are null, this was a SUBSCRIPTION_SUCCESS message.
       });
     }, 100);
 
@@ -517,9 +867,9 @@ describe('Server', function() {
 
   });
 
-  it('should send a subscription_fail message to client with invalid query', function(done) {
-    const client1 = new Client(`ws://localhost:${TEST_PORT}/`);
-    setTimeout(function() {
+  it('should send a subscription_fail message to client with invalid query', function (done) {
+    const client1 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    setTimeout(function () {
       client1.client.onmessage = (message: any) => {
         let messageData = JSON.parse(message.data);
         assert.equal(messageData.type, SUBSCRIPTION_FAIL);
@@ -527,18 +877,17 @@ describe('Server', function() {
         done();
       };
       client1.subscribe({
-        query:
-        `subscription useInfo($id: String) {
+          query: `subscription useInfo($id: String) {
           user(id: $id) {
             id
             birthday
           }
         }`,
-        operationName: 'useInfo',
-        variables: {
-          id: 3,
-        },
-        }, function(error, result) {
+          operationName: 'useInfo',
+          variables: {
+            id: 3,
+          },
+        }, function (error: any, result: any) {
           //do nothing
         }
       );
@@ -546,14 +895,13 @@ describe('Server', function() {
 
   });
 
-  it('should set up the proper filters when subscribing', function(done) {
+  it('should set up the proper filters when subscribing', function (done) {
     let numTriggers = 0;
-    const client3 = new Client(`ws://localhost:${TEST_PORT}/`);
-    const client4 = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client3 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    const client4 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     setTimeout(() => {
       client3.subscribe({
-        query:
-          `subscription userInfoFilter1($id: String) {
+          query: `subscription userInfoFilter1($id: String) {
             userFiltered(id: $id) {
               id
               name
@@ -563,7 +911,7 @@ describe('Server', function() {
           variables: {
             id: 3,
           },
-        }, (error, result) => {
+        }, (error: any, result: any) => {
           if (error) {
             assert(false);
           }
@@ -577,8 +925,7 @@ describe('Server', function() {
         }
       );
       client4.subscribe({
-        query:
-          `subscription userInfoFilter1($id: String) {
+          query: `subscription userInfoFilter1($id: String) {
             userFiltered(id: $id) {
               id
               name
@@ -588,7 +935,7 @@ describe('Server', function() {
           variables: {
             id: 1,
           },
-        }, (error, result) => {
+        }, (error: any, result: any) => {
           if (result) {
             numTriggers += 1;
             assert.property(result, 'userFiltered');
@@ -603,9 +950,9 @@ describe('Server', function() {
       );
     }, 100);
     setTimeout(() => {
-      subscriptionManager.publish('userFiltered', { id: 1 });
-      subscriptionManager.publish('userFiltered', { id: 2 });
-      subscriptionManager.publish('userFiltered', { id: 3 });
+      subscriptionManager.publish('userFiltered', {id: 1});
+      subscriptionManager.publish('userFiltered', {id: 2});
+      subscriptionManager.publish('userFiltered', {id: 3});
     }, 200);
     setTimeout(() => {
       assert.equal(numTriggers, 2);
@@ -613,17 +960,16 @@ describe('Server', function() {
     }, 300);
   });
 
-  it('correctly sets the context in onSubscribe', function(done) {
+  it('correctly sets the context in onSubscribe', function (done) {
     const CTX = 'testContext';
-    const client3 = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client3 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     client3.subscribe({
-      query:
-        `subscription context {
+        query: `subscription context {
           context
         }`,
-        variables: { },
+        variables: {},
         context: CTX,
-      }, (error, result) => {
+      }, (error: any, result: any) => {
         client3.unsubscribeAll();
         if (error) {
           assert(false);
@@ -640,17 +986,19 @@ describe('Server', function() {
     }, 100);
   });
 
-  it('passes through webSocketRequest to onSubscribe', function(done) {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+  it('passes through webSocketRequest to onSubscribe', function (done) {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     client.subscribe({
       query: `
         subscription context {
           context
         }
       `,
-      variables: { },
-    }, (error, result) => {
-      assert(false);
+      variables: {},
+    }, (error: any, result: any) => {
+      if (error) {
+        assert(false);
+      }
     });
     setTimeout(() => {
       assert(onSubscribeSpy.calledOnce);
@@ -659,22 +1007,21 @@ describe('Server', function() {
     }, 100);
   });
 
-  it('does not send more subscription data after client unsubscribes', function() {
-    const client4 = new Client(`ws://localhost:${TEST_PORT}/`);
+  it('does not send more subscription data after client unsubscribes', function () {
+    const client4 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     setTimeout(() => {
       let subId = client4.subscribe({
-        query:
-        `subscription useInfo($id: String) {
+          query: `subscription useInfo($id: String) {
           user(id: $id) {
             id
             name
           }
         }`,
-        operationName: 'useInfo',
-        variables: {
-          id: 3,
-        },
-        }, function(error, result) {
+          operationName: 'useInfo',
+          variables: {
+            id: 3,
+          },
+        }, function (error: any, result: any) {
           //do nothing
         }
       );
@@ -691,15 +1038,20 @@ describe('Server', function() {
     };
   });
 
-  it('rejects a client that does not specify a supported protocol', function(done) {
-    const client = new W3CWebSocket(`ws://localhost:${TEST_PORT}/`);
-    client.onerror = (message: any) => {
-      done();
-    };
+  it('rejects a client that does not specify a supported protocol', function (done) {
+    const client = new WebSocket(`ws://localhost:${TEST_PORT}/`);
+
+    client.on('close', (code) => {
+      if (code === 1002) {
+        done();
+      } else {
+        assert(false);
+      }
+    });
   });
 
-  it('rejects unparsable message', function(done) {
-    const client = new W3CWebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
+  it('rejects unparsable message', function (done) {
+    const client = new WebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
     client.onmessage = (message: any) => {
       let messageData = JSON.parse(message.data);
       assert.equal(messageData.type, SUBSCRIPTION_FAIL);
@@ -712,8 +1064,8 @@ describe('Server', function() {
     };
   });
 
-  it('rejects nonsense message', function(done) {
-    const client = new W3CWebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
+  it('rejects nonsense message', function (done) {
+    const client = new WebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
     client.onmessage = (message: any) => {
       let messageData = JSON.parse(message.data);
       assert.equal(messageData.type, SUBSCRIPTION_FAIL);
@@ -728,8 +1080,8 @@ describe('Server', function() {
 
   it('does not crash on unsub for Object.prototype member', function(done) {
     // Use websocket because Client.unsubscribe will only take a number.
-    const client = new W3CWebSocket(`ws://localhost:${TEST_PORT}/`,
-                                    GRAPHQL_SUBSCRIPTIONS);
+    const client = new WebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
+
     client.onopen = () => {
       client.send(JSON.stringify({type: SUBSCRIPTION_END, id: 'toString'}));
       // Strangely we don't send any acknowledgement for unsubbing from an
@@ -739,28 +1091,31 @@ describe('Server', function() {
     };
   });
 
-  it('sends back any type of error', function(done) {
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+  it('sends back any type of error', function (done) {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     client.subscribe({
-      query:
-        `invalid useInfo{
+      query: `invalid useInfo{
           error
         }`,
       variables: {},
-    }, function(errors, result) {
+    }, function (errors: any, result: any) {
       client.unsubscribeAll();
       assert.isAbove(errors.length, 0, 'Number of errors is greater than 0.');
       done();
     });
   });
 
-  it('handles errors prior to graphql execution', function(done) {
+  it('handles errors prior to graphql execution', function (done) {
     // replace the onSubscribeSpy with a custom handler, the spy will restore
     // the original method
-    handlers.onSubscribe = (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocketRequest) => {
-      return Promise.resolve(Object.assign({}, params, { context: () => { throw new Error('bad'); } }));
+    handlers.onSubscribe = (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+      return Promise.resolve(Object.assign({}, params, {
+        context: () => {
+          throw new Error('bad');
+        },
+      }));
     };
-    const client = new Client(`ws://localhost:${TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     client.subscribe({
       query: `
         subscription context {
@@ -784,12 +1139,12 @@ describe('Server', function() {
     }, 100);
   });
 
-  it('sends a keep alive signal in the socket', function(done) {
-    let client = new W3CWebSocket(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
+  it('sends a keep alive signal in the socket', function (done) {
+    let client = new WebSocket(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
     let yieldCount = 0;
     client.onmessage = (message: any) => {
       const parsedMessage = JSON.parse(message.data);
-      if (parsedMessage.type === SUBSCRIPTION_KEEPALIVE) {
+      if (parsedMessage.type === KEEPALIVE) {
         yieldCount += 1;
         if (yieldCount > 1) {
           client.close();
