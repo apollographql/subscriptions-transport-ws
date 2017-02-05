@@ -4,11 +4,124 @@
 
 **(Work in progress!)**
 
-A GraphQL websocket server and client to facilitate GraphQL subscriptions.
+A GraphQL WebSocket server and client to facilitate GraphQL subscriptions.
 
 See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React](https://github.com/apollostack/GitHunt-React) for an example server and client integration.
 
-## Client
+# Getting Started
+
+Start by installing the package, using Yarn or NPM:
+
+    Using Yarn:
+    $ yarn add subscriptions-transport-ws
+
+    Or, using NPM:
+    $ npm install --save subscriptions-transport-ws
+
+> This command also installs this package's dependencies, including `graphql-subscriptions`.
+
+### Server
+
+Starting with the server, create a new simple `SubscriptionsManager`, with a `PubSub` implementation:
+
+```js
+import { SubscriptionManager, PubSub } from 'graphql-subscriptions';
+
+const schema = {}; // Replace with your GraphQL schema object
+const pubsub = new PubSub();
+
+const subscriptionManager = new SubscriptionManager({
+  schema,
+  pubsub
+});
+```
+
+Now, use your `subscriptionManager`, and create your `SubscriptionServer`:
+
+```js
+import { createServer } from 'http';
+import { SubscriptionServer } from 'subscriptions-transport-ws';
+
+const WS_PORT = 5000;
+
+// Create WebSocket listener server
+const websocketServer = createServer((request, response) => {
+  response.writeHead(404);
+  response.end();
+});
+
+// Bind it to port and start listening
+websocketServer.listen(WS_PORT, () => console.log(
+  `Websocket Server is now running on http://localhost:${WS_PORT}`
+));
+
+const subscriptionManager = new SubscriptionServer(
+  {
+    onConnect: async (connectionParams) => {
+      // Implement if you need to handle and manage connection
+    },
+    subscriptionManager: subscriptionManager
+  },
+  {
+    server: websocketServer,
+    path: '/'
+  }
+);
+```
+
+### Client (browser)
+
+For client side, we will use `SubscriptionClient`, and we also need to extend our network interface to use this transport for GraphQL subscriptions:
+
+```js
+import {SubscriptionClient, addGraphQLSubscriptions} from 'subscriptions-transport-ws';
+import ApolloClient, {createNetworkInterface} from 'apollo-client';
+
+// Create regular NetworkInterface by using apollo-client's API:
+const networkInterface = createNetworkInterface({
+ uri: 'http://localhost:3000' // Your GraphQL endpoint
+});
+
+// Create WebSocket client
+const wsClient = new SubscriptionClient(`http://localhost:5000/`, {
+    reconnect: true,
+    connectionParams: {
+        // Pass any arguments you want for initialization
+    }
+});
+
+// Extend the network interface with the WebSocket
+const networkInterfaceWithSubscriptions = addGraphQLSubscriptions(
+    networkInterface,
+    wsClient
+);
+
+// Finally, create your ApolloClient instance with the modified network interface
+const apolloClient = new ApolloClient({
+    networkInterface: networkInterfaceWithSubscriptions
+});
+```
+
+Now, when you want to use subscriptions in client side, use your `ApolloClient` instance, with `subscribe` or `subscribeToMore` (according to your apollo-client usage):
+
+```js
+apolloClient.subscribeToMore({
+    document: gql`
+        subscription onNewItem {
+            newItemCreated {
+                id
+            }
+        }`,
+    variables: {},
+    updateQuery: (prev, {subscriptionData}) => {
+        return; // Modify your store and return new state with the new arrived data
+    }
+});
+```
+
+# API
+
+## SubscriptionClient
 ### `Constructor(url, options, connectionCallback)`
 - `url: string` : url that the client will connect to
 - `options?: Object` : optional, object to modify default client behavior
@@ -17,6 +130,7 @@ See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React
   * `reconnect?: boolean` : automatic reconnect in case of connection error
   * `reconnectionAttempts?: number` : how much reconnect attempts
   * `connectionCallback?: (error) => {}` : optional, callback that called after the first init message, with the error (if there is one)
+- `webSocketImpl: Object` - optional, WebSocket implementation. use this when your environment does not have a built-in native WebSocket (for example, with NodeJS client)
 
 ### Methods
 #### `subscribe(options, handler) => id`
@@ -26,10 +140,42 @@ See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React
   * `operationName: string` : operation name of the subscription
 - `handler: (errors: Error[], result?: any) => void` : function to handle any errors and results from the subscription response
 
-#### `unsubscribe(id) => void`
+#### `unsubscribe(id) => void` - unsubscribes from a specific subscription
 - `id: string` : the subscription ID of the subscription to unsubscribe from
 
-## Server
+#### `unsubscribeAll() => void` - unsubscribes from all active subscriptions.
+
+#### `on(eventName, callback, thisContext) => Function`
+- `eventName: string`: the name of the event, available events are: `connect`, `reconnect` and `disconnect`
+- `callback: Function`: function to be called when websocket connects and initialized.
+- `thisContext: any`: `this` context to use when calling the callback function.
+- => Returns an `off` method to cancel the event subscription.
+
+#### `onConnect(callback, thisContext) => Function` - shorthand for `.on('connect', ...)`
+- `callback: Function`: function to be called when websocket connects and initialized.
+- `thisContext: any`: `this` context to use when calling the callback function.
+- => Returns an `off` method to cancel the event subscription.
+
+#### `onReonnect(callback, thisContext) => Function` - shorthand for `.on('reconnect', ...)`
+- `callback: Function`: function to be called when websocket re-connects and initialized.
+- `thisContext: any`: `this` context to use when calling the callback function.
+- => Returns an `off` method to cancel the event subscription.
+
+#### `onDisconnect(callback, thisContext) => Function` - shorthand for `.on('disconnect', ...)`
+- `callback: Function`: function to be called when websocket disconnects.
+- `thisContext: any`: `this` context to use when calling the callback function.
+- => Returns an `off` method to cancel the event subscription.
+
+## Client-side helpers
+
+#### `addGraphQLSubscriptions(networkInterface, wsClient) => void`
+- `networkInterface: any` - network interface to extend with `subscribe` and `unsubscribe` methods.
+- `wsClient: SubscriptionClient` - network interface to extend with `subscribe` and `unsubscribe` methods.
+
+A quick way to add the `subscribe` and `unsubscribe` functions to the [network interface](http://dev.apollodata.com/core/network.html#createNetworkInterface)
+
+
+## SubscriptionServer
 ### `Constructor(options, socketOptions)`
 - `options: {ServerOptions}`
   * `subscriptionManager: SubscriptionManager` : GraphQL subscription manager
@@ -44,11 +190,10 @@ See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React
   * `port?: number` - server port
   * `path?: string` - endpoint path
     
-### `addGraphQLSubscriptions(networkInterface, Client)`
-A Quick way to add the subscribe and unsubscribe functions to the [network interface](http://dev.apollodata.com/core/network.html#createNetworkInterface)
+## Client-server communication
 
-## Client-server messages
-Each message has a type, as well as associated fields depending on the message type.
+Each message has a `type` field, which defined in the protocol of this package, as well as associated fields depending on the message type.
+
 ### Client -> Server
 
 #### INIT
@@ -64,6 +209,7 @@ Client sends this message to start a subscription for a query.
 #### SUBSCRIPTION_END
 Client sends this message to end a subscription.
 - `id: string` : subscription ID of the subscription to be terminated
+
 
 ### Server -> Client
 
@@ -92,3 +238,17 @@ GraphQL result sent periodically from server to client according to subscription
 
 #### KEEPALIVE
 Server message sent periodically to keep the client connection alive.
+
+### Messages Flow
+
+This is a demonstration of client-server communication, in order to get a better understanding of the protocol flow:
+
+- Client creates a WebSocket instane using `SubscriptionsClient` object.
+- Client sends `INIT` message to the server.
+- Server calls `onConnect` callback with the init arguments and waits for init to finish, and return it's return value with `INIT_SUCCESS`, or `INIT_FAIL` in case of `false` or thrown exception from `onConnect` callback.
+- Client gets `INIT_SUCCESS` and waits for the client's app to create subscriptions.
+- App creates a subscription using `subscribe` client's API, and the `SUBSCRIPTION_START` message sent to the server.
+- Server calls `onSubscribe` callback, and respondes with `SUBSCRIPTION_SUCCESS` in case of zero errors, or `SUBSCRIPTION_FAIL` if there is an problem with the subscription.
+- Client get `SUBSCRIPTION_SUCCESS` and waits for data.
+- App triggers `PubSub`'s publication method, and the server published the event, passing it through the `graphql-subscriptions` package for filtering and resolving.
+- Client recieves `SUBSCRIPTION_DATA` with the data, and handles it with `apollo-client` instance.
