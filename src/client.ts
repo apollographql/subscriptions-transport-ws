@@ -263,7 +263,8 @@ export class SubscriptionClient {
     };
 
     this.client.onerror = () => {
-      this.tryReconnect();
+      // Capture and ignore errors to prevent unhandled exceptions, wait for
+      // onclose to fire before attempting a reconnect.
     };
 
     this.client.onmessage = ({ data }: {data: any}) => {
