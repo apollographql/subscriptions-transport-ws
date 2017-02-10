@@ -2,7 +2,8 @@
 
 ### vNEXT
 
-- ...
+- Webpack configuration to export the generated code into a browser compatible bundle.
+[PR #48](https://github.com/apollostack/subscriptions-transport-ws/pull/48)
 
 
 ### 0.5.1
