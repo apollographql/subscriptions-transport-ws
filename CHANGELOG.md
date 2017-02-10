@@ -3,6 +3,9 @@
 ### vNEXT
 
 - ...
+
+
+### 0.5.1
 - Only attempt reconnect on closed connection. Fixes [Issue #70](https://github.com/apollographql/subscriptions-transport-ws/issues/70)
 
 ### 0.5.0
