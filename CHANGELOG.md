@@ -2,6 +2,9 @@
 
 ### vNEXT
 
+### 0.5.2
+- Updated dependencies versions
+- Fixed typings issue with missing `index.d.ts` file. [PR #73](https://github.com/apollographql/subscriptions-transport-ws/pull/73)
 - Transpiling client.js to target browsers using webpack. [PR #77](https://github.com/apollographql/subscriptions-transport-ws/pull/77)
 
 ### 0.5.1
