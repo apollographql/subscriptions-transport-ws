@@ -7,14 +7,14 @@
     "noImplicitAny": true,
     "rootDir": "./src",
     "outDir": "./dist",
-    "allowSyntheticDefaultImports": false,
-    "pretty": true,
+    "allowSyntheticDefaultImports": true,
     "removeComments": true,
-    "declaration": true ,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "pretty": true,
+    "declaration": true,
+    "skipLibCheck": true,
     "lib": ["es6"],
-    "typeRoots": [
-        "node_modules/@types"
-    ],
     "types": [
         "@types/node",
         "@types/ws",

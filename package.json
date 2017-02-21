@@ -9,14 +9,14 @@
     "url": "git+https://github.com/apollostack/subscriptions-transport-ws.git"
   },
   "dependencies": {
-    "@types/ws": "0.0.37",
+    "@types/ws": "0.0.38",
     "backo2": "^1.0.2",
     "eventemitter3": "^2.0.2",
-    "graphql-subscriptions": "^0.2.0",
-    "graphql-tag": "^1.2.3",
+    "graphql-subscriptions": "^0.3.0",
+    "graphql-tag": "^1.2.4",
     "lodash.isobject": "^3.0.2",
     "lodash.isstring": "^4.0.1",
-    "ws": "^1.1.1"
+    "ws": "^1.1.0"
   },
   "scripts": {
     "compile": "tsc",
@@ -28,19 +28,20 @@
     "testonly": "mocha --reporter spec --full-trace ./dist/test/tests.js",
     "coverage": "node ./node_modules/istanbul/lib/cli.js cover _mocha -- --full-trace ./dist/test/tests.js",
     "postcoverage": "remap-istanbul --input coverage/coverage.raw.json --type lcovonly --output coverage/lcov.info",
-    "browser-compile": "webpack",
+    "browser-compile": "webpack --config \"./unpkg-webpack.config.js\"",
     "prepublish": "npm run compile && npm run browser-compile"
   },
   "devDependencies": {
-    "@types/chai": "^3.4.32",
-    "@types/graphql": "^0.8.5",
-    "@types/lodash": "^4.14.34",
+    "@types/chai": "^3.4.35",
+    "@types/graphql": "^0.8.6",
+    "@types/lodash": "4.14.42",
     "@types/mocha": "^2.2.31",
-    "@types/node": "^6.0.38",
+    "@types/node": "^7.0.5",
     "@types/sinon": "^1.16.31",
     "chai": "^3.5.0",
-    "graphql": "^0.7.0",
+    "graphql": "^0.9.1",
     "istanbul": "^1.0.0-alpha.2",
+    "lodash": "^4.17.1",
     "mocha": "^3.0.0",
     "remap-istanbul": "^0.7.0",
     "sinon": "^1.17.6",
