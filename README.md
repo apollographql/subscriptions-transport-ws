@@ -119,6 +119,14 @@ apolloClient.subscribeToMore({
 });
 ```
 
+If you don't use any package/modules loader, you can still use this package, by using `unpkg` service, and get the client side package from:
+
+```
+https://unpkg.com/subscriptions-transport-ws@VERSION/browser/client.js
+```
+
+> Replace VERSION with the latest version of the package.
+
 # API
 
 ## SubscriptionClient
