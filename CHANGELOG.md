@@ -2,8 +2,7 @@
 
 ### vNEXT
 
-- ...
-
+- Transpiling client.js to target browsers using webpack. [PR #77](https://github.com/apollographql/subscriptions-transport-ws/pull/77)
 
 ### 0.5.1
 - Only attempt reconnect on closed connection. Fixes [Issue #70](https://github.com/apollographql/subscriptions-transport-ws/issues/70)
@@ -21,7 +20,7 @@
 
 ### v0.4.0
 
-- Don't throw in the server on certain unsub messages. 
+- Don't throw in the server on certain unsub messages.
 [PR #54](https://github.com/apollostack/subscriptions-transport-ws/pull/54)
 - Moved typings to `@types/graphql`.
 [PR #60](https://github.com/apollostack/subscriptions-transport-ws/pull/60)
