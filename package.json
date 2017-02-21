@@ -1,6 +1,6 @@
 {
   "name": "subscriptions-transport-ws",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "A websocket transport for GraphQL subscriptions",
   "main": "dist/server.js",
   "browser": "browser/client.js",
