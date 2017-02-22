@@ -3,7 +3,7 @@
 ### vNEXT
 
 ### 0.5.3
-- Fixed a bug with `browser` declaration on package.json ([Issue #](https://github.com/apollographql/subscriptions-transport-ws/issues/79))
+- Fixed a bug with `browser` declaration on package.json ([Issue #79](https://github.com/apollographql/subscriptions-transport-ws/issues/79))
 
 ### 0.5.2
 - Updated dependencies versions
