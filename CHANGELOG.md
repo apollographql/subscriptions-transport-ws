@@ -2,6 +2,9 @@
 
 ### vNEXT
 
+### 0.5.3
+- Fixed a bug with `browser` declaration on package.json ([Issue #](https://github.com/apollographql/subscriptions-transport-ws/issues/79))
+
 ### 0.5.2
 - Updated dependencies versions
 - Fixed typings issue with missing `index.d.ts` file. [PR #73](https://github.com/apollographql/subscriptions-transport-ws/pull/73)
