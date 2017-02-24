@@ -85,7 +85,7 @@ const networkInterface = createNetworkInterface({
 });
 
 // Create WebSocket client
-const wsClient = new SubscriptionClient(`http://localhost:5000/`, {
+const wsClient = new SubscriptionClient('ws://localhost:5000', {
     reconnect: true,
     connectionParams: {
         // Pass any arguments you want for initialization
@@ -199,7 +199,7 @@ A quick way to add the `subscribe` and `unsubscribe` functions to the [network i
   * `host?: string` - server host
   * `port?: number` - server port
   * `path?: string` - endpoint path
-    
+
 ## Client-server communication
 
 Each message has a `type` field, which defined in the protocol of this package, as well as associated fields depending on the message type.
