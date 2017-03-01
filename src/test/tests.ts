@@ -216,6 +216,40 @@ describe('Client', function () {
     new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
   });
 
+  it('should send INIT message first, then the SUBSCRIPTION_START message', (done) => {
+    let initReceived = false
+
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        // mock server
+        if (parsedMessage.type === INIT) {
+          connection.send(JSON.stringify({type: INIT_SUCCESS, payload: {}}));
+          initReceived = true
+        }
+        if (parsedMessage.type === SUBSCRIPTION_START) {
+          expect(initReceived).to.be.true
+          done()
+        }
+      });
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    client.subscribe(
+      {
+        query: `subscription useInfo {
+          user(id: 3) {
+            id
+            name
+          }
+        }`
+      },
+      (error, result) => {
+        // do nothing
+      }
+    );
+  });
+
   it('should emit connect event for client side when socket is open', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
@@ -303,9 +337,6 @@ describe('Client', function () {
       );
     }).to.throw();
   });
-
-
-
 
   it('should allow both data and errors on SUBSCRIPTION_DATA', (done) => {
     wsServer.on('connection', (connection: any) => {
