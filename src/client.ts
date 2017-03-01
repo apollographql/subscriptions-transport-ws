@@ -306,7 +306,7 @@ export class SubscriptionClient {
           if (parsedMessage.payload.data && !parsedMessage.payload.errors) {
               this.subscriptions[subId].handler(null, parsedMessage.payload.data);
           } else {
-            const payloadData = parseMessage.payload.data || null
+            const payloadData = parsedMessage.payload.data || null
             this.subscriptions[subId].handler(this.formatErrors(parsedMessage.payload.errors), payloadData);
           }
           break;
