@@ -208,6 +208,7 @@ Each message has a `type` field, which defined in the protocol of this package, 
 
 #### INIT
 Client sends this message after connecting, this triggers `onConnect` on the server.
+- `payload: Object` : optional parameters that the client specifies in `connectionParams`
 
 #### SUBSCRIPTION_START
 Client sends this message to start a subscription for a query.
