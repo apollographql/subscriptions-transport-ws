@@ -217,24 +217,24 @@ describe('Client', function () {
   });
 
   it('should send INIT message first, then the SUBSCRIPTION_START message', (done) => {
-    let initReceived = false
+    let initReceived = false;
 
+    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
         // mock server
         if (parsedMessage.type === INIT) {
           connection.send(JSON.stringify({type: INIT_SUCCESS, payload: {}}));
-          initReceived = true
+          initReceived = true;
         }
         if (parsedMessage.type === SUBSCRIPTION_START) {
-          expect(initReceived).to.be.true
-          done()
+          expect(initReceived).to.be.true;
+          client.unsubscribeAll();
+          done();
         }
       });
     });
-
-    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
     client.subscribe(
       {
         query: `subscription useInfo {
@@ -242,7 +242,7 @@ describe('Client', function () {
             id
             name
           }
-        }`
+        }`,
       },
       (error, result) => {
         // do nothing
