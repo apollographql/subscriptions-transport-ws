@@ -1,8 +1,6 @@
 # Changelog
 
 ### vNEXT
-
-### 0.5.4
 - Allow data and errors in payload of SUBSCRIPTION_DATA [PR #84](https://github.com/apollographql/subscriptions-transport-ws/pull/84)
 
 ### 0.5.3

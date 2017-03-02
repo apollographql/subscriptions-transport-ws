@@ -303,14 +303,10 @@ export class SubscriptionClient {
 
           break;
         case SUBSCRIPTION_DATA:
-          if (parsedMessage.payload.data && !parsedMessage.payload.errors) {
-              this.subscriptions[subId].handler(null, parsedMessage.payload.data);
-          } else {
-            const payloadData = parsedMessage.payload.data || null
-            this.subscriptions[subId].handler(this.formatErrors(parsedMessage.payload.errors), payloadData);
-          }
+          const payloadData = parsedMessage.payload.data || null;
+          const payloadErrors = parsedMessage.payload.errors ? this.formatErrors(parsedMessage.payload.errors) : null;
+          this.subscriptions[subId].handler(payloadErrors, payloadData);
           break;
-
         case KEEPALIVE:
           break;
 
