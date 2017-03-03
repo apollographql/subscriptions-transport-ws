@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Allow data and errors in payload of SUBSCRIPTION_DATA [PR #84](https://github.com/apollographql/subscriptions-transport-ws/pull/84)
 
 ### 0.5.3
 - Fixed a bug with `browser` declaration on package.json ([Issue #79](https://github.com/apollographql/subscriptions-transport-ws/issues/79))

@@ -24,6 +24,9 @@ import {
   SUBSCRIPTION_DATA,
   KEEPALIVE,
   SUBSCRIPTION_END,
+  INIT,
+  INIT_SUCCESS,
+  SUBSCRIPTION_SUCCESS,
 } from '../messageTypes';
 
 import {
@@ -299,6 +302,60 @@ describe('Client', function () {
         undefined
       );
     }).to.throw();
+  });
+
+
+
+
+  it('should allow both data and errors on SUBSCRIPTION_DATA', (done) => {
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        // mock server
+        if (parsedMessage.type === INIT) {
+          connection.send(JSON.stringify({type: INIT_SUCCESS, payload: {}}));
+        }
+        if (parsedMessage.type === SUBSCRIPTION_START) {
+          connection.send(JSON.stringify({type: SUBSCRIPTION_SUCCESS, id: parsedMessage.id}), () => {
+            const dataMessage = {
+              type: SUBSCRIPTION_DATA,
+              id: parsedMessage.id,
+              payload: {
+                data: {
+                  some: 'data',
+                },
+                errors: [{
+                  message: 'Test Error',
+                }],
+              },
+            };
+            connection.send(JSON.stringify(dataMessage));
+          });
+        }
+      });
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+
+    client.subscribe(
+      {
+        query: `subscription useInfo($id: String) {
+          user(id: $id) {
+            id
+            name
+          }
+        }`,
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
+        },
+      },
+      (error, result) => {
+        expect(result).to.have.property('some');
+        expect(error).to.be.lengthOf(1);
+        done();
+      }
+    );
   });
 
   it('should send connectionParams along with init message', (done) => {
