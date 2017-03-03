@@ -243,6 +243,9 @@ export class SubscriptionClient {
       this.eventEmitter.emit(isReconnect ? 'reconnect' : 'connect');
       this.reconnecting = false;
       this.backoff.reset();
+      // Send INIT message, no need to wait for connection to success (reduce roundtrips)
+      this.sendMessage({type: INIT, payload: this.connectionParams});
+
       Object.keys(this.reconnectSubscriptions).forEach((key) => {
         const { options, handler } = this.reconnectSubscriptions[key];
         this.subscribe(options, handler);
@@ -251,9 +254,6 @@ export class SubscriptionClient {
         this.client.send(JSON.stringify(message));
       });
       this.unsentMessagesQueue = [];
-
-      // Send INIT message, no need to wait for connection to success (reduce roundtrips)
-      this.sendMessage({type: INIT, payload: this.connectionParams});
     };
 
     this.client.onclose = () => {
