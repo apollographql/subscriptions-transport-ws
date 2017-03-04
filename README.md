@@ -166,7 +166,7 @@ https://unpkg.com/subscriptions-transport-ws@VERSION/browser/client.js
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
 
-#### `onReonnect(callback, thisContext) => Function` - shorthand for `.on('reconnect', ...)`
+#### `onReconnect(callback, thisContext) => Function` - shorthand for `.on('reconnect', ...)`
 - `callback: Function`: function to be called when websocket re-connects and initialized.
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
