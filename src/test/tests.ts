@@ -44,6 +44,7 @@ const KEEP_ALIVE_TEST_PORT = TEST_PORT + 1;
 const DELAYED_TEST_PORT = TEST_PORT + 2;
 const RAW_TEST_PORT = TEST_PORT + 4;
 const EVENTS_TEST_PORT = TEST_PORT + 5;
+const ONCONNECT_ERROR_TEST_PORT = TEST_PORT + 6;
 
 const data: {[key: string]: {[key: string]: string}} = {
   '1': {
@@ -156,6 +157,13 @@ const eventsOptions = {
   onDisconnect: sinon.spy(),
 };
 
+const onConnectErrorOptions = {
+  subscriptionManager,
+  onConnect: () => {
+    throw new Error('Error');
+  },
+};
+
 function notFoundRequestListener(request: IncomingMessage, response: ServerResponse) {
   response.writeHead(404);
   response.end();
@@ -172,6 +180,10 @@ new SubscriptionServer(Object.assign({}, options, {keepAlive: 10}), {server: htt
 const httpServerWithEvents = createServer(notFoundRequestListener);
 httpServerWithEvents.listen(EVENTS_TEST_PORT);
 const eventsServer = new SubscriptionServer(eventsOptions, {server: httpServerWithEvents});
+
+const httpServerWithOnConnectError = createServer(notFoundRequestListener);
+httpServerWithOnConnectError.listen(ONCONNECT_ERROR_TEST_PORT);
+new SubscriptionServer(onConnectErrorOptions, {server: httpServerWithOnConnectError});
 
 const httpServerWithDelay = createServer(notFoundRequestListener);
 httpServerWithDelay.listen(DELAYED_TEST_PORT);
@@ -784,6 +796,20 @@ describe('Server', function () {
     setTimeout(() => {
       assert(eventsOptions.onConnect.calledOnce);
       expect(JSON.stringify(eventsOptions.onConnect.getCall(0).args[0])).to.equal(JSON.stringify(connectionParams));
+      done();
+    }, 200);
+  });
+
+  it('should trigger onConnect and return init_fail with error', (done) => {
+    const connectionCallbackSpy = sinon.spy();
+
+    new SubscriptionClient(`ws://localhost:${ONCONNECT_ERROR_TEST_PORT}/`, {
+      connectionCallback: connectionCallbackSpy,
+    });
+
+    setTimeout(() => {
+      expect(connectionCallbackSpy.calledOnce).to.be.true;
+      expect(connectionCallbackSpy.getCall(0).args[0]).to.equal('Error');
       done();
     }, 200);
   });
