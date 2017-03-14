@@ -8,6 +8,7 @@ export function addGraphQLSubscriptions(networkInterface: any, wsClient: Subscri
       return wsClient.subscribe({
         query: print(request.query),
         variables: request.variables,
+        context: request.context,
       }, handler);
     },
     unsubscribe(id: number): void {

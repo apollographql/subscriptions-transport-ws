@@ -2,6 +2,9 @@
 
 ### vNEXT
 
+### 0.5.5
+- Client exposes new events: `onSubscribe`, `use` for syncronous `subscribe` middleware to modify `SubscriptionOptions` [PR #78](https://github.com/apollographql/subscriptions-transport-ws/pull/78)
+
 ### 0.5.4
 - Ensure INIT is sent before SUBSCRIPTION_START even when client reconnects [PR #85](https://github.com/apollographql/subscriptions-transport-ws/pull/85)
 - Allow data and errors in payload of SUBSCRIPTION_DATA [PR #84](https://github.com/apollographql/subscriptions-transport-ws/pull/84)

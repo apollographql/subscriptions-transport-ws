@@ -1,6 +1,8 @@
 import * as Backoff from 'backo2';
 import {EventEmitter, ListenerFn} from 'eventemitter3';
 
+import {MiddlewareInterface} from './middleware';
+
 declare let window: any;
 const _global = typeof global !== 'undefined' ? global : (typeof window !== 'undefined' ? window : {});
 const NativeWebSocket = _global.WebSocket || _global.MozWebSocket;
@@ -68,6 +70,7 @@ export class SubscriptionClient {
   private connectionCallback: any;
   private eventEmitter: EventEmitter;
   private wsImpl: any;
+  private middlewares: MiddlewareInterface[];
 
   constructor(url: string, options?: ClientOptions, webSocketImpl?: any) {
     const {
@@ -98,6 +101,7 @@ export class SubscriptionClient {
     this.reconnectionAttempts = reconnectionAttempts;
     this.backoff = new Backoff({ jitter: 0.5 });
     this.eventEmitter = new EventEmitter();
+    this.middlewares = [];
 
     this.connect();
   }
@@ -111,6 +115,10 @@ export class SubscriptionClient {
   }
 
   public subscribe(options: SubscriptionOptions, handler: (error: Error[], result?: any) => void) {
+    this.eventEmitter.emit('subscribe', options);
+
+    this.applyMiddlewares(options);
+
     const { query, variables, operationName, context } = options;
 
     if (!query) {
@@ -164,6 +172,10 @@ export class SubscriptionClient {
     return this.on('reconnect', callback, context);
   }
 
+  public onSubscribe(callback: ListenerFn, context?: any): Function {
+    return this.on('subscribe', callback, context);
+  }
+
   public unsubscribe(id: number) {
     delete this.subscriptions[id];
     delete this.waitingSubscriptions[id];
@@ -175,6 +187,23 @@ export class SubscriptionClient {
     Object.keys(this.subscriptions).forEach( subId => {
       this.unsubscribe(parseInt(subId));
     });
+  }
+
+  public applyMiddlewares(options: SubscriptionOptions): void {
+    const funcs = [...this.middlewares];
+    funcs.map(f => f.applyMiddleware.apply(this, [options, ()=> {}]));
+  }
+
+  public use(middlewares: MiddlewareInterface[]): SubscriptionClient {
+    middlewares.map((middleware) => {
+      if (typeof middleware.applyMiddleware === 'function') {
+        this.middlewares.push(middleware);
+      } else {
+        throw new Error('Middleware must implement the applyMiddleware function');
+      }
+    });
+
+    return this;
   }
 
   // send message, or queue it if connection is not open
