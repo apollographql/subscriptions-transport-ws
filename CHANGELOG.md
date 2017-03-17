@@ -7,6 +7,7 @@
 - Allow data and errors in payload of SUBSCRIPTION_DATA [PR #84](https://github.com/apollographql/subscriptions-transport-ws/pull/84)
 - Expose `index.js` as entrypoint for server/NodeJS application to allow NodeJS clients to use `SubscriptionClient` [PR #91](https://github.com/apollographql/subscriptions-transport-ws/pull/91)
 - Fixed a bug with missing error message on `INIT_FAIL` message [#88](https://github.com/apollographql/subscriptions-transport-ws/issues/88)
+- Remove dependency on `graphql-tag/printer` per [graphql-tag#54](https://github.com/apollographql/graphql-tag/issues/54) [PR #98](https://github.com/apollographql/subscriptions-transport-ws/pull/98)
 
 ### 0.5.3
 - Fixed a bug with `browser` declaration on package.json ([Issue #79](https://github.com/apollographql/subscriptions-transport-ws/issues/79))
