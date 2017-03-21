@@ -453,38 +453,6 @@ describe('Client', function () {
     }, 100);
   });
 
-  // it('should override SubscriptionOptions with onSubscribe', function (done) {
-  //   const CTX = 'testContext';
-  //   const CTX2 = 'overrideContext';
-  //   const client3 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
-
-  //   client3.onSubscribe((opts) => {
-  //     opts.context = CTX2;
-  //   });
-
-  //   client3.subscribe({
-  //       query: `subscription context {
-  //         context
-  //       }`,
-  //       variables: {},
-  //       context: CTX,
-  //     }, (error: any, result: any) => {
-  //       client3.unsubscribeAll();
-  //       if (error) {
-  //         assert(false);
-  //       }
-  //       if (result) {
-  //         assert.property(result, 'context');
-  //         assert.equal(result.context, CTX2);
-  //       }
-  //       done();
-  //     }
-  //   );
-  //   setTimeout(() => {
-  //     subscriptionManager.publish('context', {});
-  //   }, 100);
-  // });
-
   it('should handle correctly init_fail message', (done) => {
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
@@ -1212,7 +1180,7 @@ describe('Server', function () {
           //do nothing
         }
       );
-      client4.unsubscribe(subId);
+      setTimeout(() => client4.unsubscribe(subId), 0);
     }, 100);
     setTimeout(() => {
       subscriptionManager.publish('user', {});
