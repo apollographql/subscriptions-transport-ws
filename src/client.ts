@@ -61,6 +61,7 @@ export class SubscriptionClient {
   private connectionParams: ConnectionParams;
   private subscriptionTimeout: number;
   private waitingSubscriptions: {[id: string]: boolean}; // subscriptions waiting for SUBSCRIPTION_SUCCESS
+  private waitingUnsubscribes: {[id: string]: boolean};
   private unsentMessagesQueue: Array<any>; // queued messages while websocket is opening.
   private reconnect: boolean;
   private reconnecting: boolean;
@@ -94,6 +95,7 @@ export class SubscriptionClient {
     this.maxId = 0;
     this.subscriptionTimeout = timeout;
     this.waitingSubscriptions = {};
+    this.waitingUnsubscribes = {};
     this.unsentMessagesQueue = [];
     this.reconnect = reconnect;
     this.reconnectSubscriptions = {};
@@ -159,6 +161,12 @@ export class SubscriptionClient {
       this.sendMessage(message);
       this.subscriptions[subId] = {options, handler};
       this.waitingSubscriptions[subId] = true;
+
+      if(this.waitingUnsubscribes[subId]) {
+        delete this.waitingUnsubscribes[subId];
+        this.unsubscribe(subId);
+      }
+
       setTimeout( () => {
         if (this.waitingSubscriptions[subId]) {
           handler([new Error('Subscription timed out - no response from server')]);
@@ -195,6 +203,11 @@ export class SubscriptionClient {
   }
 
   public unsubscribe(id: number) {
+    if(!this.subscriptions[id] && !this.waitingSubscriptions[id] && this.maxId >= id) {
+      this.waitingUnsubscribes[id] = true;
+      return;
+    }
+
     delete this.subscriptions[id];
     delete this.waitingSubscriptions[id];
     let message = { id, type: SUBSCRIPTION_END};

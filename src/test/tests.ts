@@ -936,8 +936,7 @@ describe('Server', function () {
       //do nothing
     });
 
-    // client.unsubscribe(subId)
-    setTimeout(() => client.unsubscribe(subId), 0);
+    client.unsubscribe(subId);
 
     setTimeout(() => {
       assert(eventsOptions.onUnsubscribe.calledOnce);
@@ -1180,7 +1179,7 @@ describe('Server', function () {
           //do nothing
         }
       );
-      setTimeout(() => client4.unsubscribe(subId), 0);
+      client4.unsubscribe(subId);
     }, 100);
     setTimeout(() => {
       subscriptionManager.publish('user', {});
