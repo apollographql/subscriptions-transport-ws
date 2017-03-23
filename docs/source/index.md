@@ -1,5 +1,5 @@
 ---
-title: Installing
+title: Installation
 order: 401
 ---
 
