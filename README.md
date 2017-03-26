@@ -57,7 +57,7 @@ websocketServer.listen(WS_PORT, () => console.log(
   `Websocket Server is now running on http://localhost:${WS_PORT}`
 ));
 
-const subscriptionManager = new SubscriptionServer(
+const subscriptionServer = new SubscriptionServer(
   {
     onConnect: async (connectionParams) => {
       // Implement if you need to handle and manage connection
