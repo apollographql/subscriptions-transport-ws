@@ -61,7 +61,7 @@ export class SubscriptionClient {
   private connectionParams: ConnectionParams;
   private subscriptionTimeout: number;
   private waitingSubscriptions: {[id: string]: boolean}; // subscriptions waiting for SUBSCRIPTION_SUCCESS
-  private waitingUnsubscribes: {[id: string]: boolean};
+  private waitingUnsubscribes: {[id: string]: boolean}; // unsubscribe calls waiting for SUBSCRIPTION_START
   private unsentMessagesQueue: Array<any>; // queued messages while websocket is opening.
   private reconnect: boolean;
   private reconnecting: boolean;
@@ -135,7 +135,7 @@ export class SubscriptionClient {
       this.subscriptions[subId] = {options, handler};
       this.waitingSubscriptions[subId] = true;
 
-      if(this.waitingUnsubscribes[subId]) {
+      if (this.waitingUnsubscribes[subId]) {
         delete this.waitingUnsubscribes[subId];
         this.unsubscribe(subId);
       }
@@ -172,7 +172,7 @@ export class SubscriptionClient {
   }
 
   public unsubscribe(id: number) {
-    if(!this.subscriptions[id] && !this.waitingSubscriptions[id] && this.maxId >= id) {
+    if (!this.subscriptions[id] && !this.waitingSubscriptions[id]) {
       this.waitingUnsubscribes[id] = true;
       return;
     }
@@ -188,11 +188,6 @@ export class SubscriptionClient {
       this.unsubscribe(parseInt(subId));
     });
   }
-
-  // public applyMiddlewares(options: SubscriptionOptions): void {
-  //   const funcs = [...this.middlewares];
-  //   funcs.map(f => f.applyMiddleware.apply(this, [options, ()=> {}]));
-  // }
 
   public applyMiddlewares(options: SubscriptionOptions): Promise<SubscriptionOptions> {
     return new Promise((resolve, reject) => {
