@@ -118,45 +118,18 @@ export class SubscriptionClient {
 
   public subscribe(opts: SubscriptionOptions, handler: (error: Error[], result?: any) => void) {
     // this.eventEmitter.emit('subscribe', options);
-    const { query, variables, operationName, context } = opts;
+    this.checkSubscriptionParams(opts, handler);
 
-    if (!query) {
-      throw new Error('Must provide `query` to subscribe.');
-    }
-
-    if (!handler) {
-      throw new Error('Must provide `handler` to subscribe.');
-    }
-
-    if (
-      !isString(query) ||
-      ( operationName && !isString(operationName)) ||
-      ( variables && !isObject(variables))
-    ) {
-      throw new Error('Incorrect option types to subscribe. `subscription` must be a string,' +
-      '`operationName` must be a string, and `variables` must be an object.');
-    }
-    
     const subId = this.generateSubscriptionId();
 
     this.applyMiddlewares(opts).then(options => {
-      const { query, variables, operationName, context } = options;
-
-      if (!query) {
-        handler([new Error('Must provide `query` to subscribe.')]);
+      try {
+        this.checkSubscriptionParams(options, handler);
+      } catch (e) {
+        handler([e]);
         this.unsubscribe(subId);
       }
 
-      if (
-        !isString(query) ||
-        ( operationName && !isString(operationName)) ||
-        ( variables && !isObject(variables))
-      ) {
-        handler([new Error('Incorrect option types to subscribe. `subscription` must be a string,' +
-        '`operationName` must be a string, and `variables` must be an object.')]);
-        this.unsubscribe(subId);
-      }
-      
       let message = Object.assign(options, {type: SUBSCRIPTION_START, id: subId});
       this.sendMessage(message);
       this.subscriptions[subId] = {options, handler};
@@ -196,10 +169,6 @@ export class SubscriptionClient {
 
   public onReconnect(callback: ListenerFn, context?: any): Function {
     return this.on('reconnect', callback, context);
-  }
-
-  public onSubscribe(callback: ListenerFn, context?: any): Function {
-    return this.on('subscribe', callback, context);
   }
 
   public unsubscribe(id: number) {
@@ -256,6 +225,27 @@ export class SubscriptionClient {
 
     return this;
   }
+
+  private checkSubscriptionParams(options: SubscriptionOptions, handler: (error: Error[], result?: any) => void) {
+    const { query, variables, operationName, context } = options;
+
+    if (!query) {
+      throw new Error('Must provide `query` to subscribe.');
+    }
+
+    if (!handler) {
+      throw new Error('Must provide `handler` to subscribe.');
+    }
+
+    if (
+      !isString(query) ||
+      ( operationName && !isString(operationName)) ||
+      ( variables && !isObject(variables))
+    ) {
+      throw new Error('Incorrect option types to subscribe. `subscription` must be a string,' +
+      '`operationName` must be a string, and `variables` must be an object.');
+    }
+  };
 
   // send message, or queue it if connection is not open
   private sendMessage(message: Object) {
