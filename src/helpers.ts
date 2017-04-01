@@ -1,5 +1,5 @@
 import { SubscriptionClient } from './client';
-import { print } from 'graphql-tag/printer';
+import { print } from 'graphql/language/printer';
 
 // Quick way to add the subscribe and unsubscribe functions to the network interface
 export function addGraphQLSubscriptions(networkInterface: any, wsClient: SubscriptionClient): any {
