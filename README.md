@@ -254,12 +254,12 @@ Server message sent periodically to keep the client connection alive.
 
 This is a demonstration of client-server communication, in order to get a better understanding of the protocol flow:
 
-- Client creates a WebSocket instane using `SubscriptionsClient` object.
+- Client creates a WebSocket instance using `SubscriptionsClient` object.
 - Client sends `INIT` message to the server.
-- Server calls `onConnect` callback with the init arguments and waits for init to finish, and return it's return value with `INIT_SUCCESS`, or `INIT_FAIL` in case of `false` or thrown exception from `onConnect` callback.
+- Server calls `onConnect` callback with the init arguments, waits for init to finish and returns it's return value with `INIT_SUCCESS`, or `INIT_FAIL` in case of `false` or thrown exception from `onConnect` callback.
 - Client gets `INIT_SUCCESS` and waits for the client's app to create subscriptions.
 - App creates a subscription using `subscribe` client's API, and the `SUBSCRIPTION_START` message sent to the server.
-- Server calls `onSubscribe` callback, and respondes with `SUBSCRIPTION_SUCCESS` in case of zero errors, or `SUBSCRIPTION_FAIL` if there is an problem with the subscription.
+- Server calls `onSubscribe` callback, and responds with `SUBSCRIPTION_SUCCESS` in case of zero errors, or `SUBSCRIPTION_FAIL` if there is a problem with the subscription.
 - Client get `SUBSCRIPTION_SUCCESS` and waits for data.
-- App triggers `PubSub`'s publication method, and the server published the event, passing it through the `graphql-subscriptions` package for filtering and resolving.
-- Client recieves `SUBSCRIPTION_DATA` with the data, and handles it with `apollo-client` instance.
+- App triggers `PubSub`'s publication method, and the server publishes the event, passing it through the `graphql-subscriptions` package for filtering and resolving.
+- Client receives `SUBSCRIPTION_DATA` with the data, and handles it with `apollo-client` instance.
