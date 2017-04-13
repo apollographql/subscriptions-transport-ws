@@ -6,6 +6,6 @@ module.exports = {
   output: {
     path: path.join(__dirname, '/browser'),
     filename: 'client.js',
-    library: 'SubscriptionsTransportWs'
+    library: 'GraphQLTransportWs'
   }
 };

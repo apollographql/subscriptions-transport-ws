@@ -5,3 +5,4 @@ coverage
 typings
 npm-debug.log
 browser/
+.idea/
