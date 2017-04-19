@@ -6,11 +6,13 @@ import * as Backoff from 'backo2';
 import { EventEmitter, ListenerFn } from 'eventemitter3';
 import isString = require('lodash.isstring');
 import isObject = require('lodash.isobject');
-import { ExecutionResult, print } from 'graphql';
+import { ExecutionResult, print, getOperationAST } from 'graphql';
 
 import MessageTypes from './message-types';
 import { GRAPHQL_WS } from './protocol';
 import { WS_TIMEOUT } from './defaults';
+
+export * from './helpers';
 
 export interface RequestOptions {
   query: string;
@@ -38,7 +40,7 @@ export interface ClientOptions {
   connectionCallback?: (error: Error[], result?: any) => void;
 }
 
-export class GraphQLTransportWSClient {
+export class SubscriptionClient {
   public client: any;
   public requests: Requests;
   private url: string;
@@ -159,11 +161,11 @@ export class GraphQLTransportWSClient {
     }
 
     if (
-      !isString(query) ||
+      ( !isString(query) && !getOperationAST(query, operationName)) ||
       ( operationName && !isString(operationName)) ||
       ( variables && !isObject(variables))
     ) {
-      throw new Error('Incorrect option types. `query` must be a string,' +
+      throw new Error('Incorrect option types. `query` must be a string or a document,' +
         '`operationName` must be a string, and `variables` must be an object.');
     }
 
@@ -175,7 +177,12 @@ export class GraphQLTransportWSClient {
   }
 
   private buildMessage(id: number, type: string, payload: any) {
-    const payloadToReturn = payload && payload.query ? { ...payload, query: print(payload.query) } : payload;
+    const payloadToReturn = payload && payload.query ?
+      {
+        ...payload,
+        query: typeof payload.query === 'string' ? payload.query : print(payload.query),
+      } :
+      payload;
 
     return {
       id,

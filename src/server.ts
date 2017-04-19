@@ -1,7 +1,7 @@
 import * as WebSocket from 'ws';
 
 import MessageTypes from './message-types';
-import { GRAPHQL_WS } from './protocol';
+import { GRAPHQL_WS, GRAPHQL_SUBSCRIPTIONS } from './protocol';
 import { SubscriptionManager } from 'graphql-subscriptions';
 import isObject = require('lodash.isobject');
 import { getOperationAST, parse} from 'graphql';
@@ -46,7 +46,7 @@ export interface ServerOptions {
   // triggerGenerator?: (name: string, args: Object, context?: Object) => Array<{name: string, filter: Function}>;
 }
 
-export class GraphQLTransportWSServer {
+export class SubscriptionServer {
   /**
    * @deprecated onSubscribe is deprecated, use onRequest instead
    */
@@ -61,6 +61,10 @@ export class GraphQLTransportWSServer {
   private onDisconnect: Function;
   private wsServer: WebSocket.Server;
   private subscriptionManager: SubscriptionManager;
+
+  public static create(options: ServerOptions, socketOptions: WebSocket.IServerOptions) {
+    return new SubscriptionServer(options, socketOptions);
+  }
 
   constructor(options: ServerOptions, socketOptions: WebSocket.IServerOptions) {
     const {subscriptionManager, onSubscribe, onUnsubscribe, onRequest, onRequestComplete, onConnect, onDisconnect, keepAlive} = options;
@@ -83,7 +87,9 @@ export class GraphQLTransportWSServer {
     this.wsServer = new WebSocket.Server(socketOptions || {});
 
     this.wsServer.on('connection', (socket: WebSocket) => {
-      if (socket.protocol === undefined || socket.protocol.indexOf(GRAPHQL_WS) === -1) {
+      // NOTE: the old GRAPHQL_SUBSCRIPTIONS protocol support should be removed in the future
+      if (socket.protocol === undefined ||
+        (socket.protocol.indexOf(GRAPHQL_WS) === -1 && socket.protocol.indexOf(GRAPHQL_SUBSCRIPTIONS) === -1)) {
         // Close the connection with an error code, and
         // then terminates the actual network connection (sends FIN packet)
         // 1002: protocol error
@@ -96,6 +102,7 @@ export class GraphQLTransportWSServer {
       const connectionContext: ConnectionContext = Object.create(null);
       connectionContext.isLegacy = false;
       connectionContext.socket = socket;
+      connectionContext.requests = {};
 
       // Regular keep alive messages if keepAlive is set
       if (keepAlive) {
@@ -120,7 +127,7 @@ export class GraphQLTransportWSServer {
   }
 
   private unsubscribe(connectionContext: ConnectionContext, reqId: string) {
-    if (connectionContext.requests[reqId]) {
+    if (connectionContext.requests && connectionContext.requests[reqId]) {
       this.subscriptionManager.unsubscribe(connectionContext.requests[reqId]);
       delete connectionContext.requests[reqId];
     }
@@ -300,7 +307,7 @@ export class GraphQLTransportWSServer {
 
   // NOTE: The old protocol support should be removed in the future
   private parseLegacyProtocolMessage(connectionContext: ConnectionContext, message: any) {
-    let messageToReturn;
+    let messageToReturn = message;
 
     switch (message.type) {
       case MessageTypes.INIT:
@@ -352,7 +359,6 @@ export class GraphQLTransportWSServer {
         }
         break;
       default:
-        messageToReturn = message;
         break;
     }
 
