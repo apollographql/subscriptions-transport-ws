@@ -107,7 +107,7 @@ Let's see an example - for the following server-side subscription, the client wa
 
 ```
 subscription($repoName: String!){
-  commentAdded(repoName: $repoName) { # <-- `commentAdded` is the actual GraphQL subscription name
+  commentAdded(repoFullName: $repoName) { # <-- `commentAdded` is the actual GraphQL subscription name
     id
     content
   }
