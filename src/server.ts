@@ -4,13 +4,26 @@ import MessageTypes from './message-types';
 import { GRAPHQL_WS, GRAPHQL_SUBSCRIPTIONS } from './protocol';
 import { SubscriptionManager } from 'graphql-subscriptions';
 import isObject = require('lodash.isobject');
-import { getOperationAST, parse} from 'graphql';
+import { getOperationAST, print, parse, ExecutionResult, GraphQLSchema, DocumentNode } from 'graphql';
+
+export interface IObservableSubscription {
+  unsubscribe: () => void;
+}
+export interface IObservable<T> {
+  subscribe(observer: {
+    next?: (v: T) => void;
+    error?: (e: Error) => void;
+    complete?: () => void
+  }): IObservableSubscription;
+}
 
 type ConnectionContext = {
   initPromise?: Promise<any>,
   isLegacy: boolean,
   socket: WebSocket,
-  requests: {[reqId: string]: number},
+  requests: {
+    [reqId: string]: IObservableSubscription;
+  },
 };
 
 export interface RequestMessage {
@@ -24,8 +37,37 @@ export interface RequestMessage {
   type: string;
 }
 
+export type ExecuteReactiveFunction = (
+  schema: GraphQLSchema,
+  document: DocumentNode,
+  rootValue?: any,
+  contextValue?: any,
+  variableValues?: {[key: string]: any},
+  operationName?: string,
+) => IObservable<ExecutionResult>;
+
+export type ExecuteFunction = (
+  schema: GraphQLSchema,
+  document: DocumentNode,
+  rootValue?: any,
+  contextValue?: any,
+  variableValues?: {[key: string]: any},
+  operationName?: string,
+) => Promise<ExecutionResult>;
+
+export interface Executor {
+  execute?: ExecuteFunction;
+  executeReactive?: ExecuteReactiveFunction;
+}
+
 export interface ServerOptions {
-  subscriptionManager: SubscriptionManager;
+  rootValue?: any;
+  schema?: GraphQLSchema;
+  executor?: Executor;
+  /**
+   * @deprecated subscriptionManager is deprecated, use executor instead
+   */
+  subscriptionManager?: SubscriptionManager;
   /**
    * @deprecated onSubscribe is deprecated, use onRequest instead
    */
@@ -39,11 +81,92 @@ export interface ServerOptions {
   onConnect?: Function;
   onDisconnect?: Function;
   keepAlive?: number;
-  // contextValue?: any;
-  // rootValue?: any;
-  // formatResponse?: (Object) => Object;
-  // validationRules?: Array<any>;
-  // triggerGenerator?: (name: string, args: Object, context?: Object) => Array<{name: string, filter: Function}>;
+}
+
+class ExecuteAdapters {
+  public static executeFromExecute(execute: ExecuteFunction): ExecuteReactiveFunction {
+    return (schema: GraphQLSchema,
+            document: DocumentNode,
+            rootValue?: any,
+            contextValue?: any,
+            variableValues?: {[key: string]: any},
+            operationName?: string,
+    ) => ({
+      subscribe: (observer) => {
+        if (ExecuteAdapters.isASubscriptionRequest(document, operationName)) {
+          observer.error(new Error('Subscriptions are not supported'));
+        } else {
+          execute(schema, document, rootValue, contextValue, variableValues, operationName)
+            .then((result: ExecutionResult) => {
+                observer.next(result);
+                observer.complete();
+              },
+              (e) => observer.error(e));
+        }
+
+        return {
+          unsubscribe: () => { /* Promises cannot be canceled */ },
+        };
+      },
+    });
+  }
+
+  public static executeFromSubscriptionManager(subscriptionManager: SubscriptionManager): ExecuteReactiveFunction {
+    return (schema: GraphQLSchema,
+            document: DocumentNode,
+            rootValue?: any,
+            contextValue?: any,
+            variableValues?: {[key: string]: any},
+            operationName?: string,
+    ) => ({
+      subscribe: (observer) => {
+        if (!ExecuteAdapters.isASubscriptionRequest(document, operationName)) {
+          observer.error(new Error('Queries or mutations are not supported'));
+
+          return {
+            unsubscribe: () => { /* Empty unsubscribe method */ },
+          };
+        }
+
+        const callback = (error: Error | { errors: [ Error ] }, v: ExecutionResult) => {
+          if (error) {
+            if ( error.hasOwnProperty('errors') ) {
+              // ValidationError
+              return observer.next({ errors: (error as any).errors });
+            } else {
+              return observer.error(error as Error);
+            }
+          }
+          observer.next(v);
+        };
+
+        const subIdPromise = subscriptionManager.subscribe({
+          // Yeah, subscriptionManager needs it printed for some reason...
+          query: print(document),
+          operationName,
+          callback,
+          variables: variableValues,
+          context: contextValue,
+        }).then(undefined, (e: Error) => observer.error(e));
+
+        return {
+          unsubscribe: () => {
+            subIdPromise.then((reqId: number) => {
+              if ( undefined !== reqId ) {
+                subscriptionManager.unsubscribe(reqId);
+              }
+            });
+          },
+        };
+      },
+    });
+  }
+
+  public static isASubscriptionRequest(document: DocumentNode, operationName: string): boolean {
+    const operationAST = getOperationAST(document, operationName);
+
+    return !!operationAST && operationAST.operation === 'subscription';
+  }
 }
 
 export class SubscriptionServer {
@@ -60,20 +183,19 @@ export class SubscriptionServer {
   private onConnect: Function;
   private onDisconnect: Function;
   private wsServer: WebSocket.Server;
-  private subscriptionManager: SubscriptionManager;
+  private execute: ExecuteReactiveFunction;
+  private schema: GraphQLSchema;
+  private rootValue: any;
 
   public static create(options: ServerOptions, socketOptions: WebSocket.IServerOptions) {
     return new SubscriptionServer(options, socketOptions);
   }
 
   constructor(options: ServerOptions, socketOptions: WebSocket.IServerOptions) {
-    const {subscriptionManager, onSubscribe, onUnsubscribe, onRequest, onRequestComplete, onConnect, onDisconnect, keepAlive} = options;
+    const {onSubscribe, onUnsubscribe, onRequest,
+      onRequestComplete, onConnect, onDisconnect, keepAlive} = options;
 
-    if (!subscriptionManager) {
-      throw new Error('Must provide `subscriptionManager` to websocket server constructor.');
-    }
-
-    this.subscriptionManager = subscriptionManager;
+    this.loadExecutor(options);
     this.onSubscribe = this.defineDeprecateFunctionWrapper('onSubscribe function is deprecated. ' +
       'Use onRequest instead.');
     this.onUnsubscribe = this.defineDeprecateFunctionWrapper('onUnsubscribe function is deprecated. ' +
@@ -126,9 +248,43 @@ export class SubscriptionServer {
     });
   }
 
+  private loadExecutor(options: ServerOptions) {
+    const {subscriptionManager, executor, schema, rootValue} = options;
+
+    if (!subscriptionManager && !executor) {
+      throw new Error('Must provide `subscriptionManager` or `executor` to websocket server constructor.');
+    }
+
+    if (subscriptionManager && executor) {
+      throw new Error('Must provide `subscriptionManager` or `executor` and not both.');
+    }
+
+    if (executor && !executor.execute && !executor.executeReactive) {
+      throw new Error('Must define at least execute or executeReactive function');
+    }
+
+    if (executor && !schema) {
+      throw new Error('Must provide `schema` when using `executor`.');
+    }
+
+    if (subscriptionManager) {
+      console.warn('subscriptionManager is deprecated, use GraphQLExecutorWithSubscriptions executor instead.');
+    }
+
+    this.schema = schema;
+    this.rootValue = rootValue;
+    if ( subscriptionManager ) {
+      this.execute = ExecuteAdapters.executeFromSubscriptionManager(subscriptionManager);
+    } else if ( executor.executeReactive ) {
+      this.execute = executor.executeReactive.bind(executor);
+    } else {
+      this.execute = ExecuteAdapters.executeFromExecute(executor.execute.bind(executor));
+    }
+  }
+
   private unsubscribe(connectionContext: ConnectionContext, reqId: string) {
     if (connectionContext.requests && connectionContext.requests[reqId]) {
-      this.subscriptionManager.unsubscribe(connectionContext.requests[reqId]);
+      connectionContext.requests[reqId].unsubscribe();
       delete connectionContext.requests[reqId];
     }
 
@@ -233,7 +389,7 @@ export class SubscriptionServer {
             // if we already have a subscription with this id, unsubscribe from it first
             this.unsubscribe(connectionContext, reqId);
 
-            promisedParams.then(params => {
+            promisedParams.then((params: any) => {
               if (typeof params !== 'object') {
                 const error = `Invalid params returned from onRequest! return values must be an object!`;
                 this.sendError(connectionContext, reqId, { message: error });
@@ -241,44 +397,49 @@ export class SubscriptionServer {
                 throw new Error(error);
               }
 
-              // NOTE: This is a temporary code to identify if the request is a real subscription or only a query/mutation.
-              // As soon as subscription manager starts handling complete function from the observable calling  the
-              // callback function with (null, null) this can be replaced
-              const isSubscription = this.isASubscriptionRequest(params.query, params.operationName);
+              const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
+              return this.execute(this.schema,
+                document,
+                this.rootValue,
+                params.context,
+                params.variables,
+                params.operationName)
+              .subscribe({
+                  next: (v: ExecutionResult) => {
+                    let result = v;
 
-              // Create a callback
-              // Error could be a runtime exception or an object with errors
-              // Result is a GraphQL ExecutionResult, which has an optional errors property
-              params.callback = (error: any, result: any) => {
-                if (connectionContext.requests[reqId]) {
-                  if (result) {
+                    if (params.formatResponse) {
+                      try {
+                        result = params.formatResponse(v, params);
+                      } catch (err) {
+                        console.error('Error in formatError function:', err);
+                      }
+                    }
+
                     this.sendMessage(connectionContext, reqId, MessageTypes.GQL_DATA, result);
-                  }
+                  },
+                  error: (e: Error) => {
+                    let error = e;
 
-                  if (error) {
-                    const errorsToSend = error.errors ?
-                      { errors: error.errors } :
-                      { errors: [ { message: error.message } ]};
-                    this.sendMessage(connectionContext, reqId, MessageTypes.GQL_DATA, errorsToSend);
-                  }
-                }
+                    if (params.formatError) {
+                      try {
+                        error = params.formatError(e, params);
+                      } catch (err) {
+                        console.error('Error in formatError function:', err);
+                      }
+                    }
 
-                // NOTE: This is a temporary code to identify if the request is a real subscription or only a query/mutation.
-                // As soon as subscription manager starts handling complete function from the observable calling  the
-                // callback function with (null, null) this can be replaced
-                if (!isSubscription) {
-                  this.unsubscribe(connectionContext, reqId);
-                  this.sendMessage(connectionContext, reqId, MessageTypes.GQL_COMPLETE, null);
-                }
-              };
-              return this.subscriptionManager.subscribe(params);
-            }).then((graphqlReqId: number) => {
-              connectionContext.requests[reqId] = graphqlReqId;
+                    this.sendMessage(connectionContext, reqId, MessageTypes.GQL_ERROR, error);
+                  },
+                  complete: () => this.sendMessage(connectionContext, reqId, MessageTypes.GQL_COMPLETE, null),
+                });
+            }).then((subscription: IObservableSubscription) => {
+              connectionContext.requests[reqId] = subscription;
             }).then(() => {
               // NOTE: This is a temporary code to support the legacy protocol.
               // As soon as the old protocol has been removed, this coode should also be removed.
               this.sendMessage(connectionContext, reqId, MessageTypes.SUBSCRIPTION_SUCCESS, undefined);
-            }).catch(e => {
+            }).catch((e: any) => {
               if (e.errors) {
                 this.sendMessage(connectionContext, reqId, MessageTypes.GQL_DATA, { errors: e.errors });
               } else {
@@ -365,15 +526,6 @@ export class SubscriptionServer {
     return messageToReturn;
   };
 
-  // NOTE: This is temporary and should be removed as soon as SubscriptionsManager
-  // implements the complete function of the observable
-  private isASubscriptionRequest(query: any, operationName: string): boolean {
-    const document = parse(query);
-    const operationAST = getOperationAST(document, operationName);
-
-    return !!operationAST && operationAST.operation === 'subscription';
-  }
-
   private sendMessage(connectionContext: ConnectionContext, reqId: string, type: string, payload: any): void {
     const parsedMessage = this.parseLegacyProtocolMessage(connectionContext, {
       type,
@@ -388,6 +540,7 @@ export class SubscriptionServer {
 
   private sendError(connectionContext: ConnectionContext, reqId: string, errorPayload: any,
                            overrideDefaultErrorType?: string): void {
+    const sanitizedOverrideDefaultErrorType = overrideDefaultErrorType || MessageTypes.GQL_ERROR;
     if ([
         MessageTypes.GQL_CONNECTION_ERROR,
         MessageTypes.GQL_ERROR,
@@ -399,7 +552,7 @@ export class SubscriptionServer {
     this.sendMessage(
       connectionContext,
       reqId,
-      overrideDefaultErrorType || MessageTypes.GQL_ERROR,
+      sanitizedOverrideDefaultErrorType,
       errorPayload,
     );
   }

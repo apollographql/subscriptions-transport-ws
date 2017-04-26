@@ -113,7 +113,19 @@ export class SubscriptionClient {
   }
 
   public subscribe(options: RequestOptions, handler: (error: Error[], result?: any) => void) {
-    return this.executeRequest(options, handler);
+    const legacyHandler = (error: Error[], result?: any) => {
+      let requestPayloadData = result.data || null;
+      let requestPayloadErrors = result.errors  || null;
+
+      if (error) {
+        requestPayloadErrors = error;
+        requestPayloadData = null;
+      }
+
+      handler(requestPayloadErrors, requestPayloadData);
+    };
+
+    return this.executeRequest(options, legacyHandler);
   }
 
   public on(eventName: string, callback: ListenerFn, context?: any): Function {
@@ -346,11 +358,9 @@ export class SubscriptionClient {
         break;
 
       case MessageTypes.GQL_DATA:
-        const requestPayloadData = parsedMessage.payload.data || null;
-        const requestPayloadErrors = parsedMessage.payload.errors ?
-          this.formatErrors(parsedMessage.payload.errors) : null;
-
-        this.requests[reqId].handler(requestPayloadErrors, requestPayloadData);
+        const parsedPayload = !parsedMessage.payload.errors ?
+          parsedMessage.payload : {...parsedMessage.payload, errors: this.formatErrors(parsedMessage.payload.errors)};
+        this.requests[reqId].handler(null, parsedPayload);
         break;
 
       case MessageTypes.GQL_CONNECTION_KEEP_ALIVE:
