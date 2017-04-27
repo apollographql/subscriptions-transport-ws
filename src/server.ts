@@ -144,7 +144,13 @@ export class SubscriptionServer {
         case INIT:
           let onConnectPromise = Promise.resolve(true);
           if (this.onConnect) {
-            onConnectPromise = Promise.resolve(this.onConnect(parsedMessage.payload, connection));
+            onConnectPromise = new Promise((resolve, reject) => {
+              try {
+                resolve(this.onConnect(parsedMessage.payload, connection));
+            } catch (e) {
+                reject(e);
+              }
+            });
           }
 
           onInitResolve(onConnectPromise);
@@ -160,7 +166,9 @@ export class SubscriptionServer {
           }).catch((error: Error) => {
             return {
               type: INIT_FAIL,
-              error: error.message,
+              payload: {
+                error: error.message,
+              },
             };
           }).then((resultMessage: any) => {
             this.sendInitResult(connection, resultMessage);
@@ -288,8 +296,12 @@ export class SubscriptionServer {
         // Close the connection with an error code, and
         // then terminates the actual network connection (sends FIN packet)
         // 1011: an unexpected condition prevented the request from being fulfilled
-        connection.close(1011);
-        connection.terminate();
+        // We are using setTimeout because we want the message to be flushed before
+        // disconnecting the client 
+        setTimeout(() => {
+          connection.close(1011);
+          connection.terminate();
+        }, 10);
       }
     });
   }

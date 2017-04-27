@@ -277,7 +277,10 @@ export class SubscriptionClient {
       const subId = parsedMessage.id;
       if ([KEEPALIVE, INIT_SUCCESS, INIT_FAIL].indexOf(parsedMessage.type) === -1 && !this.subscriptions[subId]) {
         this.unsubscribe(subId);
-        return;
+
+        if (parsedMessage.type === KEEPALIVE) {
+          return;
+        }
       }
 
       // console.log('MSG', JSON.stringify(parsedMessage, null, 2));

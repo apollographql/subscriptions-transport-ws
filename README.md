@@ -59,7 +59,7 @@ websocketServer.listen(WS_PORT, () => console.log(
   `Websocket Server is now running on http://localhost:${WS_PORT}`
 ));
 
-const subscriptionManager = new SubscriptionServer(
+const subscriptionServer = new SubscriptionServer(
   {
     onConnect: async (connectionParams) => {
       // Implement if you need to handle and manage connection
@@ -130,6 +130,57 @@ https://unpkg.com/subscriptions-transport-ws@VERSION/browser/client.js
 ```
 
 > Replace VERSION with the latest version of the package.
+
+### Use it with GraphiQL
+
+You can use this package's power with GraphiQL, and subscribe to live-data stream inside GraphiQL.
+
+If you are using the latest version of `graphql-server` flavors (`graphql-server-express`, `graphql-server-koa`, etc...), you already can use it! Make sure to specify `subscriptionsEndpoint` in GraphiQL configuration, and that's it!
+
+For example, `graphql-server-express` users need to add the following:
+
+```js
+app.use('/graphiql', graphiqlExpress({
+  endpointURL: '/graphql',
+  subscriptionsEndpoint: `YOUR_SUBSCRIPTION_ENDPOINT_HERE`,
+}));
+```
+
+If you are using older version, or another GraphQL server, start by modifying GraphiQL static HTML, and add this package and it's fetcher from CDN:
+
+```html
+    <script src="//unpkg.com/subscriptions-transport-ws@0.5.4/browser/client.js"></script>
+    <script src="//unpkg.com/graphiql-subscriptions-fetcher@0.0.2/browser/client.js"></script>
+```
+
+Then, create `SubscriptionClient` and define the fetcher:
+
+```js
+let subscriptionsClient = new window.SubscriptionsTransportWs.SubscriptionClient('SUBSCRIPTION_WS_URL_HERE', {
+  reconnect: true
+});
+let myCustomFetcher = window.GraphiQLSubscriptionsFetcher.graphQLFetcher(subscriptionsClient, graphQLFetcher);
+```
+
+> `graphQLFetcher` is the default fetcher, and we use it as fallback for non-subscription GraphQL operations.
+
+And replace your GraphiQL creation logic to use the new fetcher:
+
+```js
+ReactDOM.render(
+  React.createElement(GraphiQL, {
+    fetcher: myCustomFetcher, // <-- here
+    onEditQuery: onEditQuery,
+    onEditVariables: onEditVariables,
+    onEditOperationName: onEditOperationName,
+    query: ${safeSerialize(queryString)},
+    response: ${safeSerialize(resultString)},
+    variables: ${safeSerialize(variablesString)},
+    operationName: ${safeSerialize(operationName)},
+  }),
+  document.body
+);
+```
 
 # API
 
@@ -256,12 +307,12 @@ Server message sent periodically to keep the client connection alive.
 
 This is a demonstration of client-server communication, in order to get a better understanding of the protocol flow:
 
-- Client creates a WebSocket instane using `SubscriptionsClient` object.
+- Client creates a WebSocket instance using `SubscriptionsClient` object.
 - Client sends `INIT` message to the server.
-- Server calls `onConnect` callback with the init arguments and waits for init to finish, and return it's return value with `INIT_SUCCESS`, or `INIT_FAIL` in case of `false` or thrown exception from `onConnect` callback.
+- Server calls `onConnect` callback with the init arguments, waits for init to finish and returns it's return value with `INIT_SUCCESS`, or `INIT_FAIL` in case of `false` or thrown exception from `onConnect` callback.
 - Client gets `INIT_SUCCESS` and waits for the client's app to create subscriptions.
 - App creates a subscription using `subscribe` client's API, and the `SUBSCRIPTION_START` message sent to the server.
-- Server calls `onSubscribe` callback, and respondes with `SUBSCRIPTION_SUCCESS` in case of zero errors, or `SUBSCRIPTION_FAIL` if there is an problem with the subscription.
+- Server calls `onSubscribe` callback, and responds with `SUBSCRIPTION_SUCCESS` in case of zero errors, or `SUBSCRIPTION_FAIL` if there is a problem with the subscription.
 - Client get `SUBSCRIPTION_SUCCESS` and waits for data.
-- App triggers `PubSub`'s publication method, and the server published the event, passing it through the `graphql-subscriptions` package for filtering and resolving.
-- Client recieves `SUBSCRIPTION_DATA` with the data, and handles it with `apollo-client` instance.
+- App triggers `PubSub`'s publication method, and the server publishes the event, passing it through the `graphql-subscriptions` package for filtering and resolving.
+- Client receives `SUBSCRIPTION_DATA` with the data, and handles it with `apollo-client` instance.
