@@ -1,3 +1,6 @@
+// chai style expect().to.be.true violates no-unused-expression
+/* tslint:disable:no-unused-expression */
+
 import 'mocha';
 import {
   assert,
@@ -258,7 +261,7 @@ describe('Client', function () {
       },
       (error, result) => {
         // do nothing
-      }
+      },
     );
   });
 
@@ -311,7 +314,7 @@ describe('Client', function () {
           },
         }, function (error: any, result: any) {
           //do nothing
-        }
+        },
       );
     }).to.throw();
   });
@@ -328,7 +331,7 @@ describe('Client', function () {
           },
         }, function (error: any, result: any) {
           //do nothing
-        }
+        },
       );
     }).to.throw();
   });
@@ -345,7 +348,7 @@ describe('Client', function () {
             }
           }`,
         },
-        undefined
+        undefined,
       );
     }).to.throw();
   });
@@ -397,7 +400,7 @@ describe('Client', function () {
         expect(result).to.have.property('some');
         expect(error).to.be.lengthOf(1);
         done();
-      }
+      },
     );
   });
 
@@ -485,7 +488,7 @@ describe('Client', function () {
           },
         }, function (error: any, result: any) {
           //do nothing
-        }
+        },
       );
       client.unsubscribe(subId);
       assert.notProperty(client.subscriptions, `${subId}`);
@@ -508,7 +511,7 @@ describe('Client', function () {
         },
       }, function (error: any, result: any) {
         //do nothing
-      }
+      },
     );
     expect((client as any).unsentMessagesQueue.length).to.equals(1);
     client.unsubscribe(subId);
@@ -536,7 +539,7 @@ describe('Client', function () {
             client.unsubscribeAll();
             assert(false);
           }
-        }
+        },
       );
     }, 100);
     setTimeout(() => {
@@ -560,7 +563,7 @@ describe('Client', function () {
           } else {
             assert(false);
           }
-        }
+        },
       );
     }, 100);
   });
@@ -816,8 +819,9 @@ describe('Server', function () {
 
   it('should trigger onDisconnect when client disconnects', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
-    client.client.close();
-
+    setTimeout(() => {
+      client.client.close();
+    }, 100);
     setTimeout(() => {
       assert(eventsOptions.onDisconnect.calledOnce);
       done();
@@ -841,7 +845,7 @@ describe('Server', function () {
         },
       }, function (error: any, result: any) {
         // nothing
-      }
+      },
     );
 
     setTimeout(() => {
@@ -1003,7 +1007,7 @@ describe('Server', function () {
           },
         }, function (error: any, result: any) {
           //do nothing
-        }
+        },
       );
     }, 100);
 
@@ -1036,7 +1040,7 @@ describe('Server', function () {
             assert.equal(result.userFiltered.name, 'Jessie');
           }
           // both null means it's a SUBSCRIPTION_SUCCESS message
-        }
+        },
       );
       client4.subscribe({
           query: `subscription userInfoFilter1($id: String) {
@@ -1060,7 +1064,7 @@ describe('Server', function () {
             assert(false);
           }
           // both null means SUBSCRIPTION_SUCCESS
-        }
+        },
       );
     }, 100);
     setTimeout(() => {
@@ -1093,7 +1097,7 @@ describe('Server', function () {
           assert.equal(result.context, CTX);
         }
         done();
-      }
+      },
     );
     setTimeout(() => {
       subscriptionManager.publish('context', {});
@@ -1137,7 +1141,7 @@ describe('Server', function () {
           },
         }, function (error: any, result: any) {
           //do nothing
-        }
+        },
       );
       client4.unsubscribe(subId);
     }, 100);
@@ -1156,11 +1160,8 @@ describe('Server', function () {
     const client = new WebSocket(`ws://localhost:${TEST_PORT}/`);
 
     client.on('close', (code) => {
-      if (code === 1002) {
-        done();
-      } else {
-        assert(false);
-      }
+      expect(code).to.be.eq(1002);
+      done();
     });
   });
 

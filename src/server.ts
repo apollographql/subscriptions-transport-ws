@@ -75,7 +75,7 @@ export class SubscriptionServer {
         // then terminates the actual network connection (sends FIN packet)
         // 1002: protocol error
         request.close(1002);
-        request.terminate();
+        setTimeout(() => request.terminate(), 10);
 
         return;
       }
@@ -300,7 +300,7 @@ export class SubscriptionServer {
         // disconnecting the client 
         setTimeout(() => {
           connection.close(1011);
-          connection.terminate();
+          setTimeout(() => connection.terminate(), 10);
         }, 10);
       }
     });

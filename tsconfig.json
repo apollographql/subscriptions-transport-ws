@@ -15,11 +15,7 @@
     "declaration": true,
     "skipLibCheck": true,
     "lib": ["es6"],
-    "types": [
-        "@types/node",
-        "@types/ws",
-        "eventemitter3"
-    ]
+    "typeRoots": ["node_modules/@types"]
   },
   "exclude": [
     "node_modules",
