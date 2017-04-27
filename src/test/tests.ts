@@ -1125,35 +1125,38 @@ describe('Server', function () {
     }, 100);
   });
 
-  it('does not send more subscription data after client unsubscribes', function () {
+  it('does not send more subscription data after client unsubscribes', function (done) {
     const client4 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    let subId: number;
     setTimeout(() => {
-      let subId = client4.subscribe({
-          query: `subscription useInfo($id: String) {
-          user(id: $id) {
-            id
-            name
-          }
-        }`,
-          operationName: 'useInfo',
-          variables: {
-            id: 3,
-          },
-        }, function (error: any, result: any) {
-          //do nothing
-        },
-      );
       client4.unsubscribe(subId);
-    }, 100);
+    }, 50);
     setTimeout(() => {
       subscriptionManager.publish('user', {});
-    }, 200);
-
+    }, 100);
+    setTimeout(() => {
+      client4.close();
+      done();
+    }, 150);
     client4.client.onmessage = (message: any) => {
       if (JSON.parse(message.data).type === SUBSCRIPTION_DATA) {
         assert(false);
       }
     };
+    subId = client4.subscribe({
+      query: `subscription useInfo($id: String) {
+      user(id: $id) {
+        id
+        name
+      }
+    }`,
+      operationName: 'useInfo',
+      variables: {
+        id: 3,
+      },
+    }, function (error: any, result: any) {
+      //do nothing
+    });
   });
 
   it('rejects a client that does not specify a supported protocol', function (done) {
