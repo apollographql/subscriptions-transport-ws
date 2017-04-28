@@ -2,8 +2,6 @@
 
 # subscriptions-transport-ws
 
-[![Greenkeeper badge](https://badges.greenkeeper.io/apollographql/subscriptions-transport-ws.svg)](https://greenkeeper.io/)
-
 **(Work in progress!)**
 
 A GraphQL WebSocket server and client to facilitate GraphQL subscriptions.
