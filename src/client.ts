@@ -123,16 +123,13 @@ export class SubscriptionClient {
     const subId = this.generateSubscriptionId();
 
     this.applyMiddlewares(opts).then(options => {
-      try {
-        this.checkSubscriptionParams(options, handler);
-      } catch (e) {
-        handler([e]);
-        this.unsubscribe(subId);
-      }
+      this.checkSubscriptionParams(options, handler);
 
       let message = Object.assign(options, {type: SUBSCRIPTION_START, id: subId});
-      this.sendMessage(message);
+
       this.subscriptions[subId] = {options, handler};
+      this.sendMessage(message);
+
       this.waitingSubscriptions[subId] = true;
 
       if (this.waitingUnsubscribes[subId]) {
@@ -142,10 +139,13 @@ export class SubscriptionClient {
 
       setTimeout( () => {
         if (this.waitingSubscriptions[subId]) {
-          handler([new Error('Subscription timed out - no response from server')]);
           this.unsubscribe(subId);
+          handler([new Error('Subscription timed out - no response from server')]);
         }
       }, this.subscriptionTimeout);
+    }).catch((e: Error) => {
+      this.unsubscribe(subId);
+      handler([e]);
     });
 
     return subId;
