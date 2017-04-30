@@ -23,6 +23,7 @@ type ConnectionContext = {
 
 export interface SubscribeMessage {
   [key: string]: any; // any extension that will come with the message.
+  context?: {[key: string]: any};
   payload: string;
   query?: string;
   variables?: {[key: string]: any};
@@ -182,7 +183,7 @@ export class SubscriptionServer {
               query: parsedMessage.query,
               variables: parsedMessage.variables,
               operationName: parsedMessage.operationName,
-              context: Object.assign({}, isObject(initResult) ? initResult : {}),
+              context: Object.assign(isObject(initResult) ? initResult : {}, parsedMessage.context),
               formatResponse: <any>undefined,
               formatError: <any>undefined,
               callback: <any>undefined,
