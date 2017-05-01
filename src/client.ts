@@ -365,12 +365,19 @@ export class SubscriptionClient {
 
           break;
         case SUBSCRIPTION_FAIL:
+          if (!this.subscriptions[subId]) {
+            delete this.waitingSubscriptions[subId];
+            break;
+          }
           this.subscriptions[subId].handler(this.formatErrors(parsedMessage.payload.errors), null);
           delete this.subscriptions[subId];
           delete this.waitingSubscriptions[subId];
 
           break;
         case SUBSCRIPTION_DATA:
+          if (!this.subscriptions[subId]) {
+            break;
+          }
           const payloadData = parsedMessage.payload.data || null;
           const payloadErrors = parsedMessage.payload.errors ? this.formatErrors(parsedMessage.payload.errors) : null;
           this.subscriptions[subId].handler(payloadErrors, payloadData);
