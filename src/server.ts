@@ -71,12 +71,10 @@ export class SubscriptionServer {
 
     this.wsServer.on('connection', (request: WebSocket) => {
       if (request.protocol === undefined || request.protocol.indexOf(GRAPHQL_SUBSCRIPTIONS) === -1) {
-        // Close the connection with an error code, and
-        // then terminates the actual network connection (sends FIN packet)
+        // Close the connection with an error code, ws v2 ensures that the
+        // connection is cleaned up even when the closing handshake fails.
         // 1002: protocol error
         request.close(1002);
-        request.terminate();
-
         return;
       }
 
@@ -293,14 +291,13 @@ export class SubscriptionServer {
   private sendInitResult(connection: WebSocket, result: any): void {
     connection.send(JSON.stringify(result), () => {
       if (result.type === INIT_FAIL) {
-        // Close the connection with an error code, and
-        // then terminates the actual network connection (sends FIN packet)
+        // Close the connection with an error code, ws v2 ensures that the
+        // connection is cleaned up even when the closing handshake fails.
         // 1011: an unexpected condition prevented the request from being fulfilled
         // We are using setTimeout because we want the message to be flushed before
         // disconnecting the client 
         setTimeout(() => {
           connection.close(1011);
-          connection.terminate();
         }, 10);
       }
     });

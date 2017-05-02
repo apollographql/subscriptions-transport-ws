@@ -14,12 +14,7 @@
     "pretty": true,
     "declaration": true,
     "skipLibCheck": true,
-    "lib": ["es6"],
-    "types": [
-        "@types/node",
-        "@types/ws",
-        "eventemitter3"
-    ]
+    "lib": ["es6"]
   },
   "exclude": [
     "node_modules",
