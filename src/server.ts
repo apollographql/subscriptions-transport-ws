@@ -212,11 +212,10 @@ export class SubscriptionServer {
       // NOTE: the old GRAPHQL_SUBSCRIPTIONS protocol support should be removed in the future
       if (socket.protocol === undefined ||
         (socket.protocol.indexOf(GRAPHQL_WS) === -1 && socket.protocol.indexOf(GRAPHQL_SUBSCRIPTIONS) === -1)) {
-        // Close the connection with an error code, and
-        // then terminates the actual network connection (sends FIN packet)
+        // Close the connection with an error code, ws v2 ensures that the
+        // connection is cleaned up even when the closing handshake fails.
         // 1002: protocol error
         socket.close(1002);
-        socket.terminate();
 
         return;
       }
@@ -351,14 +350,13 @@ export class SubscriptionServer {
               MessageTypes.GQL_CONNECTION_ERROR,
             );
 
-            // Close the connection with an error code, and
-            // then terminates the actual network connection (sends FIN packet)
+            // Close the connection with an error code, ws v2 ensures that the
+            // connection is cleaned up even when the closing handshake fails.
             // 1011: an unexpected condition prevented the request from being fulfilled
             // We are using setTimeout because we want the message to be flushed before
             // disconnecting the client
             setTimeout(() => {
               connectionContext.socket.close(1011);
-              connectionContext.socket.terminate();
             }, 10);
 
           });
@@ -366,7 +364,6 @@ export class SubscriptionServer {
 
         case MessageTypes.GQL_CONNECTION_TERMINATE:
           connectionContext.socket.close();
-          connectionContext.socket.terminate();
           break;
 
         case MessageTypes.GQL_START:

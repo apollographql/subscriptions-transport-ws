@@ -6,3 +6,4 @@ typings
 npm-debug.log
 browser/
 .idea/
+.vscode/
