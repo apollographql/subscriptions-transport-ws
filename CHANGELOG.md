@@ -2,6 +2,8 @@
 
 ### vNEXT
 
+### 0.6.0
+
 - Enabled Greenkeeper and updated dependencies, includes major version bump of ws [PR #90](https://github.com/apollographql/subscriptions-transport-ws/pull/90)
 
 ### 0.5.5
