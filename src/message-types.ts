@@ -9,7 +9,7 @@ export default class MessageTypes {
   public static GQL_DATA = 'data';
   public static GQL_ERROR = 'error';
   public static GQL_COMPLETE = 'complete';
-  public static GQL_END = 'end';
+  public static GQL_STOP = 'stop';
   // NOTE: Those message types are deprecated and will be removed soon.
   /**
    * @deprecated

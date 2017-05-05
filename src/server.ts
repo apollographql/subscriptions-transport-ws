@@ -21,12 +21,12 @@ type ConnectionContext = {
   initPromise?: Promise<any>,
   isLegacy: boolean,
   socket: WebSocket,
-  requests: {
-    [reqId: string]: IObservableSubscription;
+  operations: {
+    [opId: string]: IObservableSubscription;
   },
 };
 
-export interface RequestMessage {
+export interface OperationMessage {
   payload?: {
     [key: string]: any; // this will support for example any options sent in init like the auth token
     query?: string;
@@ -69,15 +69,15 @@ export interface ServerOptions {
    */
   subscriptionManager?: SubscriptionManager;
   /**
-   * @deprecated onSubscribe is deprecated, use onRequest instead
+   * @deprecated onSubscribe is deprecated, use onOperation instead
    */
   onSubscribe?: Function;
   /**
-   * @deprecated onUnsubscribe is deprecated, use onRequestComplete instead
+   * @deprecated onUnsubscribe is deprecated, use onOperationComplete instead
    */
   onUnsubscribe?: Function;
-  onRequest?: Function;
-  onRequestComplete?: Function;
+  onOperation?: Function;
+  onOperationComplete?: Function;
   onConnect?: Function;
   onDisconnect?: Function;
   keepAlive?: number;
@@ -93,7 +93,7 @@ class ExecuteAdapters {
             operationName?: string,
     ) => ({
       subscribe: (observer) => {
-        if (ExecuteAdapters.isASubscriptionRequest(document, operationName)) {
+        if (ExecuteAdapters.isASubscriptionOperation(document, operationName)) {
           observer.error(new Error('Subscriptions are not supported'));
         } else {
           execute(schema, document, rootValue, contextValue, variableValues, operationName)
@@ -120,7 +120,7 @@ class ExecuteAdapters {
             operationName?: string,
     ) => ({
       subscribe: (observer) => {
-        if (!ExecuteAdapters.isASubscriptionRequest(document, operationName)) {
+        if (!ExecuteAdapters.isASubscriptionOperation(document, operationName)) {
           observer.error(new Error('Queries or mutations are not supported'));
 
           return {
@@ -128,14 +128,10 @@ class ExecuteAdapters {
           };
         }
 
-        const callback = (error: Error | { errors: [ Error ] }, v: ExecutionResult) => {
+        const callback = (error: Error, v: ExecutionResult) => {
           if (error) {
-            if ( error.hasOwnProperty('errors') ) {
-              // ValidationError
-              return observer.next({ errors: (error as any).errors });
-            } else {
-              return observer.error(error as Error);
-            }
+            // TODO  we should not pass ValidationError to callback in the future.
+            return observer.error(error);
           }
           observer.next(v);
         };
@@ -151,9 +147,9 @@ class ExecuteAdapters {
 
         return {
           unsubscribe: () => {
-            subIdPromise.then((reqId: number) => {
-              if ( undefined !== reqId ) {
-                subscriptionManager.unsubscribe(reqId);
+            subIdPromise.then((opId: number) => {
+              if ( undefined !== opId ) {
+                subscriptionManager.unsubscribe(opId);
               }
             });
           },
@@ -162,7 +158,7 @@ class ExecuteAdapters {
     });
   }
 
-  public static isASubscriptionRequest(document: DocumentNode, operationName: string): boolean {
+  public static isASubscriptionOperation(document: DocumentNode, operationName: string): boolean {
     const operationAST = getOperationAST(document, operationName);
 
     return !!operationAST && operationAST.operation === 'subscription';
@@ -171,15 +167,15 @@ class ExecuteAdapters {
 
 export class SubscriptionServer {
   /**
-   * @deprecated onSubscribe is deprecated, use onRequest instead
+   * @deprecated onSubscribe is deprecated, use onOperation instead
    */
   private onSubscribe: Function;
   /**
-   * @deprecated onUnsubscribe is deprecated, use onRequestComplete instead
+   * @deprecated onUnsubscribe is deprecated, use onOperationComplete instead
    */
   private onUnsubscribe: Function;
-  private onRequest: Function;
-  private onRequestComplete: Function;
+  private onOperation: Function;
+  private onOperationComplete: Function;
   private onConnect: Function;
   private onDisconnect: Function;
   private wsServer: WebSocket.Server;
@@ -192,16 +188,16 @@ export class SubscriptionServer {
   }
 
   constructor(options: ServerOptions, socketOptions: WebSocket.IServerOptions) {
-    const {onSubscribe, onUnsubscribe, onRequest,
-      onRequestComplete, onConnect, onDisconnect, keepAlive} = options;
+    const {onSubscribe, onUnsubscribe, onOperation,
+      onOperationComplete, onConnect, onDisconnect, keepAlive} = options;
 
     this.loadExecutor(options);
     this.onSubscribe = this.defineDeprecateFunctionWrapper('onSubscribe function is deprecated. ' +
-      'Use onRequest instead.');
+      'Use onOperation instead.');
     this.onUnsubscribe = this.defineDeprecateFunctionWrapper('onUnsubscribe function is deprecated. ' +
-      'Use onRequestComplete instead.');
-    this.onRequest = onSubscribe ? onSubscribe : onRequest;
-    this.onRequestComplete = onUnsubscribe ? onUnsubscribe : onRequestComplete;
+      'Use onOperationComplete instead.');
+    this.onOperation = onSubscribe ? onSubscribe : onOperation;
+    this.onOperationComplete = onUnsubscribe ? onUnsubscribe : onOperationComplete;
     this.onConnect = onConnect;
     this.onDisconnect = onDisconnect;
 
@@ -223,7 +219,7 @@ export class SubscriptionServer {
       const connectionContext: ConnectionContext = Object.create(null);
       connectionContext.isLegacy = false;
       connectionContext.socket = socket;
-      connectionContext.requests = {};
+      connectionContext.operations = {};
 
       // Regular keep alive messages if keepAlive is set
       if (keepAlive) {
@@ -281,20 +277,20 @@ export class SubscriptionServer {
     }
   }
 
-  private unsubscribe(connectionContext: ConnectionContext, reqId: string) {
-    if (connectionContext.requests && connectionContext.requests[reqId]) {
-      connectionContext.requests[reqId].unsubscribe();
-      delete connectionContext.requests[reqId];
-    }
+  private unsubscribe(connectionContext: ConnectionContext, opId: string) {
+    if (connectionContext.operations && connectionContext.operations[opId]) {
+      connectionContext.operations[opId].unsubscribe();
+      delete connectionContext.operations[opId];
 
-    if (this.onRequestComplete) {
-      this.onRequestComplete(connectionContext.socket);
+      if (this.onOperationComplete) {
+        this.onOperationComplete(connectionContext.socket);
+      }
     }
   }
 
   private onClose(connectionContext: ConnectionContext) {
-    Object.keys(connectionContext.requests).forEach((reqId) => {
-      this.unsubscribe(connectionContext, reqId);
+    Object.keys(connectionContext.operations).forEach((opId) => {
+      this.unsubscribe(connectionContext, opId);
     });
   }
 
@@ -307,7 +303,7 @@ export class SubscriptionServer {
     });
 
     return (message: any) => {
-      let parsedMessage: RequestMessage;
+      let parsedMessage: OperationMessage;
       try {
         parsedMessage = this.parseLegacyProtocolMessage(connectionContext, JSON.parse(message));
       } catch (e) {
@@ -315,7 +311,7 @@ export class SubscriptionServer {
         return;
       }
 
-      const reqId = parsedMessage.id;
+      const opId = parsedMessage.id;
       switch (parsedMessage.type) {
         case MessageTypes.GQL_CONNECTION_INIT:
           let onConnectPromise = Promise.resolve(true);
@@ -345,14 +341,14 @@ export class SubscriptionServer {
           }).catch((error: Error) => {
             this.sendError(
               connectionContext,
-              reqId,
+              opId,
               { message: error.message },
               MessageTypes.GQL_CONNECTION_ERROR,
             );
 
             // Close the connection with an error code, ws v2 ensures that the
             // connection is cleaned up even when the closing handshake fails.
-            // 1011: an unexpected condition prevented the request from being fulfilled
+            // 1011: an unexpected condition prevented the operation from being fulfilled
             // We are using setTimeout because we want the message to be flushed before
             // disconnecting the client
             setTimeout(() => {
@@ -379,17 +375,19 @@ export class SubscriptionServer {
             };
             let promisedParams = Promise.resolve(baseParams);
 
-            if (this.onRequest) {
-              promisedParams = Promise.resolve(this.onRequest(parsedMessage, baseParams, connectionContext.socket));
+            if (this.onOperation) {
+              promisedParams = Promise.resolve(this.onOperation(parsedMessage, baseParams, connectionContext.socket));
             }
 
             // if we already have a subscription with this id, unsubscribe from it first
-            this.unsubscribe(connectionContext, reqId);
+            if (connectionContext.operations && connectionContext.operations[opId]) {
+              this.unsubscribe(connectionContext, opId);
+            }
 
             promisedParams.then((params: any) => {
               if (typeof params !== 'object') {
-                const error = `Invalid params returned from onRequest! return values must be an object!`;
-                this.sendError(connectionContext, reqId, { message: error });
+                const error = `Invalid params returned from onOperation! return values must be an object!`;
+                this.sendError(connectionContext, opId, { message: error });
 
                 throw new Error(error);
               }
@@ -413,7 +411,7 @@ export class SubscriptionServer {
                       }
                     }
 
-                    this.sendMessage(connectionContext, reqId, MessageTypes.GQL_DATA, result);
+                    this.sendMessage(connectionContext, opId, MessageTypes.GQL_DATA, result);
                   },
                   error: (e: Error) => {
                     let error = e;
@@ -426,39 +424,44 @@ export class SubscriptionServer {
                       }
                     }
 
-                    this.sendMessage(connectionContext, reqId, MessageTypes.GQL_ERROR, error);
+                    // plain errors cannot be JSON stringified.
+                    if ( Object.keys(e).length === 0 ) {
+                      error = { name: e.name, message: e.message };
+                    }
+
+                    this.sendError(connectionContext, opId, error);
                   },
-                  complete: () => this.sendMessage(connectionContext, reqId, MessageTypes.GQL_COMPLETE, null),
+                  complete: () => this.sendMessage(connectionContext, opId, MessageTypes.GQL_COMPLETE, null),
                 });
             }).then((subscription: IObservableSubscription) => {
-              connectionContext.requests[reqId] = subscription;
+              connectionContext.operations[opId] = subscription;
             }).then(() => {
               // NOTE: This is a temporary code to support the legacy protocol.
               // As soon as the old protocol has been removed, this coode should also be removed.
-              this.sendMessage(connectionContext, reqId, MessageTypes.SUBSCRIPTION_SUCCESS, undefined);
+              this.sendMessage(connectionContext, opId, MessageTypes.SUBSCRIPTION_SUCCESS, undefined);
             }).catch((e: any) => {
               if (e.errors) {
-                this.sendMessage(connectionContext, reqId, MessageTypes.GQL_DATA, { errors: e.errors });
+                this.sendMessage(connectionContext, opId, MessageTypes.GQL_DATA, { errors: e.errors });
               } else {
-                this.sendError(connectionContext, reqId, { message: e.message });
+                this.sendError(connectionContext, opId, { message: e.message });
               }
 
-              // Remove the request on the server side as it will be removed also in the client
-              this.unsubscribe(connectionContext, reqId);
+              // Remove the operation on the server side as it will be removed also in the client
+              this.unsubscribe(connectionContext, opId);
               return;
             });
           });
           break;
 
-        case MessageTypes.GQL_END:
+        case MessageTypes.GQL_STOP:
           connectionContext.initPromise.then(() => {
             // Find subscription id. Call unsubscribe.
-            this.unsubscribe(connectionContext, reqId);
+            this.unsubscribe(connectionContext, opId);
           });
           break;
 
         default:
-          this.sendError(connectionContext, reqId, { message: 'Invalid message type!' });
+          this.sendError(connectionContext, opId, { message: 'Invalid message type!' });
       }
     };
   }
@@ -484,7 +487,7 @@ export class SubscriptionServer {
         };
         break;
       case MessageTypes.SUBSCRIPTION_END:
-        messageToReturn = { ...message, type: MessageTypes.GQL_END };
+        messageToReturn = { ...message, type: MessageTypes.GQL_STOP };
         break;
       case MessageTypes.GQL_CONNECTION_ACK:
         if (connectionContext.isLegacy) {
@@ -523,10 +526,10 @@ export class SubscriptionServer {
     return messageToReturn;
   };
 
-  private sendMessage(connectionContext: ConnectionContext, reqId: string, type: string, payload: any): void {
+  private sendMessage(connectionContext: ConnectionContext, opId: string, type: string, payload: any): void {
     const parsedMessage = this.parseLegacyProtocolMessage(connectionContext, {
       type,
-      id: reqId,
+      id: opId,
       payload,
     });
 
@@ -535,20 +538,20 @@ export class SubscriptionServer {
     }
   }
 
-  private sendError(connectionContext: ConnectionContext, reqId: string, errorPayload: any,
+  private sendError(connectionContext: ConnectionContext, opId: string, errorPayload: any,
                            overrideDefaultErrorType?: string): void {
     const sanitizedOverrideDefaultErrorType = overrideDefaultErrorType || MessageTypes.GQL_ERROR;
     if ([
         MessageTypes.GQL_CONNECTION_ERROR,
         MessageTypes.GQL_ERROR,
-      ].indexOf(overrideDefaultErrorType) === -1) {
+      ].indexOf(sanitizedOverrideDefaultErrorType) === -1) {
       throw new Error('overrideDefaultErrorType should be one of the allowed error messages' +
         ' GQL_CONNECTION_ERROR or GQL_ERROR');
     }
 
     this.sendMessage(
       connectionContext,
-      reqId,
+      opId,
       sanitizedOverrideDefaultErrorType,
       errorPayload,
     );

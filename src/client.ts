@@ -6,7 +6,9 @@ import * as Backoff from 'backo2';
 import { EventEmitter, ListenerFn } from 'eventemitter3';
 import isString = require('lodash.isstring');
 import isObject = require('lodash.isobject');
-import { ExecutionResult, print, getOperationAST } from 'graphql';
+import { ExecutionResult } from 'graphql/execution/execute';
+import { print } from 'graphql/language/printer';
+import { getOperationAST } from 'graphql/utilities/getOperationAST';
 
 import MessageTypes from './message-types';
 import { GRAPHQL_WS } from './protocol';
@@ -14,20 +16,24 @@ import { WS_TIMEOUT } from './defaults';
 
 export * from './helpers';
 
-export interface RequestOptions {
+export interface OperationOptions {
   query: string;
   variables?: Object;
   operationName?: string;
   context?: any;
 }
 
-export interface Request {
-  options: RequestOptions;
+export type FormatedError = Error & {
+  originalError?: any;
+}
+
+export interface Operation {
+  options: OperationOptions;
   handler: (error: Error[], result?: any) => void;
 }
 
-export interface Requests {
-  [id: string]: Request;
+export interface Operations {
+  [id: string]: Operation;
 }
 
 export type ConnectionParams = {[paramName: string]: any};
@@ -42,9 +48,9 @@ export interface ClientOptions {
 
 export class SubscriptionClient {
   public client: any;
-  public requests: Requests;
+  public operations: Operations;
   private url: string;
-  private nextRequestId: number;
+  private nextOperationId: number;
   private connectionParams: ConnectionParams;
   private wsTimeout: number;
   private unsentMessagesQueue: Array<any>; // queued messages while websocket is opening.
@@ -76,8 +82,8 @@ export class SubscriptionClient {
     this.connectionParams = connectionParams;
     this.connectionCallback = connectionCallback;
     this.url = url;
-    this.requests = {};
-    this.nextRequestId = 0;
+    this.operations = {};
+    this.nextOperationId = 0;
     this.wsTimeout = timeout;
     this.unsentMessagesQueue = [];
     this.reconnect = reconnect;
@@ -97,7 +103,7 @@ export class SubscriptionClient {
     this.client.close();
   }
 
-  public query(options: RequestOptions): Promise<ExecutionResult> {
+  public query(options: OperationOptions): Promise<ExecutionResult> {
     return new Promise((resolve, reject) => {
       const handler = (error: Error[], result?: any) => {
         if (result) {
@@ -108,24 +114,28 @@ export class SubscriptionClient {
       };
 
       // NOTE: as soon as we move into observables, we don't need to wait GQL_COMPLETE for queries and mutations
-      this.executeRequest(options, handler);
+      this.executeOperation(options, handler);
     });
   }
 
-  public subscribe(options: RequestOptions, handler: (error: Error[], result?: any) => void) {
+  public subscribe(options: OperationOptions, handler: (error: Error[], result?: any) => void) {
     const legacyHandler = (error: Error[], result?: any) => {
-      let requestPayloadData = result.data || null;
-      let requestPayloadErrors = result.errors  || null;
+      let operationPayloadData = result && result.data || null;
+      let operationPayloadErrors = result && result.errors  || null;
 
       if (error) {
-        requestPayloadErrors = error;
-        requestPayloadData = null;
+        operationPayloadErrors = error;
+        operationPayloadData = null;
       }
 
-      handler(requestPayloadErrors, requestPayloadData);
+      handler(operationPayloadErrors, operationPayloadData);
     };
 
-    return this.executeRequest(options, legacyHandler);
+    if (!handler) {
+      throw new Error('Must provide an handler.');
+    }
+
+    return this.executeOperation(options, legacyHandler);
   }
 
   public on(eventName: string, callback: ListenerFn, context?: any): Function {
@@ -149,27 +159,27 @@ export class SubscriptionClient {
   }
 
   public unsubscribe(id: number) {
-    if (this.requests[id]) {
-      delete this.requests[id];
+    if (this.operations[id]) {
+      delete this.operations[id];
     }
-    this.sendMessage(id, MessageTypes.GQL_END, undefined);
+    this.sendMessage(id, MessageTypes.GQL_STOP, undefined);
   }
 
   public unsubscribeAll() {
-    Object.keys(this.requests).forEach( subId => {
+    Object.keys(this.operations).forEach( subId => {
       this.unsubscribe(parseInt(subId, 10));
     });
   }
 
-  private executeRequest(options: RequestOptions, handler: (error: Error[], result?: any) => void): number {
+  private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): number {
     const { query, variables, operationName } = options;
 
     if (!query) {
-      throw new Error('Must provide a `query`.');
+      throw new Error('Must provide a query.');
     }
 
     if (!handler) {
-      throw new Error('Must provide an `handler`.');
+      throw new Error('Must provide an handler.');
     }
 
     if (
@@ -177,15 +187,15 @@ export class SubscriptionClient {
       ( operationName && !isString(operationName)) ||
       ( variables && !isObject(variables))
     ) {
-      throw new Error('Incorrect option types. `query` must be a string or a document,' +
+      throw new Error('Incorrect option types. query must be a string or a document,' +
         '`operationName` must be a string, and `variables` must be an object.');
     }
 
-    const reqId = this.generateRequestId();
-    this.requests[reqId] = { options, handler };
-    this.sendMessage(reqId, MessageTypes.GQL_START, options);
+    const opId = this.generateOperationId();
+    this.operations[opId] = { options, handler };
+    this.sendMessage(opId, MessageTypes.GQL_START, options);
 
-    return reqId;
+    return opId;
   }
 
   private buildMessage(id: number, type: string, payload: any) {
@@ -204,14 +214,25 @@ export class SubscriptionClient {
   }
 
   // ensure we have an array of errors
-  private formatErrors(errors: any) {
+  private formatErrors(errors: any): FormatedError[] {
     if (Array.isArray(errors)) {
       return errors;
     }
+
+    // ValidationError
+    if (errors && errors.errors) {
+      return this.formatErrors(errors.errors);
+    }
+
     if (errors && errors.message) {
       return [errors];
     }
-    return [{ message: 'Unknown error' }];
+
+    return [{
+      name: 'FormatedError',
+      message: 'Unknown error',
+      originalError: errors
+    }];
   }
 
   private sendMessage(id: number, type: string, payload: any) {
@@ -246,9 +267,9 @@ export class SubscriptionClient {
     }
   }
 
-  private generateRequestId() {
-    const id = this.nextRequestId;
-    this.nextRequestId += 1;
+  private generateOperationId() {
+    const id = this.nextOperationId;
+    this.nextOperationId += 1;
     return id;
   }
 
@@ -259,9 +280,9 @@ export class SubscriptionClient {
     }
 
     if (!this.reconnecting) {
-      Object.keys(this.requests).forEach((key) => {
+      Object.keys(this.operations).forEach((key) => {
         this.unsentMessagesQueue.push(
-          this.buildMessage(parseInt(key, 10), MessageTypes.GQL_START, this.requests[key].options)
+          this.buildMessage(parseInt(key, 10), MessageTypes.GQL_START, this.operations[key].options)
         );
       });
       this.reconnecting = true;
@@ -275,13 +296,13 @@ export class SubscriptionClient {
 
   private flushUnsentMessagesQueue() {
     this.unsentMessagesQueue.forEach((message) => {
-      this.client.send(JSON.stringify(message));
+      this.sendMessageRaw(message);
     });
     this.unsentMessagesQueue = [];
   }
 
   private checkConnection() {
-    !this.wasKeepAliveReceived ? this.close() : this.wasKeepAliveReceived = false;
+    this.wasKeepAliveReceived ? this.wasKeepAliveReceived = false : this.close();
   }
 
   private connect(isReconnect: boolean = false) {
@@ -314,25 +335,23 @@ export class SubscriptionClient {
 
   private processReceivedData(receivedData: any) {
     let parsedMessage: any;
-    let reqId: number;
+    let opId: number;
 
     try {
       parsedMessage = JSON.parse(receivedData);
-      reqId = parsedMessage.id;
+      opId = parsedMessage.id;
     } catch (e) {
       throw new Error(`Message must be JSON-parseable. Got: ${receivedData}`);
     }
 
-    // Complete every request that are not registered on the client but are being sent by the server and are not
-    // in the allowed list
     if (
       [ MessageTypes.GQL_DATA,
         MessageTypes.GQL_COMPLETE,
         MessageTypes.GQL_ERROR,
-      ].indexOf(parsedMessage.type) !== -1 && !this.requests[reqId]
+      ].indexOf(parsedMessage.type) !== -1 && !this.operations[opId]
     ) {
-
-      this.unsubscribe(reqId);
+      this.unsubscribe(opId);
+      return;
     }
 
     switch (parsedMessage.type) {
@@ -349,18 +368,18 @@ export class SubscriptionClient {
         break;
 
       case MessageTypes.GQL_COMPLETE:
-        delete this.requests[reqId];
+        delete this.operations[opId];
         break;
 
       case MessageTypes.GQL_ERROR:
-        this.requests[reqId].handler(this.formatErrors(parsedMessage.payload), null);
-        delete this.requests[reqId];
+        this.operations[opId].handler(this.formatErrors(parsedMessage.payload), null);
+        delete this.operations[opId];
         break;
 
       case MessageTypes.GQL_DATA:
         const parsedPayload = !parsedMessage.payload.errors ?
           parsedMessage.payload : {...parsedMessage.payload, errors: this.formatErrors(parsedMessage.payload.errors)};
-        this.requests[reqId].handler(null, parsedPayload);
+        this.operations[opId].handler(null, parsedPayload);
         break;
 
       case MessageTypes.GQL_CONNECTION_KEEP_ALIVE:
