@@ -51,16 +51,11 @@ export type ExecuteFunction = (schema: GraphQLSchema,
                                variableValues?: { [key: string]: any },
                                operationName?: string,) => Promise<ExecutionResult>;
 
-export interface Executor {
-  execute?: ExecuteFunction;
-  executeReactive?: ExecuteReactiveFunction;
-}
-
 export interface ServerOptions {
   rootValue?: any;
   schema?: GraphQLSchema;
-  handler?: Function;
-  executor?: Executor;
+  subscribe?: Function;
+  execute?: ExecuteFunction;
   /**
    * @deprecated subscriptionManager is deprecated, use executor instead
    */
@@ -295,26 +290,22 @@ export class SubscriptionServer {
   }
 
   private loadExecutor(options: ServerOptions) {
-    const { subscriptionManager, executor, schema, rootValue, handler } = options;
+    const { subscriptionManager, execute, schema, rootValue, subscribe } = options;
 
-    if (!subscriptionManager && !executor && !handler) {
-      throw new Error('Must provide `subscriptionManager` or `executor` or `handler` to websocket server constructor.');
+    if (!subscriptionManager && !execute && !subscribe) {
+      throw new Error('Must provide `subscriptionManager` or `execute` and `subscribe` to websocket server constructor.');
     }
 
-    if (handler && !executor) {
-      throw new Error('Must provide `executor` when using `handler` which uses for query/mutation execution');
+    if (execute && !subscribe) {
+      throw new Error('Must provide `execute` when using `subscribe` which uses for query/mutation execution');
     }
 
-    if (subscriptionManager && executor) {
-      throw new Error('Must provide `subscriptionManager` or `executor` and not both.');
+    if (subscriptionManager && execute) {
+      throw new Error('Must provide `subscriptionManager` or `execute` and not both.');
     }
 
-    if (executor && !executor.execute && !executor.executeReactive) {
-      throw new Error('Must define at least execute or executeReactive function');
-    }
-
-    if (executor && !schema) {
-      throw new Error('Must provide `schema` when using `executor`.');
+    if (execute && !schema) {
+      throw new Error('Must provide `schema` when using `execute`.');
     }
 
     if (subscriptionManager) {
@@ -323,14 +314,13 @@ export class SubscriptionServer {
 
     this.schema = schema;
     this.rootValue = rootValue;
+
     if (subscriptionManager) {
       this.execute = ExecuteAdapters.executeFromSubscriptionManager(subscriptionManager);
-    } else if (handler) {
-      this.execute = ExecuteAdapters.executeFromAsyncIteratorFunction(handler, executor.execute);
-    } else if (executor && executor.executeReactive) {
-      this.execute = executor.executeReactive.bind(executor);
+    } else if (subscribe) {
+      this.execute = ExecuteAdapters.executeFromAsyncIteratorFunction(subscribe, execute);
     } else {
-      this.execute = ExecuteAdapters.executeFromExecute(executor.execute.bind(executor));
+      this.execute = ExecuteAdapters.executeFromExecute(execute);
     }
   }
 
