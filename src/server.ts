@@ -11,10 +11,10 @@ export interface IObservableSubscription {
 }
 export interface IObservable<T> {
   subscribe(observer: {
-    next?: (v: T) => void;
-    error?: (e: Error) => void;
-    complete?: () => void
-  }): IObservableSubscription;
+              next?: (v: T) => void;
+              error?: (e: Error) => void;
+              complete?: () => void
+            }): IObservableSubscription;
 }
 
 type ConnectionContext = {
@@ -30,30 +30,26 @@ export interface RequestMessage {
   payload?: {
     [key: string]: any; // this will support for example any options sent in init like the auth token
     query?: string;
-    variables?: {[key: string]: any};
+    variables?: { [key: string]: any };
     operationName?: string;
   };
   id?: string;
   type: string;
 }
 
-export type ExecuteReactiveFunction = (
-  schema: GraphQLSchema,
-  document: DocumentNode,
-  rootValue?: any,
-  contextValue?: any,
-  variableValues?: {[key: string]: any},
-  operationName?: string,
-) => IObservable<ExecutionResult>;
+export type ExecuteReactiveFunction = (schema: GraphQLSchema,
+                                       document: DocumentNode,
+                                       rootValue?: any,
+                                       contextValue?: any,
+                                       variableValues?: { [key: string]: any },
+                                       operationName?: string,) => IObservable<ExecutionResult>;
 
-export type ExecuteFunction = (
-  schema: GraphQLSchema,
-  document: DocumentNode,
-  rootValue?: any,
-  contextValue?: any,
-  variableValues?: {[key: string]: any},
-  operationName?: string,
-) => Promise<ExecutionResult>;
+export type ExecuteFunction = (schema: GraphQLSchema,
+                               document: DocumentNode,
+                               rootValue?: any,
+                               contextValue?: any,
+                               variableValues?: { [key: string]: any },
+                               operationName?: string,) => Promise<ExecutionResult>;
 
 export interface Executor {
   execute?: ExecuteFunction;
@@ -63,6 +59,7 @@ export interface Executor {
 export interface ServerOptions {
   rootValue?: any;
   schema?: GraphQLSchema;
+  handler?: Function;
   executor?: Executor;
   /**
    * @deprecated subscriptionManager is deprecated, use executor instead
@@ -89,9 +86,8 @@ class ExecuteAdapters {
             document: DocumentNode,
             rootValue?: any,
             contextValue?: any,
-            variableValues?: {[key: string]: any},
-            operationName?: string,
-    ) => ({
+            variableValues?: { [key: string]: any },
+            operationName?: string,) => ({
       subscribe: (observer) => {
         if (ExecuteAdapters.isASubscriptionRequest(document, operationName)) {
           observer.error(new Error('Subscriptions are not supported'));
@@ -105,8 +101,57 @@ class ExecuteAdapters {
         }
 
         return {
-          unsubscribe: () => { /* Promises cannot be canceled */ },
+          unsubscribe: () => { /* Promises cannot be canceled */
+          },
         };
+      },
+    });
+  }
+
+  public static executeFromAsyncIteratorFunction(handlerFn: Function, execute: Function): ExecuteReactiveFunction {
+    return (schema: GraphQLSchema,
+            document: DocumentNode,
+            rootValue?: any,
+            contextValue?: any,
+            variableValues?: { [key: string]: any },
+            operationName?: string,) => ({
+      subscribe: observer => {
+        if (ExecuteAdapters.isASubscriptionRequest(document, operationName)) {
+          let subscription: any;
+
+          try {
+            subscription = handlerFn(schema, document, rootValue, contextValue, variableValues, operationName);
+
+            setImmediate(async () => {
+              try {
+                for await (let result of subscription) {
+                  observer.next(result);
+                }
+              } catch (e) {
+                observer.error(e);
+              }
+
+              observer.complete();
+            });
+          } catch (e) {
+            observer.error(e);
+          }
+
+          return {
+            unsubscribe: () => subscription && subscription.return(),
+          };
+        } else {
+          execute(schema, document, rootValue, contextValue, variableValues, operationName)
+            .then((result: ExecutionResult) => {
+                observer.next(result);
+                observer.complete();
+              },
+              (e: any) => observer.error(e));
+
+          return {
+            unsubscribe: () => null,
+          };
+        }
       },
     });
   }
@@ -116,21 +161,21 @@ class ExecuteAdapters {
             document: DocumentNode,
             rootValue?: any,
             contextValue?: any,
-            variableValues?: {[key: string]: any},
-            operationName?: string,
-    ) => ({
+            variableValues?: { [key: string]: any },
+            operationName?: string,) => ({
       subscribe: (observer) => {
         if (!ExecuteAdapters.isASubscriptionRequest(document, operationName)) {
           observer.error(new Error('Queries or mutations are not supported'));
 
           return {
-            unsubscribe: () => { /* Empty unsubscribe method */ },
+            unsubscribe: () => { /* Empty unsubscribe method */
+            },
           };
         }
 
-        const callback = (error: Error | { errors: [ Error ] }, v: ExecutionResult) => {
+        const callback = (error: Error | { errors: [Error] }, v: ExecutionResult) => {
           if (error) {
-            if ( error.hasOwnProperty('errors') ) {
+            if (error.hasOwnProperty('errors')) {
               // ValidationError
               return observer.next({ errors: (error as any).errors });
             } else {
@@ -152,7 +197,7 @@ class ExecuteAdapters {
         return {
           unsubscribe: () => {
             subIdPromise.then((reqId: number) => {
-              if ( undefined !== reqId ) {
+              if (undefined !== reqId) {
                 subscriptionManager.unsubscribe(reqId);
               }
             });
@@ -192,8 +237,10 @@ export class SubscriptionServer {
   }
 
   constructor(options: ServerOptions, socketOptions: WebSocket.IServerOptions) {
-    const {onSubscribe, onUnsubscribe, onRequest,
-      onRequestComplete, onConnect, onDisconnect, keepAlive} = options;
+    const {
+      onSubscribe, onUnsubscribe, onRequest,
+      onRequestComplete, onConnect, onDisconnect, keepAlive
+    } = options;
 
     this.loadExecutor(options);
     this.onSubscribe = this.defineDeprecateFunctionWrapper('onSubscribe function is deprecated. ' +
@@ -248,10 +295,14 @@ export class SubscriptionServer {
   }
 
   private loadExecutor(options: ServerOptions) {
-    const {subscriptionManager, executor, schema, rootValue} = options;
+    const { subscriptionManager, executor, schema, rootValue, handler } = options;
 
-    if (!subscriptionManager && !executor) {
-      throw new Error('Must provide `subscriptionManager` or `executor` to websocket server constructor.');
+    if (!subscriptionManager && !executor && !handler) {
+      throw new Error('Must provide `subscriptionManager` or `executor` or `handler` to websocket server constructor.');
+    }
+
+    if (handler && !executor) {
+      throw new Error('Must provide `executor` when using `handler` which uses for query/mutation execution');
     }
 
     if (subscriptionManager && executor) {
@@ -272,9 +323,11 @@ export class SubscriptionServer {
 
     this.schema = schema;
     this.rootValue = rootValue;
-    if ( subscriptionManager ) {
+    if (subscriptionManager) {
       this.execute = ExecuteAdapters.executeFromSubscriptionManager(subscriptionManager);
-    } else if ( executor.executeReactive ) {
+    } else if (handler) {
+      this.execute = ExecuteAdapters.executeFromAsyncIteratorFunction(handler, executor.execute);
+    } else if (executor && executor.executeReactive) {
       this.execute = executor.executeReactive.bind(executor);
     } else {
       this.execute = ExecuteAdapters.executeFromExecute(executor.execute.bind(executor));
@@ -401,7 +454,7 @@ export class SubscriptionServer {
                 params.context,
                 params.variables,
                 params.operationName)
-              .subscribe({
+                .subscribe({
                   next: (v: ExecutionResult) => {
                     let result = v;
 
@@ -488,22 +541,22 @@ export class SubscriptionServer {
         break;
       case MessageTypes.GQL_CONNECTION_ACK:
         if (connectionContext.isLegacy) {
-          messageToReturn = {...message, type: MessageTypes.INIT_SUCCESS};
+          messageToReturn = { ...message, type: MessageTypes.INIT_SUCCESS };
         }
         break;
       case MessageTypes.GQL_CONNECTION_ERROR:
         if (connectionContext.isLegacy) {
-          messageToReturn = {...message, type: MessageTypes.INIT_FAIL};
+          messageToReturn = { ...message, type: MessageTypes.INIT_FAIL };
         }
         break;
       case MessageTypes.GQL_ERROR:
         if (connectionContext.isLegacy) {
-          messageToReturn = {...message, type: MessageTypes.SUBSCRIPTION_FAIL};
+          messageToReturn = { ...message, type: MessageTypes.SUBSCRIPTION_FAIL };
         }
         break;
       case MessageTypes.GQL_DATA:
         if (connectionContext.isLegacy) {
-          messageToReturn = {...message, type: MessageTypes.SUBSCRIPTION_DATA};
+          messageToReturn = { ...message, type: MessageTypes.SUBSCRIPTION_DATA };
         }
         break;
       case MessageTypes.GQL_COMPLETE:
@@ -536,12 +589,12 @@ export class SubscriptionServer {
   }
 
   private sendError(connectionContext: ConnectionContext, reqId: string, errorPayload: any,
-                           overrideDefaultErrorType?: string): void {
+                    overrideDefaultErrorType?: string): void {
     const sanitizedOverrideDefaultErrorType = overrideDefaultErrorType || MessageTypes.GQL_ERROR;
     if ([
         MessageTypes.GQL_CONNECTION_ERROR,
         MessageTypes.GQL_ERROR,
-      ].indexOf(overrideDefaultErrorType) === -1) {
+      ].indexOf(sanitizedOverrideDefaultErrorType) === -1) {
       throw new Error('overrideDefaultErrorType should be one of the allowed error messages' +
         ' GQL_CONNECTION_ERROR or GQL_ERROR');
     }
