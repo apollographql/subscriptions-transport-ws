@@ -130,7 +130,6 @@ class ExecuteAdapters {
 
         const callback = (error: Error, v: ExecutionResult) => {
           if (error) {
-            // TODO  we should not pass ValidationError to callback in the future.
             return observer.error(error);
           }
           observer.next(v);
