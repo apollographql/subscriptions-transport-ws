@@ -30,7 +30,7 @@ import {
 import {createServer, IncomingMessage, ServerResponse} from 'http';
 import {SubscriptionServer} from '../server';
 import {SubscriptionClient} from '../client';
-import {OperationMessage} from '../server';
+import {OperationMessagePayload} from '../server';
 import {SubscriptionOptions} from 'graphql-subscriptions/dist/pubsub';
 
 const TEST_PORT = 4953;
@@ -127,22 +127,22 @@ const subscriptionManager = new SubscriptionManager({
 
 // indirect call to support spying
 const handlers = {
-  onSubscribe: (msg: OperationMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
-    return Promise.resolve(Object.assign({}, params, {context: msg.payload['context']}));
+  onSubscribe: (msg: OperationMessagePayload, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+    return Promise.resolve(Object.assign({}, params, {context: msg['context']}));
   },
 };
 
 const options = {
   subscriptionManager,
-  onSubscribe: (msg: OperationMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+  onSubscribe: (msg: OperationMessagePayload | any, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
     return handlers.onSubscribe(msg, params, webSocketRequest);
   },
 };
 
 const eventsOptions = {
   subscriptionManager,
-  onSubscribe: sinon.spy((msg: OperationMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
-    return Promise.resolve(Object.assign({}, params, {context: msg.payload['context']}));
+  onSubscribe: sinon.spy((msg: OperationMessagePayload | any, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+    return Promise.resolve(Object.assign({}, params, {context: msg['context']}));
   }),
   onUnsubscribe: sinon.spy(),
   onConnect: sinon.spy(() => {
@@ -153,7 +153,8 @@ const eventsOptions = {
 
 const onConnectErrorOptions = {
   subscriptionManager,
-  onConnect: () => {
+  onConnect: (msg: any, connection:any, connectionContext: any) => {
+    connectionContext.isLegacy = true;
     throw new Error('Error');
   },
 };
@@ -182,10 +183,10 @@ new SubscriptionServer(onConnectErrorOptions, {server: httpServerWithOnConnectEr
 const httpServerWithDelay = createServer(notFoundRequestListener);
 httpServerWithDelay.listen(DELAYED_TEST_PORT);
 new SubscriptionServer(Object.assign({}, options, {
-  onSubscribe: (msg: OperationMessage, params: SubscriptionOptions) => {
+  onSubscribe: (msg: OperationMessagePayload | any, params: SubscriptionOptions) => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
-        resolve(Object.assign({}, params, {context: msg.payload['context']}));
+        resolve(Object.assign({}, params, {context: msg['context']}));
       }, 100);
     });
   },
@@ -602,34 +603,6 @@ describe('Client', function () {
     testBadServer(payload, errorMessage, done);
   });
 
-  it('should throw an error when the susbcription times out', function (done) {
-    // TODO
-    // This test is no longer needed. Do u agree Hagaico?
-
-    /*
-    // hopefully 1ms is fast enough to time out before the server responds
-    const client = new SubscriptionClient(`ws://localhost:${DELAYED_TEST_PORT}/`, {timeout: 1});
-
-    setTimeout(() => {
-      client.subscribe({
-        query: `subscription useInfo{
-            error
-          }`,
-        operationName: 'useInfo',
-        variables: {},
-      }, function (error: any, result: any) {
-        if (error) {
-          expect(error[0].message).to.equals('Subscription timed out - no response from server');
-          done();
-        }
-        if (result) {
-          assert(false);
-        }
-      });
-    }, 100);*/
-    done();
-  });
-
   it('should reconnect to the server', function (done) {
     let connections = 0;
     let client: SubscriptionClient;
@@ -799,13 +772,25 @@ describe('Server', function () {
   it('should trigger onConnect and return GQL_CONNECTION_ERROR with error', (done) => {
     const connectionCallbackSpy = sinon.spy();
 
-    new SubscriptionClient(`ws://localhost:${ONCONNECT_ERROR_TEST_PORT}/`, {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${ONCONNECT_ERROR_TEST_PORT}/`, {
       connectionCallback: connectionCallbackSpy,
     });
 
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    subscriptionsClient.client.onmessage = (dataReceived: any) => {
+      let messageData = JSON.parse(dataReceived.data);
+
+      if (messageData.type === MessageTypes.INIT_FAIL) {
+        messageData.type = MessageTypes.GQL_CONNECTION_ERROR;
+      }
+
+      dataReceived.data = JSON.stringify(messageData);
+      originalOnMessage(dataReceived);
+    };
+
     setTimeout(() => {
       expect(connectionCallbackSpy.calledOnce).to.be.true;
-      expect(connectionCallbackSpy.getCall(0).args[0].message).to.equal('Error');
+      expect(connectionCallbackSpy.getCall(0).args[0]).to.equal('Error');
       done();
     }, 200);
   });
@@ -893,15 +878,7 @@ describe('Server', function () {
       //do nothing
     });
 
-    setTimeout(() => {
-      // TODO
-      // Hagaico I had the need to add this timeout here
-      // otherwhise unsubscribe happens before subscribe completes on server side
-      // so onSubscribe isn't called
-      //
-      // Can u check this test please?
-      client.unsubscribe(subId);
-    }, 100);
+    client.unsubscribe(subId);
 
     setTimeout(() => {
       assert(eventsOptions.onUnsubscribe.calledOnce);
@@ -1227,7 +1204,7 @@ describe('Server', function () {
   it('handles errors prior to graphql execution', function (done) {
     // replace the onSubscribeSpy with a custom handler, the spy will restore
     // the original method
-    handlers.onSubscribe = (msg: OperationMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+    handlers.onSubscribe = (msg: OperationMessagePayload, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
       return Promise.resolve(Object.assign({}, params, {
         context: () => {
           throw new Error('bad');

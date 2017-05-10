@@ -25,7 +25,7 @@ export interface OperationOptions {
 
 export type FormatedError = Error & {
   originalError?: any;
-}
+};
 
 export interface Operation {
   options: OperationOptions;
@@ -219,6 +219,7 @@ export class SubscriptionClient {
       return errors;
     }
 
+    // TODO  we should not pass ValidationError to callback in the future.
     // ValidationError
     if (errors && errors.errors) {
       return this.formatErrors(errors.errors);
@@ -231,7 +232,7 @@ export class SubscriptionClient {
     return [{
       name: 'FormatedError',
       message: 'Unknown error',
-      originalError: errors
+      originalError: errors,
     }];
   }
 
@@ -268,9 +269,7 @@ export class SubscriptionClient {
   }
 
   private generateOperationId() {
-    const id = this.nextOperationId;
-    this.nextOperationId += 1;
-    return id;
+    return ++this.nextOperationId;
   }
 
   private tryReconnect() {
@@ -282,7 +281,7 @@ export class SubscriptionClient {
     if (!this.reconnecting) {
       Object.keys(this.operations).forEach((key) => {
         this.unsentMessagesQueue.push(
-          this.buildMessage(parseInt(key, 10), MessageTypes.GQL_START, this.operations[key].options)
+          this.buildMessage(parseInt(key, 10), MessageTypes.GQL_START, this.operations[key].options),
         );
       });
       this.reconnecting = true;
