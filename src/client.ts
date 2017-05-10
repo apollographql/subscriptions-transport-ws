@@ -268,7 +268,7 @@ export class SubscriptionClient {
       this.reconnecting = false;
       this.backoff.reset();
 
-      const payload = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
+      const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
 
       // Send INIT message, no need to wait for connection to success (reduce roundtrips)
       this.sendMessage({type: INIT, payload});
