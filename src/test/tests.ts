@@ -602,34 +602,6 @@ describe('Client', function () {
     testBadServer(payload, errorMessage, done);
   });
 
-  it('should throw an error when the susbcription times out', function (done) {
-    // TODO
-    // This test is no longer needed. Do u agree Hagaico?
-
-    /*
-    // hopefully 1ms is fast enough to time out before the server responds
-    const client = new SubscriptionClient(`ws://localhost:${DELAYED_TEST_PORT}/`, {timeout: 1});
-
-    setTimeout(() => {
-      client.subscribe({
-        query: `subscription useInfo{
-            error
-          }`,
-        operationName: 'useInfo',
-        variables: {},
-      }, function (error: any, result: any) {
-        if (error) {
-          expect(error[0].message).to.equals('Subscription timed out - no response from server');
-          done();
-        }
-        if (result) {
-          assert(false);
-        }
-      });
-    }, 100);*/
-    done();
-  });
-
   it('should reconnect to the server', function (done) {
     let connections = 0;
     let client: SubscriptionClient;
