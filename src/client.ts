@@ -39,14 +39,19 @@ export interface Subscriptions {
   [id: string]: Subscription;
 }
 
-export type ConnectionParams = {[paramName: string]: any};
+export type ConnectionParams = {
+  [paramName: string]: any
+}
+
+export type ConnectionParamsOptions = ConnectionParams | Function;
 
 export interface ClientOptions {
-  connectionParams?: ConnectionParams;
+  connectionParams?: ConnectionParamsOptions;
   timeout?: number;
   reconnect?: boolean;
   reconnectionAttempts?: number;
   connectionCallback?: (error: Error[], result?: any) => void;
+  lazy?: boolean;
 }
 
 const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
@@ -56,7 +61,7 @@ export class SubscriptionClient {
   public subscriptions: Subscriptions;
   private url: string;
   private maxId: number;
-  private connectionParams: ConnectionParams;
+  private connectionParams: ConnectionParamsOptions;
   private subscriptionTimeout: number;
   private waitingSubscriptions: {[id: string]: boolean}; // subscriptions waiting for SUBSCRIPTION_SUCCESS
   private unsentMessagesQueue: Array<any>; // queued messages while websocket is opening.
@@ -67,6 +72,7 @@ export class SubscriptionClient {
   private backoff: any;
   private connectionCallback: any;
   private eventEmitter: EventEmitter;
+  private lazy: boolean;
   private wsImpl: any;
 
   constructor(url: string, options?: ClientOptions, webSocketImpl?: any) {
@@ -76,6 +82,7 @@ export class SubscriptionClient {
       timeout = DEFAULT_SUBSCRIPTION_TIMEOUT,
       reconnect = false,
       reconnectionAttempts = Infinity,
+      lazy = false
     } = (options || {});
 
     this.wsImpl = webSocketImpl || NativeWebSocket;
@@ -96,22 +103,36 @@ export class SubscriptionClient {
     this.reconnectSubscriptions = {};
     this.reconnecting = false;
     this.reconnectionAttempts = reconnectionAttempts;
+    this.lazy = Boolean(lazy);
     this.backoff = new Backoff({ jitter: 0.5 });
     this.eventEmitter = new EventEmitter();
+    this.client = null;
 
-    this.connect();
+    if (!this.lazy) {
+      this.connect();
+    }
   }
 
   public get status() {
+    if (!Boolean(this.client)) {
+      return 0; //readyState 'CONNECTING'
+    }
+
     return this.client.readyState;
   }
 
   public close() {
-    this.client.close();
+    if (Boolean(this.client)) {
+      this.client.close();
+    }
   }
 
   public subscribe(options: SubscriptionOptions, handler: (error: Error[], result?: any) => void) {
     const { query, variables, operationName, context } = options;
+
+    if (!Boolean(this.client)) {
+      this.connect();
+    }
 
     if (!query) {
       throw new Error('Must provide `query` to subscribe.');
@@ -165,6 +186,9 @@ export class SubscriptionClient {
   }
 
   public unsubscribe(id: number) {
+    if (!Boolean(this.client)) {
+      return;
+    }
     delete this.subscriptions[id];
     delete this.waitingSubscriptions[id];
     let message = { id: id, type: SUBSCRIPTION_END};
@@ -243,8 +267,11 @@ export class SubscriptionClient {
       this.eventEmitter.emit(isReconnect ? 'reconnect' : 'connect');
       this.reconnecting = false;
       this.backoff.reset();
+
+      const payload = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
+
       // Send INIT message, no need to wait for connection to success (reduce roundtrips)
-      this.sendMessage({type: INIT, payload: this.connectionParams});
+      this.sendMessage({type: INIT, payload});
 
       Object.keys(this.reconnectSubscriptions).forEach((key) => {
         const { options, handler } = this.reconnectSubscriptions[key];
