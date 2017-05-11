@@ -320,7 +320,9 @@ export class SubscriptionServer {
           if (this.onConnect) {
             onConnectPromise = new Promise((resolve, reject) => {
               try {
-                resolve(this.onConnect(parsedMessage.payload, connectionContext));
+                // TODO - this should become a function call with just 2 arguments in the future
+                // when we release the breaking change api: parsedMessage.payload and connectionContext
+                resolve(this.onConnect(parsedMessage.payload, connectionContext.socket, connectionContext));
               } catch (e) {
                 reject(e);
               }
