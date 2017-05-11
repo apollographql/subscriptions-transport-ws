@@ -504,7 +504,8 @@ export class SubscriptionServer {
         break;
       case MessageTypes.GQL_CONNECTION_ERROR:
         if (connectionContext.isLegacy) {
-          messageToReturn = {...message, type: MessageTypes.INIT_FAIL};
+          messageToReturn = {...message, type: MessageTypes.INIT_FAIL,
+            payload: message.payload.message ? message.payload.message : message.payload};
         }
         break;
       case MessageTypes.GQL_ERROR:

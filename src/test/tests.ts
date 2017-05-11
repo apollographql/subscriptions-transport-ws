@@ -153,7 +153,8 @@ const eventsOptions = {
 
 const onConnectErrorOptions = {
   subscriptionManager,
-  onConnect: () => {
+  onConnect: (msg: any, connectionContext: any) => {
+    connectionContext.isLegacy = true;
     throw new Error('Error');
   },
 };
@@ -771,13 +772,25 @@ describe('Server', function () {
   it('should trigger onConnect and return GQL_CONNECTION_ERROR with error', (done) => {
     const connectionCallbackSpy = sinon.spy();
 
-    new SubscriptionClient(`ws://localhost:${ONCONNECT_ERROR_TEST_PORT}/`, {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${ONCONNECT_ERROR_TEST_PORT}/`, {
       connectionCallback: connectionCallbackSpy,
     });
 
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    subscriptionsClient.client.onmessage = (dataReceived: any) => {
+      let messageData = JSON.parse(dataReceived.data);
+
+      if (messageData.type === MessageTypes.INIT_FAIL) {
+        messageData.type = MessageTypes.GQL_CONNECTION_ERROR;
+      }
+
+      dataReceived.data = JSON.stringify(messageData);
+      originalOnMessage(dataReceived);
+    };
+
     setTimeout(() => {
       expect(connectionCallbackSpy.calledOnce).to.be.true;
-      expect(connectionCallbackSpy.getCall(0).args[0].message).to.equal('Error');
+      expect(connectionCallbackSpy.getCall(0).args[0]).to.equal('Error');
       done();
     }, 200);
   });
