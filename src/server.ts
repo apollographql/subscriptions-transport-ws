@@ -9,6 +9,7 @@ import { getOperationAST, print, parse, ExecutionResult, GraphQLSchema, Document
 export interface IObservableSubscription {
   unsubscribe: () => void;
 }
+
 export interface IObservable<T> {
   subscribe(observer: {
     next?: (v: T) => void;
@@ -26,13 +27,15 @@ type ConnectionContext = {
   },
 };
 
+export interface OperationMessagePayload {
+  [key: string]: any; // this will support for example any options sent in init like the auth token
+  query?: string;
+  variables?: {[key: string]: any};
+  operationName?: string;
+}
+
 export interface OperationMessage {
-  payload?: {
-    [key: string]: any; // this will support for example any options sent in init like the auth token
-    query?: string;
-    variables?: {[key: string]: any};
-    operationName?: string;
-  };
+  payload?: OperationMessagePayload;
   id?: string;
   type: string;
 }
@@ -191,10 +194,10 @@ export class SubscriptionServer {
       onOperationComplete, onConnect, onDisconnect, keepAlive} = options;
 
     this.loadExecutor(options);
-    this.onSubscribe = this.defineDeprecateFunctionWrapper('onSubscribe function is deprecated. ' +
-      'Use onOperation instead.');
-    this.onUnsubscribe = this.defineDeprecateFunctionWrapper('onUnsubscribe function is deprecated. ' +
-      'Use onOperationComplete instead.');
+    this.onSubscribe = onSubscribe ? this.defineDeprecateFunctionWrapper('onSubscribe function is deprecated. ' +
+      'Use onOperation instead.') : null;
+    this.onUnsubscribe = onUnsubscribe ? this.defineDeprecateFunctionWrapper('onUnsubscribe function is deprecated. ' +
+      'Use onOperationComplete instead.') : null;
     this.onOperation = onSubscribe ? onSubscribe : onOperation;
     this.onOperationComplete = onUnsubscribe ? onUnsubscribe : onOperationComplete;
     this.onConnect = onConnect;
@@ -375,7 +378,13 @@ export class SubscriptionServer {
             let promisedParams = Promise.resolve(baseParams);
 
             if (this.onOperation) {
-              promisedParams = Promise.resolve(this.onOperation(parsedMessage, baseParams, connectionContext.socket));
+              let messageForCallback: any = parsedMessage;
+
+              if (this.onSubscribe) {
+                messageForCallback = parsedMessage.payload;
+              }
+
+              promisedParams = Promise.resolve(this.onOperation(messageForCallback, baseParams, connectionContext.socket));
             }
 
             // if we already have a subscription with this id, unsubscribe from it first
@@ -557,8 +566,14 @@ export class SubscriptionServer {
   }
 
   private defineDeprecateFunctionWrapper(deprecateMessage: string) {
-    return () => {
-      console.warn(deprecateMessage);
+    const wrapperFunction = () => {
+      if (process && process.env && process.env.NODE_ENV !== 'production') {
+        console.warn(deprecateMessage);
+      }
     };
+
+    wrapperFunction();
+
+    return wrapperFunction;
   }
 }
