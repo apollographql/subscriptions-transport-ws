@@ -523,7 +523,7 @@ export class SubscriptionServer {
     }
 
     return messageToReturn;
-  };
+  }
 
   private sendMessage(connectionContext: ConnectionContext, opId: string, type: string, payload: any): void {
     const parsedMessage = this.parseLegacyProtocolMessage(connectionContext, {
