@@ -44,4 +44,4 @@ export default class MessageTypes {
    */
   public static INIT_FAIL = 'init_fail';
   constructor() { throw new Error('Static Class'); }
-};
+}
