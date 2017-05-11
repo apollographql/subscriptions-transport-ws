@@ -153,7 +153,7 @@ const eventsOptions = {
 
 const onConnectErrorOptions = {
   subscriptionManager,
-  onConnect: (msg: any, connection:any, connectionContext: any) => {
+  onConnect: (msg: any, connection: any, connectionContext: any) => {
     connectionContext.isLegacy = true;
     throw new Error('Error');
   },
