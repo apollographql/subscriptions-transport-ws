@@ -878,15 +878,7 @@ describe('Server', function () {
       //do nothing
     });
 
-    setTimeout(() => {
-      // TODO
-      // Hagaico I had the need to add this timeout here
-      // otherwhise unsubscribe happens before subscribe completes on server side
-      // so onSubscribe isn't called
-      //
-      // Can u check this test please?
-      client.unsubscribe(subId);
-    }, 100);
+    client.unsubscribe(subId);
 
     setTimeout(() => {
       assert(eventsOptions.onUnsubscribe.calledOnce);

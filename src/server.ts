@@ -366,6 +366,11 @@ export class SubscriptionServer {
 
         case MessageTypes.GQL_START:
           connectionContext.initPromise.then((initResult) => {
+            // if we already have a subscription with this id, unsubscribe from it first
+            if (connectionContext.operations && connectionContext.operations[opId]) {
+              this.unsubscribe(connectionContext, opId);
+            }
+
             const baseParams = {
               query: parsedMessage.payload.query,
               variables: parsedMessage.payload.variables,
@@ -377,6 +382,11 @@ export class SubscriptionServer {
             };
             let promisedParams = Promise.resolve(baseParams);
 
+            // set an initial mock subscription to only registering opId
+            connectionContext.operations[opId] = {
+              unsubscribe: () => { /* no op */ },
+            };
+
             if (this.onOperation) {
               let messageForCallback: any = parsedMessage;
 
@@ -385,11 +395,6 @@ export class SubscriptionServer {
               }
 
               promisedParams = Promise.resolve(this.onOperation(messageForCallback, baseParams, connectionContext.socket));
-            }
-
-            // if we already have a subscription with this id, unsubscribe from it first
-            if (connectionContext.operations && connectionContext.operations[opId]) {
-              this.unsubscribe(connectionContext, opId);
             }
 
             promisedParams.then((params: any) => {
