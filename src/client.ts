@@ -1,42 +1,39 @@
-import * as Backoff from 'backo2';
-import {EventEmitter, ListenerFn} from 'eventemitter3';
-
 declare let window: any;
 const _global = typeof global !== 'undefined' ? global : (typeof window !== 'undefined' ? window : {});
 const NativeWebSocket = _global.WebSocket || _global.MozWebSocket;
 
-import {
-  SUBSCRIPTION_FAIL,
-  SUBSCRIPTION_DATA,
-  SUBSCRIPTION_START,
-  SUBSCRIPTION_SUCCESS,
-  SUBSCRIPTION_END,
-  KEEPALIVE,
-  INIT,
-  INIT_FAIL,
-  INIT_SUCCESS,
-} from './messageTypes';
-import { GRAPHQL_SUBSCRIPTIONS } from './protocols';
-
+import * as Backoff from 'backo2';
+import { EventEmitter, ListenerFn } from 'eventemitter3';
 import isString = require('lodash.isstring');
 import isObject = require('lodash.isobject');
+import { ExecutionResult } from 'graphql/execution/execute';
+import { print } from 'graphql/language/printer';
+import { getOperationAST } from 'graphql/utilities/getOperationAST';
+
+import MessageTypes from './message-types';
+import { GRAPHQL_WS } from './protocol';
+import { WS_TIMEOUT } from './defaults';
 
 export * from './helpers';
 
-export interface SubscriptionOptions {
+export interface OperationOptions {
   query: string;
   variables?: Object;
   operationName?: string;
   context?: any;
 }
 
-export interface Subscription {
-  options: SubscriptionOptions;
+export type FormatedError = Error & {
+  originalError?: any;
+};
+
+export interface Operation {
+  options: OperationOptions;
   handler: (error: Error[], result?: any) => void;
 }
 
-export interface Subscriptions {
-  [id: string]: Subscription;
+export interface Operations {
+  [id: string]: Operation;
 }
 
 export type ConnectionParams = {[paramName: string]: any};
@@ -49,31 +46,29 @@ export interface ClientOptions {
   connectionCallback?: (error: Error[], result?: any) => void;
 }
 
-const DEFAULT_SUBSCRIPTION_TIMEOUT = 5000;
-
 export class SubscriptionClient {
   public client: any;
-  public subscriptions: Subscriptions;
+  public operations: Operations;
   private url: string;
-  private maxId: number;
+  private nextOperationId: number;
   private connectionParams: ConnectionParams;
-  private subscriptionTimeout: number;
-  private waitingSubscriptions: {[id: string]: boolean}; // subscriptions waiting for SUBSCRIPTION_SUCCESS
+  private wsTimeout: number;
   private unsentMessagesQueue: Array<any>; // queued messages while websocket is opening.
   private reconnect: boolean;
   private reconnecting: boolean;
   private reconnectionAttempts: number;
-  private reconnectSubscriptions: Subscriptions;
   private backoff: any;
   private connectionCallback: any;
   private eventEmitter: EventEmitter;
   private wsImpl: any;
+  private wasKeepAliveReceived: boolean;
+  private checkConnectionTimeoutId: any;
 
   constructor(url: string, options?: ClientOptions, webSocketImpl?: any) {
     const {
       connectionCallback = undefined,
       connectionParams = {},
-      timeout = DEFAULT_SUBSCRIPTION_TIMEOUT,
+      timeout = WS_TIMEOUT,
       reconnect = false,
       reconnectionAttempts = Infinity,
     } = (options || {});
@@ -87,13 +82,11 @@ export class SubscriptionClient {
     this.connectionParams = connectionParams;
     this.connectionCallback = connectionCallback;
     this.url = url;
-    this.subscriptions = {};
-    this.maxId = 0;
-    this.subscriptionTimeout = timeout;
-    this.waitingSubscriptions = {};
+    this.operations = {};
+    this.nextOperationId = 0;
+    this.wsTimeout = timeout;
     this.unsentMessagesQueue = [];
     this.reconnect = reconnect;
-    this.reconnectSubscriptions = {};
     this.reconnecting = false;
     this.reconnectionAttempts = reconnectionAttempts;
     this.backoff = new Backoff({ jitter: 0.5 });
@@ -110,38 +103,39 @@ export class SubscriptionClient {
     this.client.close();
   }
 
-  public subscribe(options: SubscriptionOptions, handler: (error: Error[], result?: any) => void) {
-    const { query, variables, operationName, context } = options;
+  public query(options: OperationOptions): Promise<ExecutionResult> {
+    return new Promise((resolve, reject) => {
+      const handler = (error: Error[], result?: any) => {
+        if (result) {
+          resolve(result);
+        } else {
+          reject(error);
+        }
+      };
 
-    if (!query) {
-      throw new Error('Must provide `query` to subscribe.');
-    }
+      // NOTE: as soon as we move into observables, we don't need to wait GQL_COMPLETE for queries and mutations
+      this.executeOperation(options, handler);
+    });
+  }
+
+  public subscribe(options: OperationOptions, handler: (error: Error[], result?: any) => void) {
+    const legacyHandler = (error: Error[], result?: any) => {
+      let operationPayloadData = result && result.data || null;
+      let operationPayloadErrors = result && result.errors  || null;
+
+      if (error) {
+        operationPayloadErrors = error;
+        operationPayloadData = null;
+      }
+
+      handler(operationPayloadErrors, operationPayloadData);
+    };
 
     if (!handler) {
-      throw new Error('Must provide `handler` to subscribe.');
+      throw new Error('Must provide an handler.');
     }
 
-    if (
-      !isString(query) ||
-      ( operationName && !isString(operationName)) ||
-      ( variables && !isObject(variables))
-    ) {
-      throw new Error('Incorrect option types to subscribe. `subscription` must be a string,' +
-      '`operationName` must be a string, and `variables` must be an object.');
-    }
-
-    const subId = this.generateSubscriptionId();
-    let message = Object.assign(options, {type: SUBSCRIPTION_START, id: subId});
-    this.sendMessage(message);
-    this.subscriptions[subId] = {options, handler};
-    this.waitingSubscriptions[subId] = true;
-    setTimeout( () => {
-      if (this.waitingSubscriptions[subId]) {
-        handler([new Error('Subscription timed out - no response from server')]);
-        this.unsubscribe(subId);
-      }
-    }, this.subscriptionTimeout);
-    return subId;
+    return this.executeOperation(options, legacyHandler);
   }
 
   public on(eventName: string, callback: ListenerFn, context?: any): Function {
@@ -165,26 +159,100 @@ export class SubscriptionClient {
   }
 
   public unsubscribe(id: number) {
-    delete this.subscriptions[id];
-    delete this.waitingSubscriptions[id];
-    let message = { id: id, type: SUBSCRIPTION_END};
-    this.sendMessage(message);
+    if (this.operations[id]) {
+      delete this.operations[id];
+    }
+    this.sendMessage(id, MessageTypes.GQL_STOP, undefined);
   }
 
   public unsubscribeAll() {
-    Object.keys(this.subscriptions).forEach( subId => {
-      this.unsubscribe(parseInt(subId));
+    Object.keys(this.operations).forEach( subId => {
+      this.unsubscribe(parseInt(subId, 10));
     });
   }
 
+  private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): number {
+    const { query, variables, operationName } = options;
+
+    if (!query) {
+      throw new Error('Must provide a query.');
+    }
+
+    if (!handler) {
+      throw new Error('Must provide an handler.');
+    }
+
+    if (
+      ( !isString(query) && !getOperationAST(query, operationName)) ||
+      ( operationName && !isString(operationName)) ||
+      ( variables && !isObject(variables))
+    ) {
+      throw new Error('Incorrect option types. query must be a string or a document,' +
+        '`operationName` must be a string, and `variables` must be an object.');
+    }
+
+    const opId = this.generateOperationId();
+    this.operations[opId] = { options, handler };
+    this.sendMessage(opId, MessageTypes.GQL_START, options);
+
+    return opId;
+  }
+
+  private buildMessage(id: number, type: string, payload: any) {
+    const payloadToReturn = payload && payload.query ?
+      {
+        ...payload,
+        query: typeof payload.query === 'string' ? payload.query : print(payload.query),
+      } :
+      payload;
+
+    return {
+      id,
+      type,
+      payload: payloadToReturn,
+    };
+  }
+
+  // ensure we have an array of errors
+  private formatErrors(errors: any): FormatedError[] {
+    if (Array.isArray(errors)) {
+      return errors;
+    }
+
+    // TODO  we should not pass ValidationError to callback in the future.
+    // ValidationError
+    if (errors && errors.errors) {
+      return this.formatErrors(errors.errors);
+    }
+
+    if (errors && errors.message) {
+      return [errors];
+    }
+
+    return [{
+      name: 'FormatedError',
+      message: 'Unknown error',
+      originalError: errors,
+    }];
+  }
+
+  private sendMessage(id: number, type: string, payload: any) {
+    this.sendMessageRaw(this.buildMessage(id, type, payload));
+  }
+
   // send message, or queue it if connection is not open
-  private sendMessage(message: Object) {
-    switch (this.client.readyState) {
-
+  private sendMessageRaw(message: Object) {
+    switch (this.status) {
       case this.client.OPEN:
-        // TODO: throw error if message isn't json serializable?
-        this.client.send(JSON.stringify(message));
+        let serializedMessage: string = JSON.stringify(message);
+        let parsedMessage: any;
+        try {
+          parsedMessage = JSON.parse(serializedMessage);
+        } catch (e) {
+          throw new Error(`Message must be JSON-serializable. Got: ${message}`);
+        }
 
+        this.client.send(serializedMessage);
         break;
       case this.client.CONNECTING:
         this.unsentMessagesQueue.push(message);
@@ -192,6 +260,7 @@ export class SubscriptionClient {
         break;
       case this.client.CLOSING:
       case this.client.CLOSED:
+        break;
       default:
         if (!this.reconnecting) {
           throw new Error('Client is not connected to a websocket.');
@@ -199,61 +268,52 @@ export class SubscriptionClient {
     }
   }
 
-  private generateSubscriptionId() {
-    const id = this.maxId;
-    this.maxId += 1;
-    return id;
-  }
-
-  // ensure we have an array of errors
-  private formatErrors(errors: any) {
-    if (Array.isArray(errors)) {
-      return errors;
-    }
-    if (errors && errors.message) {
-      return [errors];
-    }
-    return [{ message: 'Unknown error' }];
+  private generateOperationId() {
+    return ++this.nextOperationId;
   }
 
   private tryReconnect() {
-    if (!this.reconnect) {
-      return;
-    }
-    if (this.backoff.attempts > this.reconnectionAttempts) {
+    if (!this.reconnect || this.backoff.attempts > this.reconnectionAttempts) {
+      this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
       return;
     }
 
     if (!this.reconnecting) {
-      this.reconnectSubscriptions = this.subscriptions;
-      this.subscriptions = {};
-      this.waitingSubscriptions = {};
+      Object.keys(this.operations).forEach((key) => {
+        this.unsentMessagesQueue.push(
+          this.buildMessage(parseInt(key, 10), MessageTypes.GQL_START, this.operations[key].options),
+        );
+      });
       this.reconnecting = true;
     }
+
     const delay = this.backoff.duration();
     setTimeout(() => {
       this.connect(true);
     }, delay);
   }
 
+  private flushUnsentMessagesQueue() {
+    this.unsentMessagesQueue.forEach((message) => {
+      this.sendMessageRaw(message);
+    });
+    this.unsentMessagesQueue = [];
+  }
+
+  private checkConnection() {
+    this.wasKeepAliveReceived ? this.wasKeepAliveReceived = false : this.close();
+  }
+
   private connect(isReconnect: boolean = false) {
-    this.client = new this.wsImpl(this.url, GRAPHQL_SUBSCRIPTIONS);
+    this.client = new this.wsImpl(this.url, GRAPHQL_WS);
 
     this.client.onopen = () => {
       this.eventEmitter.emit(isReconnect ? 'reconnect' : 'connect');
       this.reconnecting = false;
       this.backoff.reset();
-      // Send INIT message, no need to wait for connection to success (reduce roundtrips)
-      this.sendMessage({type: INIT, payload: this.connectionParams});
-
-      Object.keys(this.reconnectSubscriptions).forEach((key) => {
-        const { options, handler } = this.reconnectSubscriptions[key];
-        this.subscribe(options, handler);
-      });
-      this.unsentMessagesQueue.forEach((message) => {
-        this.client.send(JSON.stringify(message));
-      });
-      this.unsentMessagesQueue = [];
+      // Send CONNECTION_INIT message, no need to wait for connection to success (reduce roundtrips)
+      this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_INIT, this.connectionParams);
+      this.flushUnsentMessagesQueue();
     };
 
     this.client.onclose = () => {
@@ -268,54 +328,69 @@ export class SubscriptionClient {
     };
 
     this.client.onmessage = ({ data }: {data: any}) => {
-      let parsedMessage: any;
-      try {
-        parsedMessage = JSON.parse(data);
-      } catch (e) {
-        throw new Error(`Message must be JSON-parseable. Got: ${data}`);
-      }
-      const subId = parsedMessage.id;
-      if ([KEEPALIVE, INIT_SUCCESS, INIT_FAIL].indexOf(parsedMessage.type) === -1 && !this.subscriptions[subId]) {
-        this.unsubscribe(subId);
-
-        if (parsedMessage.type === KEEPALIVE) {
-          return;
-        }
-      }
-
-      // console.log('MSG', JSON.stringify(parsedMessage, null, 2));
-      switch (parsedMessage.type) {
-        case INIT_FAIL:
-          if (this.connectionCallback) {
-            this.connectionCallback(parsedMessage.payload.error);
-          }
-          break;
-        case INIT_SUCCESS:
-          if (this.connectionCallback) {
-            this.connectionCallback();
-          }
-          break;
-        case SUBSCRIPTION_SUCCESS:
-          delete this.waitingSubscriptions[subId];
-
-          break;
-        case SUBSCRIPTION_FAIL:
-          this.subscriptions[subId].handler(this.formatErrors(parsedMessage.payload.errors), null);
-          delete this.subscriptions[subId];
-          delete this.waitingSubscriptions[subId];
-
-          break;
-        case SUBSCRIPTION_DATA:
-          const payloadData = parsedMessage.payload.data || null;
-          const payloadErrors = parsedMessage.payload.errors ? this.formatErrors(parsedMessage.payload.errors) : null;
-          this.subscriptions[subId].handler(payloadErrors, payloadData);
-          break;
-        case KEEPALIVE:
-          break;
-
-        default:
-          throw new Error('Invalid message type!');
-      }
+      this.processReceivedData(data);
     };
+  }
+
+  private processReceivedData(receivedData: any) {
+    let parsedMessage: any;
+    let opId: number;
+
+    try {
+      parsedMessage = JSON.parse(receivedData);
+      opId = parsedMessage.id;
+    } catch (e) {
+      throw new Error(`Message must be JSON-parseable. Got: ${receivedData}`);
+    }
+
+    if (
+      [ MessageTypes.GQL_DATA,
+        MessageTypes.GQL_COMPLETE,
+        MessageTypes.GQL_ERROR,
+      ].indexOf(parsedMessage.type) !== -1 && !this.operations[opId]
+    ) {
+      this.unsubscribe(opId);
+      return;
+    }
+
+    switch (parsedMessage.type) {
+      case MessageTypes.GQL_CONNECTION_ERROR:
+        if (this.connectionCallback) {
+          this.connectionCallback(parsedMessage.payload);
+        }
+        break;
+
+      case MessageTypes.GQL_CONNECTION_ACK:
+        if (this.connectionCallback) {
+          this.connectionCallback();
+        }
+        break;
+
+      case MessageTypes.GQL_COMPLETE:
+        delete this.operations[opId];
+        break;
+
+      case MessageTypes.GQL_ERROR:
+        this.operations[opId].handler(this.formatErrors(parsedMessage.payload), null);
+        delete this.operations[opId];
+        break;
+
+      case MessageTypes.GQL_DATA:
+        const parsedPayload = !parsedMessage.payload.errors ?
+          parsedMessage.payload : {...parsedMessage.payload, errors: this.formatErrors(parsedMessage.payload.errors)};
+        this.operations[opId].handler(null, parsedPayload);
+        break;
+
+      case MessageTypes.GQL_CONNECTION_KEEP_ALIVE:
+        this.wasKeepAliveReceived = true;
+        if (this.checkConnectionTimeoutId) {
+          clearTimeout(this.checkConnectionTimeoutId);
+        }
+        this.checkConnectionTimeoutId = setTimeout(this.checkConnection, this.wsTimeout);
+        break;
+
+      default:
+        throw new Error('Invalid message type!');
+    }
   }
 }
