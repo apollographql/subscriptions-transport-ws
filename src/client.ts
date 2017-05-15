@@ -233,8 +233,6 @@ export class SubscriptionClient {
   }
 
   private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): number {
-    this.checkSubscriptionOptions(options, handler);
-
     const opId = this.generateOperationId();
 
     // add subscription to operation

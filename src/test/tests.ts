@@ -294,38 +294,37 @@ describe('Client', function () {
     });
   });
 
-  it('should throw an exception when query is not provided', () => {
+  it('should throw an exception when query is not provided', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
-    expect(() => {
-      client.subscribe({
-          query: undefined,
-          operationName: 'useInfo',
-          variables: {
-            id: 3,
-          },
-        }, function (error: any, result: any) {
-          //do nothing
+    client.subscribe({
+        query: undefined,
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
         },
-      );
-    }).to.throw();
+      }, function (error: any, result: any) {
+        expect(error).to.be.lengthOf(1);
+        done();
+      },
+    );
   });
 
-  it('should throw an exception when query is not valid', () => {
+  it('should throw an exception when query is not valid', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
-    expect(() => {
-      client.subscribe({
-          query: <string>{},
-          operationName: 'useInfo',
-          variables: {
-            id: 3,
-          },
-        }, function (error: any, result: any) {
-          //do nothing
+    client.subscribe({
+        query: <string>{},
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
         },
-      );
-    }).to.throw();
+      }, function (error: any, result: any) {
+        //do nothing
+        expect(error).to.be.lengthOf(1);
+        done();
+      },
+    );
   });
 
   it('should throw an exception when handler is not provided', () => {
