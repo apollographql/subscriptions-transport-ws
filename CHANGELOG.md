@@ -1,7 +1,7 @@
 # Changelog
 
 ### vNEXT
-- Client exposes new events: `onSubscribe`, `use` for syncronous `subscribe` middleware to modify `SubscriptionOptions` [PR #78](https://github.com/apollographql/subscriptions-transport-ws/pull/78)
+- Client exposes new asyncronous middleware to modify `OperationOptions` [PR #78](https://github.com/apollographql/subscriptions-transport-ws/pull/78)
 
 ### 0.6.0
 
