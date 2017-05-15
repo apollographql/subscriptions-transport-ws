@@ -5,4 +5,5 @@ coverage
 typings
 npm-debug.log
 browser/
-.vscode
+.idea/
+.vscode/
