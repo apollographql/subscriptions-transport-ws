@@ -49,6 +49,7 @@
     "typescript": "^2.3.0",
     "webpack": "^2.4.1"
   },
+  "typings": "dist/index.d.ts",
   "typescript": {
     "definition": "dist/index.d.ts"
   },
