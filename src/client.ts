@@ -382,11 +382,17 @@ export class SubscriptionClient {
         break;
 
       case MessageTypes.GQL_CONNECTION_KEEP_ALIVE:
+        const firstKA = typeof this.wasKeepAliveReceived === 'undefined';
         this.wasKeepAliveReceived = true;
+
+        if (firstKA) {
+          this.checkConnection();
+        }
+
         if (this.checkConnectionTimeoutId) {
           clearTimeout(this.checkConnectionTimeoutId);
         }
-        this.checkConnectionTimeoutId = setTimeout(this.checkConnection, this.wsTimeout);
+        this.checkConnectionTimeoutId = setTimeout(this.checkConnection.bind(this), this.wsTimeout);
         break;
 
       default:
