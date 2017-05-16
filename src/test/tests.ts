@@ -294,38 +294,37 @@ describe('Client', function () {
     });
   });
 
-  it('should throw an exception when query is not provided', () => {
+  it('should throw an exception when query is not provided', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
-    expect(() => {
-      client.subscribe({
-          query: undefined,
-          operationName: 'useInfo',
-          variables: {
-            id: 3,
-          },
-        }, function (error: any, result: any) {
-          //do nothing
+    client.subscribe({
+        query: undefined,
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
         },
-      );
-    }).to.throw();
+      }, function (error: any, result: any) {
+        expect(error).to.be.lengthOf(1);
+        done();
+      },
+    );
   });
 
-  it('should throw an exception when query is not valid', () => {
+  it('should throw an exception when query is not valid', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
-    expect(() => {
-      client.subscribe({
-          query: <string>{},
-          operationName: 'useInfo',
-          variables: {
-            id: 3,
-          },
-        }, function (error: any, result: any) {
-          //do nothing
+    client.subscribe({
+        query: <string>{},
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
         },
-      );
-    }).to.throw();
+      }, function (error: any, result: any) {
+        //do nothing
+        expect(error).to.be.lengthOf(1);
+        done();
+      },
+    );
   });
 
   it('should throw an exception when handler is not provided', () => {
@@ -411,6 +410,43 @@ describe('Client', function () {
     });
   });
 
+  it('should override OperationOptions with middleware', function (done) {
+    const CTX = 'testContext';
+    const CTX2 = 'overrideContext';
+    const client3 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    client3.use([{
+      applyMiddleware(opts, next) {
+        // modify options for SubscriptionClient.subscribe here
+        setTimeout(() => {
+          opts.context = CTX2;
+          next();
+        }, 100);
+      },
+    }]);
+
+    client3.subscribe({
+        query: `subscription context {
+          context
+        }`,
+        variables: {},
+        context: CTX,
+      }, (error: any, result: any) => {
+        client3.unsubscribeAll();
+        if (error) {
+          assert(false);
+        }
+        if (result) {
+          assert.property(result, 'context');
+          assert.equal(result.context, CTX2);
+        }
+        done();
+      },
+    );
+    setTimeout(() => {
+      subscriptionManager.publish('context', {});
+    }, 200);
+  });
+
   it('should handle correctly GQL_CONNECTION_ERROR message', (done) => {
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
@@ -484,7 +520,7 @@ describe('Client', function () {
     }, 100);
   });
 
-  it('queues messages while websocket is still connecting', function () {
+  it('queues messages while websocket is still connecting', function (done) {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     let subId = client.subscribe({
@@ -502,12 +538,16 @@ describe('Client', function () {
         //do nothing
       },
     );
-    expect((client as any).unsentMessagesQueue.length).to.equals(1);
-    client.unsubscribe(subId);
-    expect((client as any).unsentMessagesQueue.length).to.equals(2);
-    setTimeout(() => {
-      expect((client as any).unsentMessagesQueue.length).to.equals(0);
-    }, 100);
+
+    client.onConnect(() => {
+      expect((client as any).unsentMessagesQueue.length).to.equals(1);
+      client.unsubscribe(subId);
+
+      setTimeout(() => {
+        expect((client as any).unsentMessagesQueue.length).to.equals(0);
+        done();
+      }, 100);
+    });
   });
 
   it('should call error handler when graphql result has errors', function (done) {
@@ -875,15 +915,23 @@ describe('Server', function () {
         id: 3,
       },
     }, function (error: any, result: any) {
-      //do nothing
+      if (error) {
+        assert(false);
+        done();
+      }
+
+      if (result) {
+        client.unsubscribe(subId);
+        setTimeout(() => {
+          assert(eventsOptions.onUnsubscribe.calledOnce);
+          done();
+        }, 200);
+      }
     });
 
-    client.unsubscribe(subId);
-
     setTimeout(() => {
-      assert(eventsOptions.onUnsubscribe.calledOnce);
-      done();
-    }, 200);
+      subscriptionManager.publish('user', {});
+    }, 100);
   });
 
   it('should send correct results to multiple clients with subscriptions', function (done) {

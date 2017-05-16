@@ -10,9 +10,10 @@ import { ExecutionResult } from 'graphql/execution/execute';
 import { print } from 'graphql/language/printer';
 import { getOperationAST } from 'graphql/utilities/getOperationAST';
 
-import MessageTypes from './message-types';
 import { GRAPHQL_WS } from './protocol';
 import { WS_TIMEOUT } from './defaults';
+import { MiddlewareInterface } from './middleware';
+import MessageTypes from './message-types';
 
 export * from './helpers';
 
@@ -63,6 +64,8 @@ export class SubscriptionClient {
   private wsImpl: any;
   private wasKeepAliveReceived: boolean;
   private checkConnectionTimeoutId: any;
+  private middlewares: MiddlewareInterface[];
+  private pendingSubscriptions: {[id: string]: boolean};
 
   constructor(url: string, options?: ClientOptions, webSocketImpl?: any) {
     const {
@@ -91,6 +94,8 @@ export class SubscriptionClient {
     this.reconnectionAttempts = reconnectionAttempts;
     this.backoff = new Backoff({ jitter: 0.5 });
     this.eventEmitter = new EventEmitter();
+    this.middlewares = [];
+    this.pendingSubscriptions = {};
 
     this.connect();
   }
@@ -159,6 +164,13 @@ export class SubscriptionClient {
   }
 
   public unsubscribe(id: number) {
+    // operation hasn't sent message yet
+    // cancel without sending message to server
+    if (this.pendingSubscriptions[id]) {
+      delete this.pendingSubscriptions[id];
+      return;
+    }
+
     if (this.operations[id]) {
       delete this.operations[id];
     }
@@ -171,15 +183,43 @@ export class SubscriptionClient {
     });
   }
 
-  private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): number {
+  public applyMiddlewares(options: OperationOptions): Promise<OperationOptions> {
+    return new Promise((resolve, reject) => {
+      const queue = (funcs: MiddlewareInterface[], scope: any) => {
+        const next = () => {
+          if (funcs.length > 0) {
+            const f = funcs.shift();
+            if (f) {
+              f.applyMiddleware.apply(scope, [options, next]);
+            }
+          } else {
+            resolve(options);
+          }
+        };
+        next();
+      };
+
+      queue([...this.middlewares], this);
+    });
+  }
+
+  public use(middlewares: MiddlewareInterface[]): SubscriptionClient {
+    middlewares.map((middleware) => {
+      if (typeof middleware.applyMiddleware === 'function') {
+        this.middlewares.push(middleware);
+      } else {
+        throw new Error('Middleware must implement the applyMiddleware function');
+      }
+    });
+
+    return this;
+  }
+
+  private checkSubscriptionOptions(options: OperationOptions, handler: (error: Error[], result?: any) => void) {
     const { query, variables, operationName } = options;
 
     if (!query) {
       throw new Error('Must provide a query.');
-    }
-
-    if (!handler) {
-      throw new Error('Must provide an handler.');
     }
 
     if (
@@ -190,10 +230,28 @@ export class SubscriptionClient {
       throw new Error('Incorrect option types. query must be a string or a document,' +
         '`operationName` must be a string, and `variables` must be an object.');
     }
+  }
 
+  private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): number {
     const opId = this.generateOperationId();
-    this.operations[opId] = { options, handler };
-    this.sendMessage(opId, MessageTypes.GQL_START, options);
+
+    // add subscription to operation
+    this.pendingSubscriptions[opId] = true;
+
+    this.applyMiddlewares(options).then(opts => {
+      this.checkSubscriptionOptions(opts, handler);
+
+      // if operation is unsubscribed already
+      // this.pendingSubscriptions[opId] will be deleted
+      if (this.pendingSubscriptions[opId]) {
+        delete this.pendingSubscriptions[opId];
+        this.operations[opId] = { options: opts, handler };
+        this.sendMessage(opId, MessageTypes.GQL_START, options);
+      }
+    }).catch((e: Error) => {
+      this.unsubscribe(opId);
+      handler([e]);
+    });
 
     return opId;
   }

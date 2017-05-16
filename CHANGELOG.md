@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Client exposes new asyncronous middleware to modify `OperationOptions` [PR #78](https://github.com/apollographql/subscriptions-transport-ws/pull/78)
 
 ### 0.6.0
 
@@ -12,7 +13,6 @@
 - Added support in the server executor for `graphql-js subscribe`. [PR #846](https://github.com/graphql/graphql-js/pull/846)
 
 ### 0.5.5
-
 - Remove dependency on `graphql-tag/printer` per [graphql-tag#54](https://github.com/apollographql/graphql-tag/issues/54) [PR #98](https://github.com/apollographql/subscriptions-transport-ws/pull/98)
 
 ### 0.5.4
