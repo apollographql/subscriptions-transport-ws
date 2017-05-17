@@ -21,25 +21,17 @@ import {
 
 import {PubSub, SubscriptionManager} from 'graphql-subscriptions';
 
-import {
-  SUBSCRIPTION_START,
-  SUBSCRIPTION_FAIL,
-  SUBSCRIPTION_DATA,
-  KEEPALIVE,
-  SUBSCRIPTION_END,
-  INIT,
-  INIT_SUCCESS,
-  SUBSCRIPTION_SUCCESS,
-} from '../messageTypes';
+import MessageTypes  from '../message-types';
 
 import {
   GRAPHQL_SUBSCRIPTIONS,
-} from '../protocols';
+} from '../protocol';
 
 import {createServer, IncomingMessage, ServerResponse} from 'http';
 import {SubscriptionServer} from '../server';
 import {SubscriptionClient} from '../client';
-import {SubscribeMessage} from '../server';
+import {addGraphQLSubscriptions} from '../helpers';
+import {OperationMessagePayload} from '../server';
 import {SubscriptionOptions} from 'graphql-subscriptions/dist/pubsub';
 
 const TEST_PORT = 4953;
@@ -48,6 +40,7 @@ const DELAYED_TEST_PORT = TEST_PORT + 2;
 const RAW_TEST_PORT = TEST_PORT + 4;
 const EVENTS_TEST_PORT = TEST_PORT + 5;
 const ONCONNECT_ERROR_TEST_PORT = TEST_PORT + 6;
+const ERROR_TEST_PORT = TEST_PORT + 7;
 
 const data: {[key: string]: {[key: string]: string}} = {
   '1': {
@@ -136,21 +129,21 @@ const subscriptionManager = new SubscriptionManager({
 
 // indirect call to support spying
 const handlers = {
-  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+  onSubscribe: (msg: OperationMessagePayload, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
     return Promise.resolve(Object.assign({}, params, {context: msg['context']}));
   },
 };
 
 const options = {
   subscriptionManager,
-  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+  onSubscribe: (msg: OperationMessagePayload | any, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
     return handlers.onSubscribe(msg, params, webSocketRequest);
   },
 };
 
 const eventsOptions = {
   subscriptionManager,
-  onSubscribe: sinon.spy((msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+  onSubscribe: sinon.spy((msg: OperationMessagePayload | any, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
     return Promise.resolve(Object.assign({}, params, {context: msg['context']}));
   }),
   onUnsubscribe: sinon.spy(),
@@ -162,7 +155,8 @@ const eventsOptions = {
 
 const onConnectErrorOptions = {
   subscriptionManager,
-  onConnect: () => {
+  onConnect: (msg: any, connection: any, connectionContext: any) => {
+    connectionContext.isLegacy = true;
     throw new Error('Error');
   },
 };
@@ -191,7 +185,7 @@ new SubscriptionServer(onConnectErrorOptions, {server: httpServerWithOnConnectEr
 const httpServerWithDelay = createServer(notFoundRequestListener);
 httpServerWithDelay.listen(DELAYED_TEST_PORT);
 new SubscriptionServer(Object.assign({}, options, {
-  onSubscribe: (msg: SubscribeMessage, params: SubscriptionOptions) => {
+  onSubscribe: (msg: OperationMessagePayload | any, params: SubscriptionOptions) => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         resolve(Object.assign({}, params, {context: msg['context']}));
@@ -219,11 +213,11 @@ describe('Client', function () {
     }
   });
 
-  it('should send INIT message when creating the connection', (done) => {
+  it('should send GQL_CONNECTION_INIT message when creating the connection', (done) => {
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
-        expect(parsedMessage.type).to.equals('init');
+        expect(parsedMessage.type).to.equals(MessageTypes.GQL_CONNECTION_INIT);
         done();
       });
     });
@@ -231,7 +225,7 @@ describe('Client', function () {
     new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
   });
 
-  it('should send INIT message first, then the SUBSCRIPTION_START message', (done) => {
+  it('should send GQL_CONNECTION_INIT message first, then the GQL_START message', (done) => {
     let initReceived = false;
 
     const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
@@ -239,11 +233,11 @@ describe('Client', function () {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
         // mock server
-        if (parsedMessage.type === INIT) {
-          connection.send(JSON.stringify({type: INIT_SUCCESS, payload: {}}));
+        if (parsedMessage.type === MessageTypes.GQL_CONNECTION_INIT) {
+          connection.send(JSON.stringify({type: MessageTypes.GQL_CONNECTION_ACK, payload: {}}));
           initReceived = true;
         }
-        if (parsedMessage.type === SUBSCRIPTION_START) {
+        if (parsedMessage.type === MessageTypes.GQL_START) {
           expect(initReceived).to.be.true;
           client.unsubscribeAll();
           done();
@@ -302,38 +296,37 @@ describe('Client', function () {
     });
   });
 
-  it('should throw an exception when query is not provided', () => {
+  it('should throw an exception when query is not provided', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
-    expect(() => {
-      client.subscribe({
-          query: undefined,
-          operationName: 'useInfo',
-          variables: {
-            id: 3,
-          },
-        }, function (error: any, result: any) {
-          //do nothing
+    client.subscribe({
+        query: undefined,
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
         },
-      );
-    }).to.throw();
+      }, function (error: any, result: any) {
+        expect(error).to.be.lengthOf(1);
+        done();
+      },
+    );
   });
 
-  it('should throw an exception when query is not valid', () => {
+  it('should throw an exception when query is not valid', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
-    expect(() => {
-      client.subscribe({
-          query: <string>{},
-          operationName: 'useInfo',
-          variables: {
-            id: 3,
-          },
-        }, function (error: any, result: any) {
-          //do nothing
+    client.subscribe({
+        query: <string>{},
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
         },
-      );
-    }).to.throw();
+      }, function (error: any, result: any) {
+        //do nothing
+        expect(error).to.be.lengthOf(1);
+        done();
+      },
+    );
   });
 
   it('should throw an exception when handler is not provided', () => {
@@ -353,30 +346,28 @@ describe('Client', function () {
     }).to.throw();
   });
 
-  it('should allow both data and errors on SUBSCRIPTION_DATA', (done) => {
+  it('should allow both data and errors on GQL_DATA', (done) => {
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
         // mock server
-        if (parsedMessage.type === INIT) {
-          connection.send(JSON.stringify({type: INIT_SUCCESS, payload: {}}));
+        if (parsedMessage.type === MessageTypes.GQL_CONNECTION_INIT) {
+          connection.send(JSON.stringify({type: MessageTypes.GQL_CONNECTION_ACK, payload: {}}));
         }
-        if (parsedMessage.type === SUBSCRIPTION_START) {
-          connection.send(JSON.stringify({type: SUBSCRIPTION_SUCCESS, id: parsedMessage.id}), () => {
-            const dataMessage = {
-              type: SUBSCRIPTION_DATA,
-              id: parsedMessage.id,
-              payload: {
-                data: {
-                  some: 'data',
-                },
-                errors: [{
-                  message: 'Test Error',
-                }],
+        if (parsedMessage.type === MessageTypes.GQL_START) {
+          const dataMessage = {
+            type: MessageTypes.GQL_DATA,
+            id: parsedMessage.id,
+            payload: {
+              data: {
+                some: 'data',
               },
-            };
-            connection.send(JSON.stringify(dataMessage));
-          });
+              errors: [{
+                message: 'Test Error',
+              }],
+            },
+          };
+          connection.send(JSON.stringify(dataMessage));
         }
       });
     });
@@ -421,16 +412,53 @@ describe('Client', function () {
     });
   });
 
-  it('should handle correctly init_fail message', (done) => {
+  it('should override OperationOptions with middleware', function (done) {
+    const CTX = 'testContext';
+    const CTX2 = 'overrideContext';
+    const client3 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    client3.use([{
+      applyMiddleware(opts, next) {
+        // modify options for SubscriptionClient.subscribe here
+        setTimeout(() => {
+          opts.context = CTX2;
+          next();
+        }, 100);
+      },
+    }]);
+
+    client3.subscribe({
+        query: `subscription context {
+          context
+        }`,
+        variables: {},
+        context: CTX,
+      }, (error: any, result: any) => {
+        client3.unsubscribeAll();
+        if (error) {
+          assert(false);
+        }
+        if (result) {
+          assert.property(result, 'context');
+          assert.equal(result.context, CTX2);
+        }
+        done();
+      },
+    );
+    setTimeout(() => {
+      subscriptionManager.publish('context', {});
+    }, 200);
+  });
+
+  it('should handle correctly GQL_CONNECTION_ERROR message', (done) => {
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
-        connection.send(JSON.stringify({type: 'init_fail', payload: {error: 'test error'}}));
+        connection.send(JSON.stringify({type: MessageTypes.GQL_CONNECTION_ERROR, payload: {message: 'test error'}}));
       });
     });
 
     new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       connectionCallback: (error: any) => {
-        expect(error).to.equals('test error');
+        expect(error.message).to.equals('test error');
         done();
       },
     });
@@ -441,9 +469,8 @@ describe('Client', function () {
 
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
-        connection.send(JSON.stringify({type: 'init_fail', payload: {error: 'test error'}}), () => {
+        connection.send(JSON.stringify({type: MessageTypes.GQL_CONNECTION_ERROR, payload: {message: 'test error'}}), () => {
           connection.close();
-          connection.terminate();
 
           setTimeout(() => {
             expect(client.client.readyState).to.equals(WebSocket.CLOSED);
@@ -456,10 +483,10 @@ describe('Client', function () {
     client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
   });
 
-  it('should handle correctly init_success message', (done) => {
+  it('should handle correctly GQL_CONNECTION_ACK message', (done) => {
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
-        connection.send(JSON.stringify({type: 'init_success'}));
+        connection.send(JSON.stringify({type: MessageTypes.GQL_CONNECTION_ACK}));
       });
     });
 
@@ -491,11 +518,11 @@ describe('Client', function () {
         },
       );
       client.unsubscribe(subId);
-      assert.notProperty(client.subscriptions, `${subId}`);
+      assert.notProperty(client.operations, `${subId}`);
     }, 100);
   });
 
-  it('queues messages while websocket is still connecting', function () {
+  it('queues messages while websocket is still connecting', function (done) {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     let subId = client.subscribe({
@@ -513,12 +540,16 @@ describe('Client', function () {
         //do nothing
       },
     );
-    expect((client as any).unsentMessagesQueue.length).to.equals(1);
-    client.unsubscribe(subId);
-    expect((client as any).unsentMessagesQueue.length).to.equals(2);
-    setTimeout(() => {
-      expect((client as any).unsentMessagesQueue.length).to.equals(0);
-    }, 100);
+
+    client.onConnect(() => {
+      expect((client as any).unsentMessagesQueue.length).to.equals(1);
+      client.unsubscribe(subId);
+
+      setTimeout(() => {
+        expect((client as any).unsentMessagesQueue.length).to.equals(0);
+        done();
+      }, 100);
+    });
   });
 
   it('should call error handler when graphql result has errors', function (done) {
@@ -572,9 +603,9 @@ describe('Client', function () {
     wsServer.on('connection', (connection: WebSocket) => {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
-        if (parsedMessage.type === SUBSCRIPTION_START) {
+        if (parsedMessage.type === MessageTypes.GQL_START) {
           connection.send(JSON.stringify({
-            type: SUBSCRIPTION_FAIL,
+            type: MessageTypes.GQL_ERROR,
             id: parsedMessage.id,
             payload,
           }));
@@ -609,32 +640,9 @@ describe('Client', function () {
   it('should handle errors that are not an array', function (done) {
     const errorMessage = 'Just an error';
     const payload = {
-      errors: {message: errorMessage},
+      message: errorMessage,
     };
     testBadServer(payload, errorMessage, done);
-  });
-
-  it('should throw an error when the susbcription times out', function (done) {
-    // hopefully 1ms is fast enough to time out before the server responds
-    const client = new SubscriptionClient(`ws://localhost:${DELAYED_TEST_PORT}/`, {timeout: 1});
-
-    setTimeout(() => {
-      client.subscribe({
-        query: `subscription useInfo{
-            error
-          }`,
-        operationName: 'useInfo',
-        variables: {},
-      }, function (error: any, result: any) {
-        if (error) {
-          expect(error[0].message).to.equals('Subscription timed out - no response from server');
-          done();
-        }
-        if (result) {
-          assert(false);
-        }
-      });
-    }, 100);
   });
 
   it('should reconnect to the server', function (done) {
@@ -661,7 +669,7 @@ describe('Client', function () {
       connections += 1;
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
-        if (parsedMessage.type === SUBSCRIPTION_START) {
+        if (parsedMessage.type === MessageTypes.GQL_START) {
           if (connections === 1) {
             client.client.close();
           } else {
@@ -740,15 +748,126 @@ describe('Client', function () {
       }
     });
 
-    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       timeout: 100,
       reconnect: true,
       reconnectionAttempts: 1,
     });
     setTimeout(() => {
-      expect(client.client.readyState).to.be.equal(client.client.CLOSED);
+      expect(subscriptionsClient.status).to.be.equal(subscriptionsClient.client.CLOSED);
       done();
     }, 500);
+  });
+
+  it('should take care of received keep alive', (done) => {
+    let wasKAReceived = false;
+
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, {timeout: 5});
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    subscriptionsClient.client.onmessage = (dataReceived: any) => {
+      let receivedDataParsed = JSON.parse(dataReceived.data);
+      if (receivedDataParsed.type === MessageTypes.GQL_CONNECTION_KEEP_ALIVE) {
+        if (!wasKAReceived) {
+          wasKAReceived = true;
+          originalOnMessage(dataReceived);
+        }
+      }
+    };
+
+    setTimeout(() => {
+      expect(wasKAReceived).to.equal(true);
+      expect(subscriptionsClient.status).to.equal(WebSocket.CLOSED);
+      done();
+    }, 100);
+  });
+
+  it('should correctly clear timeout if receives ka too early', (done) => {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, {timeout: 25});
+    const checkConnectionSpy = sinon.spy(subscriptionsClient, 'checkConnection');
+
+    setTimeout(() => {
+      expect(checkConnectionSpy.callCount).to.be.equal(1);
+      expect(subscriptionsClient.status).to.be.equal(subscriptionsClient.client.OPEN);
+      done();
+    }, 100);
+  });
+
+  it('should take care of invalid message received', (done) => {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    const dataToSend = {
+      data: JSON.stringify({type: 'invalid'}),
+    };
+
+    expect(() => {
+      originalOnMessage.call(subscriptionsClient, dataToSend)();
+    }).to.throw('Invalid message type!');
+    done();
+  });
+
+  it('should throw if received data is not JSON-parseable', (done) => {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    const dataToSend = {
+      data: 'invalid',
+    };
+
+    expect(() => {
+      originalOnMessage.call(subscriptionsClient, dataToSend)();
+    }).to.throw('Message must be JSON-parseable. Got: invalid');
+    done();
+  });
+
+  it('should delete operation when receive a GQL_COMPLETE', (done) => {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    subscriptionsClient.operations['1'] = {
+      options: {
+        query: 'invalid',
+      },
+      handler: () => {
+        // nothing
+      },
+    };
+
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    const dataToSend = {
+      data: JSON.stringify({id: 1, type: MessageTypes.GQL_COMPLETE}),
+    };
+
+    expect(subscriptionsClient.operations).to.have.property('1');
+    originalOnMessage(dataToSend);
+    expect(subscriptionsClient.operations).to.not.have.property('1');
+    done();
+  });
+
+  it('should call executeOperation when query is called', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    const executeOperationSpy = sinon.spy(client, 'executeOperation');
+
+    client.query({
+      query: `query useInfo($id: String) {
+          user(id: $id) {
+            id
+            name
+          }
+        }`,
+      operationName: 'useInfo',
+      variables: {
+        id: 3,
+      },
+    }).then(
+      (result: any) => {
+        // do nothing
+      },
+      (error: any) => {
+        // do nothing
+      },
+    );
+
+    setTimeout(() => {
+      assert(executeOperationSpy.calledOnce);
+      done();
+    }, 200);
   });
 });
 
@@ -778,6 +897,30 @@ describe('Server', function () {
     }).to.throw();
   });
 
+  it.skip('should handle socket error and close the connection on error', (done) => {
+    const spy = sinon.spy();
+
+    const httpServerForError = createServer(notFoundRequestListener);
+    httpServerForError.listen(ERROR_TEST_PORT);
+
+    new SubscriptionServer({
+      subscriptionManager,
+      onConnect: (payload: any, socket: any) => {
+        setTimeout(() => {
+          socket.emit('error', new Error('test'));
+
+          setTimeout(() => {
+            assert(spy.calledOnce);
+            done();
+          }, 500);
+        }, 100);
+      },
+    }, {server: httpServerForError});
+
+    const client = new SubscriptionClient(`ws://localhost:${ERROR_TEST_PORT}/`);
+    client.onDisconnect(spy);
+  });
+
   it('should trigger onConnect when client connects and validated', (done) => {
     new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
 
@@ -803,12 +946,24 @@ describe('Server', function () {
     }, 200);
   });
 
-  it('should trigger onConnect and return init_fail with error', (done) => {
+  it('should trigger onConnect and return GQL_CONNECTION_ERROR with error', (done) => {
     const connectionCallbackSpy = sinon.spy();
 
-    new SubscriptionClient(`ws://localhost:${ONCONNECT_ERROR_TEST_PORT}/`, {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${ONCONNECT_ERROR_TEST_PORT}/`, {
       connectionCallback: connectionCallbackSpy,
     });
+
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    subscriptionsClient.client.onmessage = (dataReceived: any) => {
+      let messageData = JSON.parse(dataReceived.data);
+
+      if (messageData.type === MessageTypes.INIT_FAIL) {
+        messageData.type = MessageTypes.GQL_CONNECTION_ERROR;
+      }
+
+      dataReceived.data = JSON.stringify(messageData);
+      originalOnMessage(dataReceived);
+    };
 
     setTimeout(() => {
       expect(connectionCallbackSpy.calledOnce).to.be.true;
@@ -897,15 +1052,23 @@ describe('Server', function () {
         id: 3,
       },
     }, function (error: any, result: any) {
-      //do nothing
+      if (error) {
+        assert(false);
+        done();
+      }
+
+      if (result) {
+        client.unsubscribe(subId);
+        setTimeout(() => {
+          assert(eventsOptions.onUnsubscribe.calledOnce);
+          done();
+        }, 200);
+      }
     });
 
-    client.unsubscribe(subId);
-
     setTimeout(() => {
-      assert(eventsOptions.onUnsubscribe.calledOnce);
-      done();
-    }, 200);
+      subscriptionManager.publish('user', {});
+    }, 100);
   });
 
   it('should send correct results to multiple clients with subscriptions', function (done) {
@@ -985,13 +1148,13 @@ describe('Server', function () {
 
   });
 
-  it('should send a subscription_fail message to client with invalid query', function (done) {
+  it('should send a gql_error message to client with invalid query', function (done) {
     const client1 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     setTimeout(function () {
       client1.client.onmessage = (message: any) => {
         let messageData = JSON.parse(message.data);
-        assert.equal(messageData.type, SUBSCRIPTION_FAIL);
-        assert.isAbove(messageData.payload.errors.length, 0, 'Number of errors is greater than 0.');
+        assert.equal(messageData.type, MessageTypes.GQL_ERROR);
+        assert.isDefined(messageData.payload, 'Number of errors is greater than 0.');
         done();
       };
       client1.subscribe({
@@ -1139,7 +1302,7 @@ describe('Server', function () {
       done();
     }, 150);
     client4.client.onmessage = (message: any) => {
-      if (JSON.parse(message.data).type === SUBSCRIPTION_DATA) {
+      if (JSON.parse(message.data).type === MessageTypes.GQL_DATA) {
         assert(false);
       }
     };
@@ -1172,8 +1335,8 @@ describe('Server', function () {
     const client = new WebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
     client.onmessage = (message: any) => {
       let messageData = JSON.parse(message.data);
-      assert.equal(messageData.type, SUBSCRIPTION_FAIL);
-      assert.isAbove(messageData.payload.errors.length, 0, 'Number of errors is greater than 0.');
+      assert.equal(messageData.type, MessageTypes.GQL_CONNECTION_ERROR);
+      assert.isDefined(messageData.payload, 'Number of errors is greater than 0.');
       client.close();
       done();
     };
@@ -1186,8 +1349,8 @@ describe('Server', function () {
     const client = new WebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
     client.onmessage = (message: any) => {
       let messageData = JSON.parse(message.data);
-      assert.equal(messageData.type, SUBSCRIPTION_FAIL);
-      assert.isAbove(messageData.payload.errors.length, 0, 'Number of errors is greater than 0.');
+      assert.equal(messageData.type, MessageTypes.GQL_ERROR);
+      assert.isDefined(messageData.payload, 'Number of errors is greater than 0.');
       client.close();
       done();
     };
@@ -1201,7 +1364,7 @@ describe('Server', function () {
     const client = new WebSocket(`ws://localhost:${TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
 
     client.onopen = () => {
-      client.send(JSON.stringify({type: SUBSCRIPTION_END, id: 'toString'}));
+      client.send(JSON.stringify({type: MessageTypes.GQL_STOP, id: 'toString'}));
       // Strangely we don't send any acknowledgement for unsubbing from an
       // unknown sub, so we just set a timeout and implicitly assert that
       // there's no uncaught exception within the server code.
@@ -1226,7 +1389,7 @@ describe('Server', function () {
   it('handles errors prior to graphql execution', function (done) {
     // replace the onSubscribeSpy with a custom handler, the spy will restore
     // the original method
-    handlers.onSubscribe = (msg: SubscribeMessage, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+    handlers.onSubscribe = (msg: OperationMessagePayload, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
       return Promise.resolve(Object.assign({}, params, {
         context: () => {
           throw new Error('bad');
@@ -1262,7 +1425,7 @@ describe('Server', function () {
     let yieldCount = 0;
     client.onmessage = (message: any) => {
       const parsedMessage = JSON.parse(message.data);
-      if (parsedMessage.type === KEEPALIVE) {
+      if (parsedMessage.type === MessageTypes.GQL_CONNECTION_KEEP_ALIVE) {
         yieldCount += 1;
         if (yieldCount > 1) {
           client.close();
@@ -1270,5 +1433,67 @@ describe('Server', function () {
         }
       }
     };
+  });
+});
+
+describe('Helpers', function () {
+  it('should extend provided network interface correctly', (done) => {
+    let mockedSubscriptionClient = sinon.createStubInstance(SubscriptionClient);
+    let mockNetworkInterface = {
+      subscribe: sinon.stub(),
+      unsubscribe: sinon.stub(),
+    };
+
+    addGraphQLSubscriptions(mockNetworkInterface, mockedSubscriptionClient);
+
+    mockNetworkInterface.subscribe({}, sinon.stub());
+    mockNetworkInterface.unsubscribe(0);
+
+    expect(mockedSubscriptionClient.subscribe.callCount).to.be.equal(1);
+    expect(mockedSubscriptionClient.unsubscribe.callCount).to.be.equal(1);
+    done();
+  });
+
+  it('should call console warn when env is not production', (done) => {
+    let mockedSubscriptionClient = sinon.createStubInstance(SubscriptionClient);
+    let mockNetworkInterface = {
+      subscribe: sinon.stub(),
+      unsubscribe: sinon.stub(),
+    };
+    const consoleStub = sinon.stub(console, 'warn');
+
+    addGraphQLSubscriptions(mockNetworkInterface, mockedSubscriptionClient);
+
+    assert(consoleStub.calledWith('This method becomes deprecated in the new package graphql-transport-ws. ' +
+      'Start using the GraphQLTransportWSClient to make queries, mutations and subscriptions over websockets.'));
+    consoleStub.restore();
+    done();
+  });
+
+  it('should not call console warn when env is production', (done) => {
+    let mockedSubscriptionClient = sinon.createStubInstance(SubscriptionClient);
+    let mockNetworkInterface = {
+      subscribe: sinon.stub(),
+      unsubscribe: sinon.stub(),
+    };
+    const consoleStub = sinon.stub(console, 'warn');
+    const originalProccessEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+
+    addGraphQLSubscriptions(mockNetworkInterface, mockedSubscriptionClient);
+
+    assert.isFalse(consoleStub.called);
+    consoleStub.restore();
+    process.env.NODE_ENV = originalProccessEnv;
+    done();
+  });
+});
+
+describe('Message Types', function () {
+  it('should throw an error if static class is instantiated', (done) => {
+    expect(() => {
+      new MessageTypes();
+    }).to.throw('Static Class');
+    done();
   });
 });
