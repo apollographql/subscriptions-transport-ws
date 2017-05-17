@@ -39,6 +39,7 @@ const DELAYED_TEST_PORT = TEST_PORT + 2;
 const RAW_TEST_PORT = TEST_PORT + 4;
 const EVENTS_TEST_PORT = TEST_PORT + 5;
 const ONCONNECT_ERROR_TEST_PORT = TEST_PORT + 6;
+const ERROR_TEST_PORT = TEST_PORT + 7;
 
 const data: {[key: string]: {[key: string]: string}} = {
   '1': {
@@ -782,6 +783,30 @@ describe('Server', function () {
     expect(() => {
       new SubscriptionServer({subscriptionManager: undefined}, {server: httpServer});
     }).to.throw();
+  });
+
+  it.skip('should handle socket error and close the connection on error', (done) => {
+    const spy = sinon.spy();
+
+    const httpServerForError = createServer(notFoundRequestListener);
+    httpServerForError.listen(ERROR_TEST_PORT);
+
+    new SubscriptionServer({
+      subscriptionManager,
+      onConnect: (payload: any, socket: any) => {
+        setTimeout(() => {
+          socket.emit('error', new Error('test'));
+
+          setTimeout(() => {
+            assert(spy.calledOnce);
+            done();
+          }, 500);
+        }, 100);
+      },
+    }, {server: httpServerForError});
+
+    const client = new SubscriptionClient(`ws://localhost:${ERROR_TEST_PORT}/`);
+    client.onDisconnect(spy);
   });
 
   it('should trigger onConnect when client connects and validated', (done) => {

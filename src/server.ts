@@ -281,14 +281,30 @@ export class SubscriptionServer {
         }, keepAlive);
       }
 
-      socket.on('message', this.onMessage(connectionContext));
-      socket.on('close', () => {
+      const connectionClosedHandler = (error: any) => {
+        if (error) {
+          this.sendError(
+            connectionContext,
+            '',
+            { message: error.message ? error.message : error },
+            MessageTypes.GQL_CONNECTION_ERROR,
+          );
+
+          setTimeout(() => {
+            // 1011 is an unexpected condition prevented the request from being fulfilled
+            connectionContext.socket.close(1011);
+          }, 10);
+        }
         this.onClose(connectionContext);
 
         if (this.onDisconnect) {
           this.onDisconnect(socket);
         }
-      });
+      };
+
+      socket.on('error', connectionClosedHandler);
+      socket.on('close', connectionClosedHandler);
+      socket.on('message', this.onMessage(connectionContext));
     });
   }
 
