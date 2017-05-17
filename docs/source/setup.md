@@ -22,7 +22,7 @@ npm install --save graphql-subscriptions
 Use your `PubSub` instance for publishing new data over your subscriptions transport, for example:
 
 ```js
-import { PubSub } from `graphql-subscriptions`;
+import { PubSub } from 'graphql-subscriptions';
 
 export const pubsub = new PubSub();
 
