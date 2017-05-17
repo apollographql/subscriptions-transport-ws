@@ -8,6 +8,7 @@ import {
 } from 'chai';
 import * as sinon from 'sinon';
 import * as WebSocket from 'ws';
+import { execute } from 'graphql';
 
 Object.assign(global, {
   WebSocket: WebSocket,
@@ -33,6 +34,7 @@ import { SubscriptionClient } from '../client';
 import { addGraphQLSubscriptions } from '../helpers';
 import { OperationMessagePayload } from '../server';
 import { SubscriptionOptions } from 'graphql-subscriptions/dist/pubsub';
+import { $$asyncIterator } from 'iterall';
 
 const TEST_PORT = 4953;
 const KEEP_ALIVE_TEST_PORT = TEST_PORT + 1;
@@ -41,6 +43,8 @@ const RAW_TEST_PORT = TEST_PORT + 4;
 const EVENTS_TEST_PORT = TEST_PORT + 5;
 const ONCONNECT_ERROR_TEST_PORT = TEST_PORT + 6;
 const ERROR_TEST_PORT = TEST_PORT + 7;
+
+const SERVER_EXECUTOR_TESTS_PORT = ERROR_TEST_PORT + 8;
 
 const data: { [key: string]: { [key: string]: string } } = {
   '1': {
@@ -69,7 +73,7 @@ const schema = new GraphQLSchema({
   query: new GraphQLObjectType({
     name: 'Query',
     fields: {
-      testString: { type: GraphQLString },
+      testString: { type: GraphQLString, resolve: () => 'value' },
     },
   }),
   subscription: new GraphQLObjectType({
@@ -928,6 +932,119 @@ describe('Server', function () {
     }).to.throw();
   });
 
+  it('should accept execute method than returns a Promise (original execute)', (done) => {
+    const server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    SubscriptionServer.create({
+      schema,
+      execute,
+    }, {
+      server,
+      path: '/',
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    client.onConnect(() => {
+      client.subscribe({
+        query: `query { testString }`,
+        variables: {},
+      }, (err, res) => {
+        if (err) {
+          assert(false, 'unexpected error from subscribe');
+        } else {
+          expect(res).to.deep.equal({ testString: 'value' });
+        }
+
+        server.close();
+        done();
+      });
+
+    });
+  });
+
+  it('should return an error when invalid execute method provided', (done) => {
+    const server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    SubscriptionServer.create({
+      schema,
+      execute: (() => ({})) as any,
+    }, {
+      server,
+      path: '/',
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    client.onConnect(() => {
+      client.subscribe({
+        query: `query { testString }`,
+        variables: {},
+      }, (err) => {
+        expect(err.length).to.equal(1);
+        expect(err[0].message).to.equal('GraphQL execute engine is not available');
+        client.client.close();
+        server.close();
+        done();
+      });
+    });
+  });
+
+  it('should accept execute method than returns an AsyncIterator', (done) => {
+    const server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    const executeWithAsyncIterable = () => {
+      let called = false;
+
+      return {
+        next() {
+          if (called === true) {
+            return this.return();
+          }
+
+          called = true;
+
+          return Promise.resolve({ value: { data: { testString: 'value' } }, done: false });
+        },
+        return() {
+          return Promise.resolve({ value: undefined, done: true });
+        },
+        throw(e: Error) {
+          return Promise.reject(e);
+        },
+        [$$asyncIterator]() {
+          return this;
+        },
+      };
+    };
+
+    SubscriptionServer.create({
+      schema,
+      execute: executeWithAsyncIterable,
+    }, {
+      server,
+      path: '/',
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    client.onConnect(() => {
+      client.subscribe({
+        query: `query { testString }`,
+        variables: {},
+      }, (err, res) => {
+        if (err) {
+          assert(false, 'unexpected error from subscribe');
+        } else {
+          expect(res).to.deep.equal({ testString: 'value' });
+        }
+
+        server.close();
+        done();
+      });
+    });
+  });
+
   it('should handle socket error and close the connection on error', (done) => {
     const spy = sinon.spy();
 
@@ -942,6 +1059,7 @@ describe('Server', function () {
 
           setTimeout(() => {
             assert(spy.calledOnce);
+            httpServerForError.close();
             done();
           }, 500);
         }, 100);

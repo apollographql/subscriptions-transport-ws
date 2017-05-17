@@ -362,6 +362,13 @@ export class SubscriptionServer {
                   executionIterable = createIterableFromPromise<ExecutionResult>(promiseOrIterable);
                 } else if (isAsyncIterable(promiseOrIterable)) {
                   executionIterable = promiseOrIterable as any;
+                } else {
+                  // Unexpected return value from execute - log it as error and trigger an error to client side
+                  console.error('Invalid `execute` return type! Only Promise or AsyncIterable are valid values!');
+
+                  this.sendError(connectionContext, opId, {
+                    message: 'GraphQL execute engine is not available',
+                  });
                 }
               }
 
@@ -390,7 +397,7 @@ export class SubscriptionServer {
                     try {
                       error = params.formatError(e, params);
                     } catch (err) {
-                      console.error('Error in formatError function:', err);
+                      console.error('Error in formatError function: ', err);
                     }
                   }
 
