@@ -38,8 +38,8 @@ export interface Operations {
 }
 
 export type ConnectionParams = {
-  [paramName: string]: any
-}
+  [paramName: string]: any,
+};
 
 export type ConnectionParamsOptions = ConnectionParams | Function;
 
@@ -80,7 +80,7 @@ export class SubscriptionClient {
       timeout = WS_TIMEOUT,
       reconnect = false,
       reconnectionAttempts = Infinity,
-      lazy = false
+      lazy = false,
     } = (options || {});
 
     this.wsImpl = webSocketImpl || NativeWebSocket;
