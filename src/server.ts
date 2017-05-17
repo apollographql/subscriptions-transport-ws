@@ -14,7 +14,7 @@ import { parseLegacyProtocolMessage } from './legacy/parse-legacy-protocol';
 import { defineDeprecateFunctionWrapper } from './legacy/defined-deprecation-function-wrapper';
 import { IncomingMessage } from 'http';
 
-export type ExecutionIterator = AsyncIterable<ExecutionResult> & AsyncIterator<ExecutionResult>;
+export type ExecutionIterator = AsyncIterator<ExecutionResult>;
 
 export type ConnectionContext = {
   initPromise?: Promise<any>,
@@ -44,14 +44,14 @@ export type ExecuteFunction = (schema: GraphQLSchema,
                                rootValue?: any,
                                contextValue?: any,
                                variableValues?: { [key: string]: any },
-                               operationName?: string,) => Promise<ExecutionResult> | AsyncIterable<ExecutionResult>;
+                               operationName?: string) => Promise<ExecutionResult> | AsyncIterator<ExecutionResult>;
 
 export type SubscribeFunction = (schema: GraphQLSchema,
                                  document: DocumentNode,
                                  rootValue?: any,
                                  contextValue?: any,
                                  variableValues?: { [key: string]: any },
-                                 operationName?: string,) => AsyncIterable<ExecutionResult>;
+                                 operationName?: string) => AsyncIterator<ExecutionResult>;
 
 export interface ServerOptions {
   rootValue?: any;
@@ -341,7 +341,7 @@ export class SubscriptionServer {
               }
 
               const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
-              let executionIterable: AsyncIterable<ExecutionResult>;
+              let executionIterable: AsyncIterator<ExecutionResult>;
 
               if (this.subscribe && isASubscriptionOperation(document, params.operationName)) {
                 executionIterable = this.subscribe(this.schema,
@@ -361,7 +361,7 @@ export class SubscriptionServer {
                 if (!isAsyncIterable(promiseOrIterable) && promiseOrIterable instanceof Promise) {
                   executionIterable = createIterableFromPromise<ExecutionResult>(promiseOrIterable);
                 } else if (isAsyncIterable(promiseOrIterable)) {
-                  executionIterable = promiseOrIterable as AsyncIterable<ExecutionResult>;
+                  executionIterable = promiseOrIterable as any;
                 }
               }
 

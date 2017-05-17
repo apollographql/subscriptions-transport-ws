@@ -1,4 +1,6 @@
-export function createIterableFromPromise<T>(promise: Promise<T>): AsyncIterable<T> & AsyncIterator<T> {
+import { $$asyncIterator } from 'iterall';
+
+export function createIterableFromPromise<T>(promise: Promise<T>): AsyncIterator<T> {
   let isResolved = false;
 
   return {
@@ -23,7 +25,7 @@ export function createIterableFromPromise<T>(promise: Promise<T>): AsyncIterable
     throw(e: Error) {
       return Promise.reject(e);
     },
-    [Symbol.asyncIterator]() {
+    [$$asyncIterator]() {
       return this;
     },
   };

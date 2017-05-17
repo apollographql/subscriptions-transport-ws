@@ -435,7 +435,7 @@ describe('Client', function () {
       }, (error: any, result: any) => {
         client3.unsubscribeAll();
         if (error) {
-          assert(false);
+          assert(false, 'got error during subscription creation');
         }
         if (result) {
           assert.property(result, 'context');
@@ -897,7 +897,7 @@ describe('Server', function () {
     }).to.throw();
   });
 
-  it.skip('should handle socket error and close the connection on error', (done) => {
+  it('should handle socket error and close the connection on error', (done) => {
     const spy = sinon.spy();
 
     const httpServerForError = createServer(notFoundRequestListener);

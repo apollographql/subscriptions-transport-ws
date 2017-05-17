@@ -2,6 +2,8 @@ import { SubscriptionManager } from 'graphql-subscriptions';
 import { print, DocumentNode, ExecutionResult, GraphQLSchema } from 'graphql';
 import { isASubscriptionOperation } from '../utils/is-subscriptions';
 import { ExecutionIterator } from '../server';
+import { createRejectionIterable } from '../utils/rejection-iterable';
+import { $$asyncIterator } from 'iterall';
 
 export const executeFromSubscriptionManager = (subscriptionManager: SubscriptionManager) => {
   return (schema: GraphQLSchema,
@@ -57,8 +59,9 @@ export const executeFromSubscriptionManager = (subscriptionManager: Subscription
       }
     };
 
-    if (isASubscriptionOperation(document, operationName)) {
-      throw new Error('GraphQL Query or Mutation are not supported using SubscriptionManager!');
+    if (!isASubscriptionOperation(document, operationName)) {
+      return createRejectionIterable(
+        new Error('GraphQL Query or Mutation are not supported using SubscriptionManager!'));
     }
 
     const callbackHandler = (error: Error, result: ExecutionResult) => {
@@ -99,7 +102,7 @@ export const executeFromSubscriptionManager = (subscriptionManager: Subscription
 
         return Promise.reject(error);
       },
-      [Symbol.asyncIterator]() {
+      [$$asyncIterator]() {
         return this;
       },
     };
