@@ -30,6 +30,7 @@ import {
 import {createServer, IncomingMessage, ServerResponse} from 'http';
 import {SubscriptionServer} from '../server';
 import {SubscriptionClient} from '../client';
+import {addGraphQLSubscriptions} from '../helpers';
 import {OperationMessagePayload} from '../server';
 import {SubscriptionOptions} from 'graphql-subscriptions/dist/pubsub';
 
@@ -39,6 +40,7 @@ const DELAYED_TEST_PORT = TEST_PORT + 2;
 const RAW_TEST_PORT = TEST_PORT + 4;
 const EVENTS_TEST_PORT = TEST_PORT + 5;
 const ONCONNECT_ERROR_TEST_PORT = TEST_PORT + 6;
+const ERROR_TEST_PORT = TEST_PORT + 7;
 
 const data: {[key: string]: {[key: string]: string}} = {
   '1': {
@@ -746,15 +748,126 @@ describe('Client', function () {
       }
     });
 
-    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       timeout: 100,
       reconnect: true,
       reconnectionAttempts: 1,
     });
     setTimeout(() => {
-      expect(client.client.readyState).to.be.equal(client.client.CLOSED);
+      expect(subscriptionsClient.status).to.be.equal(subscriptionsClient.client.CLOSED);
       done();
     }, 500);
+  });
+
+  it('should take care of received keep alive', (done) => {
+    let wasKAReceived = false;
+
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, {timeout: 5});
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    subscriptionsClient.client.onmessage = (dataReceived: any) => {
+      let receivedDataParsed = JSON.parse(dataReceived.data);
+      if (receivedDataParsed.type === MessageTypes.GQL_CONNECTION_KEEP_ALIVE) {
+        if (!wasKAReceived) {
+          wasKAReceived = true;
+          originalOnMessage(dataReceived);
+        }
+      }
+    };
+
+    setTimeout(() => {
+      expect(wasKAReceived).to.equal(true);
+      expect(subscriptionsClient.status).to.equal(WebSocket.CLOSED);
+      done();
+    }, 100);
+  });
+
+  it('should correctly clear timeout if receives ka too early', (done) => {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, {timeout: 25});
+    const checkConnectionSpy = sinon.spy(subscriptionsClient, 'checkConnection');
+
+    setTimeout(() => {
+      expect(checkConnectionSpy.callCount).to.be.equal(1);
+      expect(subscriptionsClient.status).to.be.equal(subscriptionsClient.client.OPEN);
+      done();
+    }, 100);
+  });
+
+  it('should take care of invalid message received', (done) => {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    const dataToSend = {
+      data: JSON.stringify({type: 'invalid'}),
+    };
+
+    expect(() => {
+      originalOnMessage.call(subscriptionsClient, dataToSend)();
+    }).to.throw('Invalid message type!');
+    done();
+  });
+
+  it('should throw if received data is not JSON-parseable', (done) => {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    const dataToSend = {
+      data: 'invalid',
+    };
+
+    expect(() => {
+      originalOnMessage.call(subscriptionsClient, dataToSend)();
+    }).to.throw('Message must be JSON-parseable. Got: invalid');
+    done();
+  });
+
+  it('should delete operation when receive a GQL_COMPLETE', (done) => {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    subscriptionsClient.operations['1'] = {
+      options: {
+        query: 'invalid',
+      },
+      handler: () => {
+        // nothing
+      },
+    };
+
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    const dataToSend = {
+      data: JSON.stringify({id: 1, type: MessageTypes.GQL_COMPLETE}),
+    };
+
+    expect(subscriptionsClient.operations).to.have.property('1');
+    originalOnMessage(dataToSend);
+    expect(subscriptionsClient.operations).to.not.have.property('1');
+    done();
+  });
+
+  it('should call executeOperation when query is called', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    const executeOperationSpy = sinon.spy(client, 'executeOperation');
+
+    client.query({
+      query: `query useInfo($id: String) {
+          user(id: $id) {
+            id
+            name
+          }
+        }`,
+      operationName: 'useInfo',
+      variables: {
+        id: 3,
+      },
+    }).then(
+      (result: any) => {
+        // do nothing
+      },
+      (error: any) => {
+        // do nothing
+      },
+    );
+
+    setTimeout(() => {
+      assert(executeOperationSpy.calledOnce);
+      done();
+    }, 200);
   });
 });
 
@@ -782,6 +895,30 @@ describe('Server', function () {
     expect(() => {
       new SubscriptionServer({subscriptionManager: undefined}, {server: httpServer});
     }).to.throw();
+  });
+
+  it.skip('should handle socket error and close the connection on error', (done) => {
+    const spy = sinon.spy();
+
+    const httpServerForError = createServer(notFoundRequestListener);
+    httpServerForError.listen(ERROR_TEST_PORT);
+
+    new SubscriptionServer({
+      subscriptionManager,
+      onConnect: (payload: any, socket: any) => {
+        setTimeout(() => {
+          socket.emit('error', new Error('test'));
+
+          setTimeout(() => {
+            assert(spy.calledOnce);
+            done();
+          }, 500);
+        }, 100);
+      },
+    }, {server: httpServerForError});
+
+    const client = new SubscriptionClient(`ws://localhost:${ERROR_TEST_PORT}/`);
+    client.onDisconnect(spy);
   });
 
   it('should trigger onConnect when client connects and validated', (done) => {
@@ -1296,5 +1433,67 @@ describe('Server', function () {
         }
       }
     };
+  });
+});
+
+describe('Helpers', function () {
+  it('should extend provided network interface correctly', (done) => {
+    let mockedSubscriptionClient = sinon.createStubInstance(SubscriptionClient);
+    let mockNetworkInterface = {
+      subscribe: sinon.stub(),
+      unsubscribe: sinon.stub(),
+    };
+
+    addGraphQLSubscriptions(mockNetworkInterface, mockedSubscriptionClient);
+
+    mockNetworkInterface.subscribe({}, sinon.stub());
+    mockNetworkInterface.unsubscribe(0);
+
+    expect(mockedSubscriptionClient.subscribe.callCount).to.be.equal(1);
+    expect(mockedSubscriptionClient.unsubscribe.callCount).to.be.equal(1);
+    done();
+  });
+
+  it('should call console warn when env is not production', (done) => {
+    let mockedSubscriptionClient = sinon.createStubInstance(SubscriptionClient);
+    let mockNetworkInterface = {
+      subscribe: sinon.stub(),
+      unsubscribe: sinon.stub(),
+    };
+    const consoleStub = sinon.stub(console, 'warn');
+
+    addGraphQLSubscriptions(mockNetworkInterface, mockedSubscriptionClient);
+
+    assert(consoleStub.calledWith('This method becomes deprecated in the new package graphql-transport-ws. ' +
+      'Start using the GraphQLTransportWSClient to make queries, mutations and subscriptions over websockets.'));
+    consoleStub.restore();
+    done();
+  });
+
+  it('should not call console warn when env is production', (done) => {
+    let mockedSubscriptionClient = sinon.createStubInstance(SubscriptionClient);
+    let mockNetworkInterface = {
+      subscribe: sinon.stub(),
+      unsubscribe: sinon.stub(),
+    };
+    const consoleStub = sinon.stub(console, 'warn');
+    const originalProccessEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'production';
+
+    addGraphQLSubscriptions(mockNetworkInterface, mockedSubscriptionClient);
+
+    assert.isFalse(consoleStub.called);
+    consoleStub.restore();
+    process.env.NODE_ENV = originalProccessEnv;
+    done();
+  });
+});
+
+describe('Message Types', function () {
+  it('should throw an error if static class is instantiated', (done) => {
+    expect(() => {
+      new MessageTypes();
+    }).to.throw('Static Class');
+    done();
   });
 });
