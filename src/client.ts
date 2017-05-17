@@ -185,7 +185,7 @@ export class SubscriptionClient {
   }
 
   public unsubscribe(id: number) {
-    if (this.client !== null) {
+    if (this.client === null) {
       return;
     }
     // operation hasn't sent message yet

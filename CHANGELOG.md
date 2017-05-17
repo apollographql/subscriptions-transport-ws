@@ -2,6 +2,7 @@
 
 ### vNEXT
 - Client exposes new asyncronous middleware to modify `OperationOptions` [PR #78](https://github.com/apollographql/subscriptions-transport-ws/pull/78)
+- Introduce lazy mode for connection, and accept function as `connectionParams` [PR #131]
 
 ### 0.6.0
 
