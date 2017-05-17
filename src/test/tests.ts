@@ -7,6 +7,7 @@ import {
   expect,
 } from 'chai';
 import * as sinon from 'sinon';
+import { SinonSpy } from '@types/sinon';
 import * as WebSocket from 'ws';
 
 Object.assign(global, {
@@ -630,6 +631,95 @@ describe('Client', function () {
       done();
     });
   }
+
+  it('should not connect until subscribe is called if lazy mode', (done) => {
+    const client: SubscriptionClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      lazy: true,
+    });
+    expect(client.client).to.be.null;
+
+    let subId = client.subscribe({
+        query: `subscription useInfo($id: String) {
+        user(id: $id) {
+          id
+          name
+        }
+      }`,
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
+        },
+      }, function (error: any, result: any) {
+        //do nothing
+      },
+    );
+
+    let isDone = false;
+
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', () => {
+        if (!isDone) {
+          isDone = true;
+          try {
+            expect(client.client).to.not.be.null;
+            client.unsubscribe(subId);
+            done();
+          } catch (e) {
+            done(e);
+          }
+        }
+      });
+    });
+  });
+
+  it('should call the connectionParams function upon connection to get connectionParams if connectionParams is a function', (done) => {
+    const connectionParams: SinonSpy = sinon.spy(() => ({
+      foo: 'bar',
+    }));
+
+    const client: SubscriptionClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      lazy: true,
+      connectionParams,
+    });
+
+    let isDone = false
+      , subId: any = null;
+
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        if (!isDone) {
+          isDone = true;
+          try {
+            const parsedMessage = JSON.parse(message);
+            client.unsubscribe(subId);
+            expect(parsedMessage.payload).to.eql({
+              foo: 'bar',
+            });
+            done();
+          } catch (e) {
+            done(e);
+          }
+        }
+      });
+    });
+
+    subId = client.subscribe({
+        query: `subscription useInfo($id: String) {
+        user(id: $id) {
+          id
+          name
+        }
+      }`,
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
+        },
+      }, function (error: any, result: any) {
+        //do nothing
+      },
+    );
+  });
+
 
   it('should handle missing errors', function (done) {
     const errorMessage = 'Unknown error';
