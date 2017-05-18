@@ -4,7 +4,7 @@
 
 **(Work in progress!)**
 
-A GraphQL WebSocket server and client to facilitate GraphQL subscriptions.
+A GraphQL WebSocket server and client to facilitate GraphQL queries, mutations and subscriptions over WebSocket.
 
 > `subscriptions-transport-ws` is an extension for GraphQL, and you can use it with any GraphQL client and server (not only Apollo).
 
@@ -12,7 +12,7 @@ See [GitHunt-API](https://github.com/apollostack/GitHunt-API) and [GitHunt-React
 
 # Getting Started
 
-Start by installing the package, using Yarn or NPM:
+Start by installing the package, using Yarn or NPM.
 
     Using Yarn:
     $ yarn add subscriptions-transport-ws
@@ -20,29 +20,27 @@ Start by installing the package, using Yarn or NPM:
     Or, using NPM:
     $ npm install --save subscriptions-transport-ws
 
+> Note that you need to use this package on both GraphQL client and server.
+
 > This command also installs this package's dependencies, including `graphql-subscriptions`.
 
-### Server
+## Server
 
-Starting with the server, create a new simple `SubscriptionsManager`, with a `PubSub` implementation:
+Starting with the server, create a new simple `PubSub` instance. We will later use this `PubSub` to publish and subscribe to data changes.
 
 ```js
-import { SubscriptionManager, PubSub } from 'graphql-subscriptions';
+import { PubSub } from 'graphql-subscriptions';
 
-const schema = {}; // Replace with your GraphQL schema object
-const pubsub = new PubSub();
-
-const subscriptionManager = new SubscriptionManager({
-  schema,
-  pubsub
-});
+export const pubsub = new PubSub();
 ```
 
-Now, use your `subscriptionManager`, and create your `SubscriptionServer`:
+Now, use your `PubSub` instance, along with your GraphQL `schema`, `execute` and `subscribe`:
 
 ```js
 import { createServer } from 'http';
 import { SubscriptionServer } from 'subscriptions-transport-ws';
+import { execute, subscribe } from 'graphql';
+import { schema } from './my-schema';
 
 const WS_PORT = 5000;
 
@@ -57,23 +55,54 @@ websocketServer.listen(WS_PORT, () => console.log(
   `Websocket Server is now running on http://localhost:${WS_PORT}`
 ));
 
-const subscriptionServer = new SubscriptionServer(
+const subscriptionServer = SubscriptionServer.create(
   {
-    onConnect: async (connectionParams) => {
-      // Implement if you need to handle and manage connection
-    },
-    subscriptionManager: subscriptionManager
+    schema,
+    execute,
+    subscribe,
   },
   {
     server: websocketServer,
-    path: '/'
-  }
+    path: '/graphql',
+  },
 );
 ```
 
-### Client (browser)
+### Creating Your Subscriptions
 
-For client side, we will use `SubscriptionClient`, and we also need to extend our network interface to use this transport for GraphQL subscriptions:
+Please refer to [`graphql-subscriptions`](https://github.com/apollographql/graphql-subscriptions) documentation for how to create your GraphQL subscriptions, and how to publish data.
+
+
+
+## Client (browser)
+
+When using this package for client side, you can choose either use HTTP request for Queries and Mutation and use the WebSocket for subscriptions only, or create a full transport that handles all type of GraphQL operations over the socket.
+
+### Full WebSocket Transport
+
+To start with a full WebSocket transport, that handles all types of GraphQL operations, import and create an instance of `SubscriptionClient`.
+
+Then, create your `ApolloClient` instance and use the `SubscriptionsClient` instance as network interface:
+
+```js
+import { SubscriptionClient } from 'subscriptions-transport-ws';
+import ApolloClient from 'apollo-client';
+
+const GRAPHQL_ENDPOINT = 'ws://localhost:3000/graphql';
+
+const client = new SubscriptionClient(GRAPHQL_ENDPOINT, {
+  reconnect: true,
+});
+
+const apolloClient = new ApolloClient({
+    networkInterface: client,
+});
+
+```
+
+### Hybrid WebSocket Transport
+
+To start with a full WebSocket transport, that handles only `subscription`s over WebSocket, create your `SubscriptionClient` and a regular HTTP network interface, then extend your network interface to use the WebSocket client for GraphQL subscriptions:
 
 ```js
 import {SubscriptionClient, addGraphQLSubscriptions} from 'subscriptions-transport-ws';
@@ -116,7 +145,7 @@ apolloClient.subscribeToMore({
         }`,
     variables: {},
     updateQuery: (prev, {subscriptionData}) => {
-        return; // Modify your store and return new state with the new arrived data
+        // Modify your store and return new state with the new arrived data
     }
 });
 ```
@@ -129,7 +158,8 @@ https://unpkg.com/subscriptions-transport-ws@VERSION/browser/client.js
 
 > Replace VERSION with the latest version of the package.
 
-### Use it with GraphiQL
+
+## Use it with GraphiQL
 
 You can use this package's power with GraphiQL, and subscribe to live-data stream inside GraphiQL.
 
@@ -180,25 +210,27 @@ ReactDOM.render(
 );
 ```
 
-# API
+# API Docs
 
 ## SubscriptionClient
 ### `Constructor(url, options, connectionCallback)`
-- `url: string` : url that the client will connect to
+- `url: string` : url that the client will connect to, starts with `ws://` or `wss://`
 - `options?: Object` : optional, object to modify default client behavior
   * `timeout?: number` : how long the client should wait in ms for a subscription to be started (default 5000 ms)how long the client should wait in ms for a subscription to be started (default 5000 ms)
-  * `connectionParams?: Object` : object that will be available as first argument of `onConnect` (in server side)
+  * `lazy?: boolean` : use to set lazy mode - connects only when first subscription created, and delay the socket initialization
+  * `connectionParams?: Object | Function` : object or function that will be available as first argument of `onConnect` (in server side)
   * `reconnect?: boolean` : automatic reconnect in case of connection error
   * `reconnectionAttempts?: number` : how much reconnect attempts
   * `connectionCallback?: (error) => {}` : optional, callback that called after the first init message, with the error (if there is one)
-- `webSocketImpl: Object` - optional, WebSocket implementation. use this when your environment does not have a built-in native WebSocket (for example, with NodeJS client)
+- `webSocketImpl?: Object` - optional, WebSocket implementation. use this when your environment does not have a built-in native WebSocket (for example, with NodeJS client)
 
 ### Methods
-#### `subscribe(options, handler) => id`
+#### `subscribe(options, handler) => number`: subscribed to data and returns the subscription id
 - `options: {SubscriptionOptions}`
   * `query: string` : GraphQL subscription
   * `variables: Object` : GraphQL subscription variables
   * `operationName: string` : operation name of the subscription
+  * `context: Object` : use to override context for a specific call
 - `handler: (errors: Error[], result?: any) => void` : function to handle any errors and results from the subscription response
 
 #### `unsubscribe(id) => void` - unsubscribes from a specific subscription
@@ -227,90 +259,55 @@ ReactDOM.render(
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
 
+### `query(options: OperationOptions) => Promise<ExecutionResult>` : Executes GraphQL operation over the WebSocket
+- `options: OperationOptions`:
+    * `query: string` - GraphQL operation as string or parsed GraphQL document node
+    * `variables?: Object` - Object with GraphQL variables
+    * `operationName?: string` - GraphQL operation name
+    * `context?: any` - Execution context for the operation
+    
+### `close() => void` - closes the WebSocket connection manually
+
+### `use(middlewares: MiddlewareInterface[]) => SubscriptionClient` - adds middleware to modify `OperationOptions` per each request
+- `middlewares: MiddlewareInterface[]` - Array contains list of middlewares (implemented `applyMiddleware` method) implementation, the `SubscriptionClient` will use the middlewares to modify `OperationOptions` for every operation
+
+### `status: number` : returns the current socket's `readyState`
+
 ## Client-side helpers
 
 #### `addGraphQLSubscriptions(networkInterface, wsClient) => void`
 - `networkInterface: any` - network interface to extend with `subscribe` and `unsubscribe` methods.
 - `wsClient: SubscriptionClient` - network interface to extend with `subscribe` and `unsubscribe` methods.
 
-A quick way to add the `subscribe` and `unsubscribe` functions to the [network interface](http://dev.apollodata.com/core/network.html#createNetworkInterface)
+A quick way to add the `subscribe` and `unsubscribe` functions to the [network interface](http://dev.apollodata.com/core/network.html#createNetworkInterface), when using Hybrid socket mode.
 
 
 ## SubscriptionServer
 ### `Constructor(options, socketOptions)`
 - `options: {ServerOptions}`
-  * `subscriptionManager: SubscriptionManager` : GraphQL subscription manager
-  * `onSubscribe?: (message: SubscribeMessage, params: SubscriptionOptions, webSocket: WebSocket)` : optional method to create custom params that will be used when resolving this subscription
-  * `onUnsubscribe?: (webSocket: WebSocket)` : optional method that called when a client unsubscribe
+  * `rootValue?: any` : Root value to use when executing GraphQL root operations
+  * `schema?: GraphQLSchema` : GraphQL schema object
+  * `execute?: (schema, document, rootValue, contextValue, variableValues, operationName) => Promise<ExecutionResult> | AsyncIterator<ExecutionResult>` : GraphQL `execute` function, provide the default one from `graphql` package. Return value of `AsyncItrator` is also valid since this package also support reactive `execute` methods.
+  * `subscribe?: (schema, document, rootValue, contextValue, variableValues, operationName) => AsyncIterator<ExecutionResult>` : GraphQL `subscribe` function, provide the default one from `graphql` package.
+  * `onOperation?: (message: SubscribeMessage, params: SubscriptionOptions, webSocket: WebSocket)` : optional method to create custom params that will be used when resolving this operation
+  * `onOperationComplete?: (webSocket: WebSocket)` : optional method that called when a GraphQL operation is done (for query and mutation it's immeditaly, and for subscriptions when unsubscribing)
   * `onConnect?: (connectionParams: Object, webSocket: WebSocket)` : optional method that called when a client connects to the socket, called with the `connectionParams` from the client, if the return value is an object, its elements will be added to the context. return `false` or throw an exception to reject the connection. May return a Promise.
   * `onDisconnect?: (webSocket: WebSocket)` : optional method that called when a client disconnects
   * `keepAlive?: number` : optional interval in ms to send `KEEPALIVE` messages to all clients
+  
+
+  * **@deprecated** `onSubscribe?: (message: SubscribeMessage, params: SubscriptionOptions, webSocket: WebSocket)` : optional method to create custom params that will be used when resolving this subscription
+  * **@deprecated** `onUnsubscribe?: (webSocket: WebSocket)` : optional method that called when a client unsubscribe
+  * **@deprecated**  `subscriptionManager?: SubscriptionManager` : support for old implementation using `SubscriptionsManager` from `graphql-subscriptions` - an alternative for `graphql`'s built-in `execute` and `subscribe`.
+
 - `socketOptions: {WebSocket.IServerOptions}` : options to pass to the WebSocket object (full docs [here](https://github.com/websockets/ws/blob/master/doc/ws.md))    
   * `server?: HttpServer` - existing HTTP server to use (use without `host`/`port`)
   * `host?: string` - server host
   * `port?: number` - server port
   * `path?: string` - endpoint path
     
-## Client-server communication
+    
+## How it works?
 
-Each message has a `type` field, which defined in the protocol of this package, as well as associated fields depending on the message type.
-
-### Client -> Server
-
-#### INIT
-Client sends this message after connecting, this triggers `onConnect` on the server.
-- `payload: Object` : optional parameters that the client specifies in `connectionParams`
-
-#### SUBSCRIPTION_START
-Client sends this message to start a subscription for a query.
-- `query: GraphQLDocument` :  GraphQL subscription
-- `variables: Object` : GraphQL subscription variables
-- `operationName: string` : operation name of the subscription
-- `id: string` : subscription ID
-
-#### SUBSCRIPTION_END
-Client sends this message to end a subscription.
-- `id: string` : subscription ID of the subscription to be terminated
-
-
-### Server -> Client
-
-#### INIT_FAIL
-The server sends this message if `onConnect` callback returns `false` or throws an exception. after sending this message, the server disconnects the client.
-- `payload: Object`: the server side error
-
-#### INIT_SUCCESS
-The server sends this message if `onConnect` callback returns any other value then `false`.
-
-#### SUBSCRIPTION_SUCCESS
-The server sends this message to confirm that it has validated the subscription query and
-is subscribed to the triggers.
-- `id: string` : ID of the subscription that was successfully set up
-
-#### SUBSCRIPTION_FAIL
-Server sends this message upon failing to register a subscription. It may also send this message
-at any point during the subscription to notify the client the the subscription has been stopped.
-- `payload: { errors: Array<Object> }` : payload with an array of errors attributed to the subscription failing on the server
-- `id: string` : subscription ID of the subscription that failed on the server
-
-#### SUBSCRIPTION_DATA
-GraphQL result sent periodically from server to client according to subscription.
-- `payload: GraphQLResult` : GraphQL result from running the subscription
-- `id: string` : subscription ID
-
-#### KEEPALIVE
-Server message sent periodically to keep the client connection alive.
-
-### Messages Flow
-
-This is a demonstration of client-server communication, in order to get a better understanding of the protocol flow:
-
-- Client creates a WebSocket instance using `SubscriptionsClient` object.
-- Client sends `INIT` message to the server.
-- Server calls `onConnect` callback with the init arguments, waits for init to finish and returns it's return value with `INIT_SUCCESS`, or `INIT_FAIL` in case of `false` or thrown exception from `onConnect` callback.
-- Client gets `INIT_SUCCESS` and waits for the client's app to create subscriptions.
-- App creates a subscription using `subscribe` client's API, and the `SUBSCRIPTION_START` message sent to the server.
-- Server calls `onSubscribe` callback, and responds with `SUBSCRIPTION_SUCCESS` in case of zero errors, or `SUBSCRIPTION_FAIL` if there is a problem with the subscription.
-- Client get `SUBSCRIPTION_SUCCESS` and waits for data.
-- App triggers `PubSub`'s publication method, and the server publishes the event, passing it through the `graphql-subscriptions` package for filtering and resolving.
-- Client receives `SUBSCRIPTION_DATA` with the data, and handles it with `apollo-client` instance.
+* For GraphQL WebSocket protocol docs, [click here](https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md)    
+* This package also uses `AsyncIterator` internally using [iterall](https://github.com/leebyron/iterall), for more information [click here](https://github.com/ReactiveX/IxJS), or [the proposal](https://github.com/tc39/proposal-async-iteration)
