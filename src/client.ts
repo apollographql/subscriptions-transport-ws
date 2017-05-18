@@ -36,10 +36,6 @@ export interface Operations {
   [id: string]: Operation;
 }
 
-export interface PendingOperations {
-  [id: string]: boolean;
-}
-
 export interface Middleware {
   applyMiddleware(options: OperationOptions, next: Function): void;
 }
@@ -78,7 +74,6 @@ export class SubscriptionClient {
   private wasKeepAliveReceived: boolean;
   private checkConnectionTimeoutId: any;
   private middlewares: Middleware[];
-  private pendingOperations: PendingOperations;
 
   constructor(url: string, options?: ClientOptions, webSocketImpl?: any) {
     const {
@@ -110,7 +105,6 @@ export class SubscriptionClient {
     this.backoff = new Backoff({ jitter: 0.5 });
     this.eventEmitter = new EventEmitter();
     this.middlewares = [];
-    this.pendingOperations = {};
     this.client = null;
 
     if (!this.lazy) {
@@ -192,12 +186,6 @@ export class SubscriptionClient {
   }
 
   public unsubscribe(opId: number) {
-    // Chick if Operation is pending first
-    if (this.pendingOperations[opId]) {
-      delete this.pendingOperations[opId];
-      return;
-    }
-
     if (this.operations[opId]) {
       delete this.operations[opId];
     }
@@ -269,21 +257,15 @@ export class SubscriptionClient {
 
   private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): number {
     const opId = this.generateOperationId();
-
-    // Register operation as a pending one
-    this.pendingOperations[opId] = true;
+    this.operations[opId] = { options: options, handler };
 
     this.applyMiddlewares(options)
       .then(processedOptions => {
         this.checkOperationOptions(processedOptions, handler);
-
-        // Check if operation was already unsubscribed
-        // If not de-register it and proceed normally
-        if (this.pendingOperations[opId]) {
-          delete this.pendingOperations[opId];
-          this.operations[opId] = { options: processedOptions, handler };
-          this.sendMessage(opId, MessageTypes.GQL_START, processedOptions);
-        }
+          if (this.operations[opId]) {
+            this.operations[opId] = { options: processedOptions, handler };
+            this.sendMessage(opId, MessageTypes.GQL_START, processedOptions);
+          }
       })
       .catch(error => {
         this.unsubscribe(opId);
