@@ -970,6 +970,38 @@ describe('Client', function () {
       done();
     }, 200);
   });
+
+  it('should force close the connection without tryReconnect', function (done) {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      reconnect: true,
+      reconnectionAttempts: 1,
+    });
+    const tryReconnectSpy = sinon.spy(subscriptionsClient, 'tryReconnect');
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        // mock server
+        if (parsedMessage.type === MessageTypes.GQL_CONNECTION_INIT) {
+          connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK, payload: {} }));
+        }
+      });
+    });
+
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    subscriptionsClient.client.onmessage = (dataReceived: any) => {
+      let receivedDataParsed = JSON.parse(dataReceived.data);
+      if (receivedDataParsed.type === MessageTypes.GQL_CONNECTION_ACK) {
+        originalOnMessage(dataReceived);
+        subscriptionsClient.close();
+      }
+    };
+
+    setTimeout(() => {
+      expect(tryReconnectSpy.callCount).to.be.equal(0);
+      expect(subscriptionsClient.status).to.be.equal(WebSocket.CLOSED);
+      done();
+    }, 500);
+  });
 });
 
 describe('Server', function () {
