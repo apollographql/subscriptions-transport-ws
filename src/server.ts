@@ -373,7 +373,7 @@ export class SubscriptionServer {
               }
 
               forAwaitEach(
-                createAsyncIterator<ExecutionResult>(executionIterable as any) as any,
+                createAsyncIterator(executionIterable) as any,
                 (value: ExecutionResult) => {
                   let result = value;
 
