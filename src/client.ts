@@ -37,14 +37,19 @@ export interface Operations {
   [id: string]: Operation;
 }
 
-export type ConnectionParams = {[paramName: string]: any};
+export type ConnectionParams = {
+  [paramName: string]: any,
+};
+
+export type ConnectionParamsOptions = ConnectionParams | Function;
 
 export interface ClientOptions {
-  connectionParams?: ConnectionParams;
+  connectionParams?: ConnectionParamsOptions;
   timeout?: number;
   reconnect?: boolean;
   reconnectionAttempts?: number;
   connectionCallback?: (error: Error[], result?: any) => void;
+  lazy?: boolean;
 }
 
 export class SubscriptionClient {
@@ -52,7 +57,7 @@ export class SubscriptionClient {
   public operations: Operations;
   private url: string;
   private nextOperationId: number;
-  private connectionParams: ConnectionParams;
+  private connectionParams: ConnectionParamsOptions;
   private wsTimeout: number;
   private unsentMessagesQueue: Array<any>; // queued messages while websocket is opening.
   private reconnect: boolean;
@@ -61,6 +66,7 @@ export class SubscriptionClient {
   private backoff: any;
   private connectionCallback: any;
   private eventEmitter: EventEmitter;
+  private lazy: boolean;
   private wsImpl: any;
   private wasKeepAliveReceived: boolean;
   private checkConnectionTimeoutId: any;
@@ -74,6 +80,7 @@ export class SubscriptionClient {
       timeout = WS_TIMEOUT,
       reconnect = false,
       reconnectionAttempts = Infinity,
+      lazy = false,
     } = (options || {});
 
     this.wsImpl = webSocketImpl || NativeWebSocket;
@@ -92,20 +99,30 @@ export class SubscriptionClient {
     this.reconnect = reconnect;
     this.reconnecting = false;
     this.reconnectionAttempts = reconnectionAttempts;
+    this.lazy = !!lazy;
     this.backoff = new Backoff({ jitter: 0.5 });
     this.eventEmitter = new EventEmitter();
     this.middlewares = [];
     this.pendingSubscriptions = {};
+    this.client = null;
 
-    this.connect();
+    if (!this.lazy) {
+      this.connect();
+    }
   }
 
   public get status() {
+    if (this.client === null) {
+      return 0; //readyState 'CONNECTING'
+    }
+
     return this.client.readyState;
   }
 
   public close() {
-    this.client.close();
+    if (this.client !== null) {
+      this.client.close();
+    }
   }
 
   public query(options: OperationOptions): Promise<ExecutionResult> {
@@ -136,6 +153,10 @@ export class SubscriptionClient {
       handler(operationPayloadErrors, operationPayloadData);
     };
 
+    if (this.client === null) {
+      this.connect();
+    }
+
     if (!handler) {
       throw new Error('Must provide an handler.');
     }
@@ -164,6 +185,9 @@ export class SubscriptionClient {
   }
 
   public unsubscribe(id: number) {
+    if (this.client === null) {
+      return;
+    }
     // operation hasn't sent message yet
     // cancel without sending message to server
     if (this.pendingSubscriptions[id]) {
@@ -369,8 +393,11 @@ export class SubscriptionClient {
       this.eventEmitter.emit(isReconnect ? 'reconnect' : 'connect');
       this.reconnecting = false;
       this.backoff.reset();
+
+      const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
+
       // Send CONNECTION_INIT message, no need to wait for connection to success (reduce roundtrips)
-      this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_INIT, this.connectionParams);
+      this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_INIT, payload);
       this.flushUnsentMessagesQueue();
     };
 
