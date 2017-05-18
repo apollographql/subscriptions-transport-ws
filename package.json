@@ -27,7 +27,7 @@
     "posttest": "npm run lint",
     "lint": "tslint --format=stylish --type-check --project ./tsconfig.json",
     "watch": "tsc -w",
-    "testonly": "mocha --reporter spec --full-trace ./dist/test/tests.js",
+    "testonly": "mocha --reporter spec --full-trace ./dist/test/**/*.js",
     "coverage": "node ./node_modules/istanbul/lib/cli.js cover _mocha -- --full-trace ./dist/test/tests.js",
     "postcoverage": "remap-istanbul --input coverage/coverage.raw.json --type lcovonly --output coverage/lcov.info",
     "browser-compile": "webpack --config \"./unpkg-webpack.config.js\"",

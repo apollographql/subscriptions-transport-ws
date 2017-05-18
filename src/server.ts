@@ -11,7 +11,7 @@ import { createAsyncIterator, forAwaitEach, isAsyncIterable } from 'iterall';
 import { createIterableFromPromise } from './utils/promise-to-iterable';
 import { isASubscriptionOperation } from './utils/is-subscriptions';
 import { parseLegacyProtocolMessage } from './legacy/parse-legacy-protocol';
-import { defineDeprecateFunctionWrapper } from './legacy/defined-deprecation-function-wrapper';
+import { defineDeprecateFunctionWrapper } from './legacy/define-deprecation-function-wrapper';
 import { IncomingMessage } from 'http';
 
 export type ExecutionIterator = AsyncIterator<ExecutionResult>;

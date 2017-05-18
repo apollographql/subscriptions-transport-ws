@@ -3,10 +3,10 @@ import { $$asyncIterator } from 'iterall';
 export const createRejectionIterable = (error: Error): AsyncIterator<any> => {
   return {
     next() {
-      return this.throw(error);
+      return Promise.reject(error);
     },
     return() {
-      return this.throw(error);
+      return Promise.resolve({ done: true, value: undefined });
     },
     throw(e: Error) {
       return Promise.reject(e);

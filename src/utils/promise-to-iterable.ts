@@ -5,24 +5,23 @@ export function createIterableFromPromise<T>(promise: Promise<T>): AsyncIterator
 
   return {
     next() {
-      if (isResolved) {
-        return this.return();
+      if (!isResolved) {
+        isResolved = true;
+
+        return promise
+          .then(value => ({ value, done: false }));
       }
 
-      return promise
-        .then(value => ({ value, done: false }))
-        .catch(error => this.throw(error))
-        .then(res => {
-          isResolved = true;
-
-          return res;
-        });
+      return Promise.resolve({ value: undefined, done: true });
     },
     return() {
-      return promise
-        .then(value => ({ value: undefined, done: true }));
+      isResolved = true;
+
+      return Promise.resolve({ value: undefined, done: true });
     },
     throw(e: Error) {
+      isResolved = true;
+
       return Promise.reject(e);
     },
     [$$asyncIterator]() {
