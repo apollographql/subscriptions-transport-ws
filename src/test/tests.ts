@@ -959,7 +959,6 @@ describe('Server', function () {
         server.close();
         done();
       });
-
     });
   });
 
@@ -1644,5 +1643,78 @@ describe('Message Types', function () {
       new MessageTypes();
     }).to.throw('Static Class');
     done();
+  });
+});
+
+describe('Client<->Server Flow', () => {
+  it('should handle correctly multiple subscriptions one after each other', (done) => {
+    // This tests the use case of a UI component that creates a subscription acoording to it's
+    // local data, for example: subscribe to changed on a visible items in a list, and it might
+    // change quickly and we want to make sure that the subscriptions flow is correct
+
+    // Create the server
+    const server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    SubscriptionServer.create({
+      schema,
+      execute,
+    }, {
+      server,
+      path: '/',
+    });
+
+    const firstSubscriptionSpy = sinon.spy();
+
+    // Create the client
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    client.onConnect(() => {
+      // Subscribe to a regular query
+      client.subscribe({
+        query: `query { testString }`,
+        variables: {},
+      }, (err, res) => {
+        assert(err === null, 'unexpected error from query');
+        expect(res).to.deep.equal({ testString: 'value' });
+
+        // Now, subscribe to graphql subscription
+        const firstSubscriptionId = client.subscribe({
+          query: `subscription {
+            user(id: "3") {
+              id
+              name
+            }
+          }`,
+        }, (sErr, sRes) => {
+          assert(sErr === null, 'unexpected error from 1st subscription');
+          assert(sRes !== null, 'unexpected null from 1st subscription result');
+          expect(Object.keys(client['operations']).length).to.eq(1);
+          expect(sRes.user.id).to.eq('3');
+          firstSubscriptionSpy();
+
+          client.unsubscribe(firstSubscriptionId);
+
+          setTimeout(() => {
+            client.subscribe({
+              query: `subscription {
+            user(id: "1") {
+              id
+              name
+            }
+          }`,
+            }, (s2Err, s2Res) => {
+              assert(s2Err === null, 'unexpected error from 2nd subscription');
+              assert(s2Res !== null, 'unexpected null from 2nd ubscription result');
+              expect(s2Res.user.id).to.eq('1');
+              expect(Object.keys(client['operations']).length).to.eq(1);
+              expect(firstSubscriptionSpy.callCount).to.eq(1);
+
+              server.close();
+              done();
+            });
+          }, 10);
+        });
+      });
+    });
   });
 });
