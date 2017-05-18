@@ -213,24 +213,24 @@ export class SubscriptionClient {
   public applyMiddlewares(options: OperationOptions): Promise<OperationOptions> {
     return new Promise((resolve, reject) => {
       const queue = (funcs: Middleware[], scope: any) => {
-        const next = () => {
-          if (funcs.length > 0) {
-            const f = funcs.shift();
-            if (f) {
-              f.applyMiddleware.apply(scope, [options, next]);
-            }
+        const next = (error?: any) => {
+          if (error) {
+            reject(error);
           } else {
-            resolve(options);
+            if (funcs.length > 0) {
+              const f = funcs.shift();
+              if (f) {
+                f.applyMiddleware.apply(scope, [options, next]);
+              }
+            } else {
+              resolve(options);
+            }
           }
         };
         next();
       };
 
-      try {
-        queue([...this.middlewares], this);
-      } catch (e) {
-        reject(e);
-      }
+      queue([...this.middlewares], this);
     });
   }
 
@@ -285,8 +285,9 @@ export class SubscriptionClient {
           this.sendMessage(opId, MessageTypes.GQL_START, processedOptions);
         }
       })
-      .catch(e => {
-        throw e;
+      .catch(error => {
+        this.unsubscribe(opId);
+        handler(this.formatErrors(error));
       });
 
     return opId;
