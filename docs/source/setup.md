@@ -11,6 +11,8 @@ It sits between you application's logic and the GraphQL subscriptions engine - i
 
 `graphql-subscriptions` exposes a default `PubSub` class you can use for a simple usage of data publication.
 
+The `PubSub` implmentation also includes an mechanism that converts a specific `PubSub` event into a stream of `AsyncIterator`, which you can use with `graphql` subscriptions resolver.
+
 > Check out how to change the `PubSub` mechanism to an external one [here](/tools/graphql-subscriptions/external-pubsub.html)
 
 To get started, install `graphql-subscriptions` package:
@@ -22,7 +24,7 @@ npm install --save graphql-subscriptions
 Use your `PubSub` instance for publishing new data over your subscriptions transport, for example:
 
 ```js
-import { PubSub } from `graphql-subscriptions`;
+import { PubSub } from 'graphql-subscriptions';
 
 export const pubsub = new PubSub();
 
@@ -38,27 +40,9 @@ pubsub.publish('commentAdded', payload);
 
 > At this point, nothing works yet because there is nothing to publish into
 
-
-<h2 id="subscription-manager">SubscriptionManager</h2>
-
-SubscriptionManager will intercept the published data from the PubSub and execute this data over the GraphQL engine with the selection set from the clients.
-
-Create a new `SubscriptionManager` and pass it the schema and the PubSub instance:
-
-```js
-import { SubscriptionManager } from 'graphql-subscriptions';
-import mySchema from './schema';
-import { pubsub } from './pubsub';
-
-const subscriptionManager = new SubscriptionManager({
-  schema: mySchema,
-  pubsub: pubsub
-});
-```
-
 <h2 id="subscription-server">SubscriptionsServer</h2>
 
-`SubscriptionsServer` will manage the WebSocket connection between the `SubscriptionManager` and the clients.
+`SubscriptionsServer` will manage the WebSocket connection between the GraphQL engine and the clients.
 
 We will use the server provided by the `subscriptions-transport-ws` transport package.
 
@@ -68,11 +52,13 @@ First install the `subscriptions-transport-ws` package:
 npm install --save subscriptions-transport-ws
 ```
 
-`SubscriptionsServer` gets `SubscriptionManager` instance and a http server:
+`SubscriptionsServer` expect a `schema`, `execute` and `subscribe` (optional) and a http server:
 
 ```js
 import { createServer } from 'http';
+import { execute, subscribe } from 'graphql';
 import { SubscriptionServer } from 'subscriptions-transport-ws';
+import { schema } from './schema';
 
 const WS_PORT = 5000;
 
@@ -89,7 +75,9 @@ websocketServer.listen(WS_PORT, () => console.log(
 
 const subscriptionsServer = new SubscriptionServer(
   {
-    subscriptionManager: subscriptionManager
+    execute,
+    subscribe,
+    schema,
   },
   {
     server: websocketServer
@@ -97,35 +85,49 @@ const subscriptionsServer = new SubscriptionServer(
 );
 ```
 
+<h2 id="subscription-resolver">Subscription Resolver</h2>
+
+To connect the published event from our `PubSub` to GraphQL engine, we need to create `AsyncIterable` and use it in the GraphQL subscription resolver definition.
+
+You can see [an example for creating subscription resolver here](/tools/graphql-subscriptions/subscriptions-to-schema.html)
+
+
+
 <h2 id="filter-subscriptions">Filter Subscriptions</h2>
 
 Somtimes a client will want filter out specific events based on context and arguments.
 
-You can filter subscription's publications per client using `setupFunctions` which is a part of `SubscriptionManager` API.
+To do so, we can use `withFilter` helper from this package, which wraps `AsyncItrator` with a filter function, and let you control each publication for each user.
 
-Let's see an example - for the following server-side subscription, the client want to subscribe only to comments added to a specific repo:
+Let's see an example - for the `commentAdded` server-side subscription, the client want to subscribe only to comments added to a specific repo:
 
 ```
 subscription($repoName: String!){
-  commentAdded(repoFullName: $repoName) { # <-- `commentAdded` is the actual GraphQL subscription name
+  commentAdded(repoFullName: $repoName) {
     id
     content
   }
 }
 ```
 
-Here is the following definition of `setupFunctions` that will filter out all of the `commentAdded` events that are not the requested repository:
+When using `withFilter`, provide a filter function, which executed with the payload (the published value), variables, context and operation info, and it must return boolean or Promise<boolean> indicating if the payload should pass to the subscriber.
+
+Here is the following definition of the subscription resolver, with `withFilter` that will filter out all of the `commentAdded` events that are not the requested repository:
 
 ```js
-const subscriptionManager = new SubscriptionManager({
-  schema,
-  pubsub,
-  setupFunctions: {
-    commentAdded: (options, args) => ({
-      commentAdded: {
-        filter: comment => comment.repository_name === args.repoFullName,
-      },
-    }),
-  },
-});
+import { withFilter } from 'graphql-subscriptions';
+
+const rootResolver = {
+    Query: () => { ... },
+    Mutation: () => { ... },
+    Subscription: {
+        commentAdded: {
+          subscribe: withFilter(pubsub.asyncIterator('commentAdded'), (payload, variables) => {
+             return payload.commentAdded.repository_name === variables.repoFullName;
+          }),
+        }
+    },
+};
 ```
+
+> Note that when using withFilter, you don't need to wrap your return value with a function.

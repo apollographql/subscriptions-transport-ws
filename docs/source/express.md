@@ -12,6 +12,10 @@ import express from 'express';
 import bodyParser from 'body-parser';
 import { graphqlExpress } from 'graphql-server-express';
 import { createServer } from 'http';
+import { execute, subscribe } from 'graphql';
+import { PubSub } from 'graphql-subscriptions';
+import { SubscriptionServer } from 'subscriptions-transport-ws';
+import { myGraphQLSchema } from './my-schema';
 
 const PORT = 3000;
 const app = express();
@@ -19,16 +23,13 @@ const app = express();
 app.use('/graphql', bodyParser.json(), graphqlExpress({ schema: myGraphQLSchema }));
 
 const pubsub = new PubSub();
-const subscriptionManager = new SubscriptionManager({
-  schema: myGraphQLSchema,
-  pubsub: pubsub,
-});
-
 const server = createServer(app);
 
 server.listen(PORT, () => {
     new SubscriptionServer({
-      subscriptionManager: subscriptionManager,
+      execute,
+      subscribe,
+      schema,
     }, {
       server: server,
       path: '/subscriptions',

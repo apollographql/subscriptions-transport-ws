@@ -1,5 +1,5 @@
 ---
-title: Authentication
+title: Authentication Over WebSocket
 order: 405
 ---
 
@@ -11,6 +11,10 @@ You can use these `connectionParams` in your `onConnect` callback, and validate 
  extend the GraphQL context of the current user's subscription with the authenticated user data.
 
 ```js
+import { execute, subscribe } from 'graphql';
+import { SubscriptionServer } from 'subscriptions-transport-ws';
+import { schema } from './schema';
+
 const validateToken = (authToken) => {
     // ... validate token and return a Promise, rejects in case of an error
 }
@@ -23,7 +27,9 @@ const findUser = (authToken) => {
 
 const subscriptionsServer = new SubscriptionServer(
   {
-    subscriptionManager: subscriptionManager,
+    execute,
+    subscribe,
+    schema,
     onConnect: (connectionParams, webSocket) => {
        if (connectionParams.authToken) {
             return validateToken(connectionParams.authToken)

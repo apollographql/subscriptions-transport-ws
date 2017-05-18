@@ -26,17 +26,24 @@ schema {
 }
 ```
 
-Create a resolver just like queries and mutations if you need to perform a logic over the published data:
+Create a resolver just like queries and mutations, but instead of function, pass an Object with `subscribe` field and a subscription resolver method.
 
+The subscription resolver method must return `AsyncIterator`, which you can get from using `asyncIterator` method of your `PubSub`:
+ 
 ```js
 const rootResolver = {
     Query: () => { ... },
     Mutation: () => { ... },
     Subscription: {
-        commentAdded: comment => {
-          // the subscription payload is the comment.
-          return comment;
-        },
+        commentAdded: {
+          subscribe: () => pubsub.asyncIterator('commentAdded')
+        }
     },
 };
+```
+
+Then, later on your code, you can publish data to your topic by using `pubsub.publish` with the topic name and the payload to want to publish:
+
+```js
+pubsub.publish('commentAdded', { commentAdded: { id: 1, content: 'Hello!' }})
 ```

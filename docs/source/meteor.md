@@ -7,15 +7,16 @@ Meteor exposes `httpServer` server over a `meteor/web` package, so you can use i
 
 ```js
 import { WebApp } from 'meteor/webapp';
+import { execute, subscribe } from 'graphql';
+import { SubscriptionServer } from 'subscripitons-transport-ws';
+import { myGraphQLSchema } from './my-schema';
 
 const pubsub = new PubSub();
-const subscriptionManager = new SubscriptionManager({
-  schema: myGraphQLSchema,
-  pubsub: pubsub,
-});
 
 new SubscriptionServer({
-  subscriptionManager: subscriptionManager,
+  schema: myGraphQLSchema,
+  execute,
+  subscribe,
 }, {
   server: WebApp.httpServer,
   path: '/subscriptions',
