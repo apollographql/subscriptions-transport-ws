@@ -49,4 +49,4 @@ export default class MessageTypes {
   constructor() {
     throw new Error('Static Class');
   }
-};
+}
