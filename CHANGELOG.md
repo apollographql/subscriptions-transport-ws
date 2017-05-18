@@ -3,7 +3,9 @@
 ### vNEXT
 - Client exposes new asyncronous middleware to modify `OperationOptions` [PR #78](https://github.com/apollographql/subscriptions-transport-ws/pull/78)
 - Added `WebSocketServer` error handler to prevent uncaught exceptions. Fixes [Issue #94](https://github.com/apollographql/subscriptions-transport-ws/issues/94)
-- Introduce lazy mode for connection, and accept function as `connectionParams` [PR #131]
+- Introduce lazy mode for connection, and accept function as `connectionParams` [PR #131](https://github.com/apollographql/subscriptions-transport-ws/pull/131)
+- Extend transport protocol to support GraphQL queries and mutations over WebSocket [PR #108](https://github.com/apollographql/subscriptions-transport-ws/pull/108) 
+- Added built-in support for `subscribe` from `graphql-js` [PR #133](https://github.com/apollographql/subscriptions-transport-ws/pull/133)
 
 ### 0.6.0
 
