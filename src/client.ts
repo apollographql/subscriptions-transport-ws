@@ -12,7 +12,6 @@ import { getOperationAST } from 'graphql/utilities/getOperationAST';
 
 import { GRAPHQL_WS } from './protocol';
 import { WS_TIMEOUT } from './defaults';
-import { MiddlewareInterface } from './middleware';
 import MessageTypes from './message-types';
 
 export * from './helpers';
@@ -35,6 +34,14 @@ export interface Operation {
 
 export interface Operations {
   [id: string]: Operation;
+}
+
+export interface PendingOperations {
+  [id: string]: boolean;
+}
+
+export interface Middleware {
+  applyMiddleware(options: OperationOptions, next: Function): void;
 }
 
 export type ConnectionParams = {
@@ -70,8 +77,8 @@ export class SubscriptionClient {
   private wsImpl: any;
   private wasKeepAliveReceived: boolean;
   private checkConnectionTimeoutId: any;
-  private middlewares: MiddlewareInterface[];
-  private pendingSubscriptions: {[id: string]: boolean};
+  private middlewares: Middleware[];
+  private pendingOperations: PendingOperations;
 
   constructor(url: string, options?: ClientOptions, webSocketImpl?: any) {
     const {
@@ -103,7 +110,7 @@ export class SubscriptionClient {
     this.backoff = new Backoff({ jitter: 0.5 });
     this.eventEmitter = new EventEmitter();
     this.middlewares = [];
-    this.pendingSubscriptions = {};
+    this.pendingOperations = {};
     this.client = null;
 
     if (!this.lazy) {
@@ -184,21 +191,17 @@ export class SubscriptionClient {
     return this.on('reconnect', callback, context);
   }
 
-  public unsubscribe(id: number) {
-    if (this.client === null) {
-      return;
-    }
-    // operation hasn't sent message yet
-    // cancel without sending message to server
-    if (this.pendingSubscriptions[id]) {
-      delete this.pendingSubscriptions[id];
+  public unsubscribe(opId: number) {
+    // Chick if Operation is pending first
+    if (this.pendingOperations[opId]) {
+      delete this.pendingOperations[opId];
       return;
     }
 
-    if (this.operations[id]) {
-      delete this.operations[id];
+    if (this.operations[opId]) {
+      delete this.operations[opId];
     }
-    this.sendMessage(id, MessageTypes.GQL_STOP, undefined);
+    this.sendMessage(opId, MessageTypes.GQL_STOP, undefined);
   }
 
   public unsubscribeAll() {
@@ -209,7 +212,7 @@ export class SubscriptionClient {
 
   public applyMiddlewares(options: OperationOptions): Promise<OperationOptions> {
     return new Promise((resolve, reject) => {
-      const queue = (funcs: MiddlewareInterface[], scope: any) => {
+      const queue = (funcs: Middleware[], scope: any) => {
         const next = () => {
           if (funcs.length > 0) {
             const f = funcs.shift();
@@ -223,27 +226,35 @@ export class SubscriptionClient {
         next();
       };
 
-      queue([...this.middlewares], this);
+      try {
+        queue([...this.middlewares], this);
+      } catch (e) {
+        reject(e);
+      }
     });
   }
 
-  public use(middlewares: MiddlewareInterface[]): SubscriptionClient {
+  public use(middlewares: Middleware[]): SubscriptionClient {
     middlewares.map((middleware) => {
       if (typeof middleware.applyMiddleware === 'function') {
         this.middlewares.push(middleware);
       } else {
-        throw new Error('Middleware must implement the applyMiddleware function');
+        throw new Error('Middleware must implement the applyMiddleware function.');
       }
     });
 
     return this;
   }
 
-  private checkSubscriptionOptions(options: OperationOptions, handler: (error: Error[], result?: any) => void) {
+  private checkOperationOptions(options: OperationOptions, handler: (error: Error[], result?: any) => void) {
     const { query, variables, operationName } = options;
 
     if (!query) {
       throw new Error('Must provide a query.');
+    }
+
+    if (!handler) {
+      throw new Error('Must provide an handler.');
     }
 
     if (
@@ -259,23 +270,24 @@ export class SubscriptionClient {
   private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): number {
     const opId = this.generateOperationId();
 
-    // add subscription to operation
-    this.pendingSubscriptions[opId] = true;
+    // Register operation as a pending one
+    this.pendingOperations[opId] = true;
 
-    this.applyMiddlewares(options).then(opts => {
-      this.checkSubscriptionOptions(opts, handler);
+    this.applyMiddlewares(options)
+      .then(processedOptions => {
+        this.checkOperationOptions(processedOptions, handler);
 
-      // if operation is unsubscribed already
-      // this.pendingSubscriptions[opId] will be deleted
-      if (this.pendingSubscriptions[opId]) {
-        delete this.pendingSubscriptions[opId];
-        this.operations[opId] = { options: opts, handler };
-        this.sendMessage(opId, MessageTypes.GQL_START, options);
-      }
-    }).catch((e: Error) => {
-      this.unsubscribe(opId);
-      handler([e]);
-    });
+        // Check if operation was already unsubscribed
+        // If not de-register it and proceed normally
+        if (this.pendingOperations[opId]) {
+          delete this.pendingOperations[opId];
+          this.operations[opId] = { options: processedOptions, handler };
+          this.sendMessage(opId, MessageTypes.GQL_START, processedOptions);
+        }
+      })
+      .catch(e => {
+        throw e;
+      });
 
     return opId;
   }
