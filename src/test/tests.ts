@@ -302,30 +302,28 @@ describe('Client', function () {
     });
   });
 
-  it('should emit connected event for client side when socket is open', (done) => {
+  it('should emit connected event for client side when socket closed', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    const onConnectingSpy = sinon.spy();
+    const unregisterOnConnecting = client.onConnecting(onConnectingSpy);
 
     const unregister = client.onConnected(() => {
+      unregisterOnConnecting();
       unregister();
+      expect(onConnectingSpy.called).to.equal(true);
       done();
     });
   });
 
-  it('should emit connecting event for client side when socket is open', (done) => {
-    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
-    const onConnectingSpy = sinon.spy();
-    const unregisterOnConnecting = subscriptionsClient.onConnecting(onConnectingSpy);
-
-    wsServer.on('connection', (connection: any) => {
-      connection.on('message', (message: any) => {
-        const parsedMessage = JSON.parse(message);
-        // mock server
-        if (parsedMessage.type === MessageTypes.GQL_CONNECTION_INIT) {
-          expect(onConnectingSpy.called).to.equal(true);
-          unregisterOnConnecting();
-          done();
-        }
-      });
+  it('should emit connecting event for client side when socket closed', (done) => {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    const onConnectedSpy = sinon.spy();
+    const unregisterOnConnected = subscriptionsClient.onConnected(onConnectedSpy);
+    const unregisterOnConnecting = subscriptionsClient.onConnecting(() => {
+      unregisterOnConnecting();
+      unregisterOnConnected();
+      expect(onConnectedSpy.called).to.equal(false);
+      done();
     });
   });
 
@@ -354,9 +352,9 @@ describe('Client', function () {
     const unregisterOnReconnecting = client.onReconnecting(onReconnectingSpy);
 
     const unregister = client.onReconnected(() => {
+      unregisterOnReconnecting();
       unregister();
       expect(onReconnectingSpy.called).to.equal(true);
-      unregisterOnReconnecting();
       done();
     });
   });
@@ -373,8 +371,8 @@ describe('Client', function () {
     const unregisterOnReconnected = subscriptionsClient.onReconnected(onReconnectedSpy);
     const unregisterOnReconnecting = subscriptionsClient.onReconnecting(() => {
       unregisterOnReconnecting();
-      expect(onReconnectedSpy.called).to.equal(false);
       unregisterOnReconnected();
+      expect(onReconnectedSpy.called).to.equal(false);
       done();
     });
   });
