@@ -853,12 +853,59 @@ describe('Client', function () {
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       timeout: 100,
       reconnect: true,
-      reconnectionAttempts: 1,
+      reconnectionAttempts: 2,
     });
+    const connectSpy = sinon.spy(subscriptionsClient, 'connect');
+
     setTimeout(() => {
-      expect(subscriptionsClient.status).to.be.equal(subscriptionsClient.client.CLOSED);
+      expect(connectSpy.callCount).to.be.equal(2);
       done();
     }, 500);
+  });
+
+  it('should stop trying to reconnect if not receives the ack from the server', function (done) {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      reconnect: true,
+      reconnectionAttempts: 1,
+    });
+    const connectSpy = sinon.spy(subscriptionsClient, 'connect');
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        // mock server
+        if (parsedMessage.type === MessageTypes.GQL_CONNECTION_INIT) {
+          connection.close();
+        }
+      });
+    });
+
+    setTimeout(() => {
+      expect(connectSpy.callCount).to.be.equal(2);
+      done();
+    }, 1000);
+  });
+
+  it('should keep trying to reconnect if receives the ack from the server', function (done) {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      reconnect: true,
+      reconnectionAttempts: 1,
+    });
+    const connectSpy = sinon.spy(subscriptionsClient, 'connect');
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        // mock server
+        if (parsedMessage.type === MessageTypes.GQL_CONNECTION_INIT) {
+          connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK, payload: {} }));
+          connection.close();
+        }
+      });
+    });
+
+    setTimeout(() => {
+      expect(connectSpy.callCount).to.be.greaterThan(2);
+      done();
+    }, 1000);
   });
 
   it('should take care of received keep alive', (done) => {
@@ -970,6 +1017,38 @@ describe('Client', function () {
       assert(executeOperationSpy.calledOnce);
       done();
     }, 200);
+  });
+
+  it('should force close the connection without tryReconnect', function (done) {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      reconnect: true,
+      reconnectionAttempts: 1,
+    });
+    const tryReconnectSpy = sinon.spy(subscriptionsClient, 'tryReconnect');
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        // mock server
+        if (parsedMessage.type === MessageTypes.GQL_CONNECTION_INIT) {
+          connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK, payload: {} }));
+        }
+      });
+    });
+
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    subscriptionsClient.client.onmessage = (dataReceived: any) => {
+      let receivedDataParsed = JSON.parse(dataReceived.data);
+      if (receivedDataParsed.type === MessageTypes.GQL_CONNECTION_ACK) {
+        originalOnMessage(dataReceived);
+        subscriptionsClient.close();
+      }
+    };
+
+    setTimeout(() => {
+      expect(tryReconnectSpy.callCount).to.be.equal(0);
+      expect(subscriptionsClient.status).to.be.equal(WebSocket.CLOSED);
+      done();
+    }, 500);
   });
 });
 

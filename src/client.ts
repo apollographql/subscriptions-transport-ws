@@ -70,6 +70,7 @@ export class SubscriptionClient {
   private connectionCallback: any;
   private eventEmitter: EventEmitter;
   private lazy: boolean;
+  private forceClose: boolean;
   private wsImpl: any;
   private wasKeepAliveReceived: boolean;
   private checkConnectionTimeoutId: any;
@@ -102,6 +103,7 @@ export class SubscriptionClient {
     this.reconnecting = false;
     this.reconnectionAttempts = reconnectionAttempts;
     this.lazy = !!lazy;
+    this.forceClose = false;
     this.backoff = new Backoff({ jitter: 0.5 });
     this.eventEmitter = new EventEmitter();
     this.middlewares = [];
@@ -122,6 +124,7 @@ export class SubscriptionClient {
 
   public close() {
     if (this.client !== null) {
+      this.forceClose = true;
       this.client.close();
     }
   }
@@ -366,7 +369,7 @@ export class SubscriptionClient {
 
     const delay = this.backoff.duration();
     setTimeout(() => {
-      this.connect(true);
+      this.connect();
     }, delay);
   }
 
@@ -381,13 +384,11 @@ export class SubscriptionClient {
     this.wasKeepAliveReceived ? this.wasKeepAliveReceived = false : this.close();
   }
 
-  private connect(isReconnect: boolean = false) {
+  private connect() {
     this.client = new this.wsImpl(this.url, GRAPHQL_WS);
 
     this.client.onopen = () => {
-      this.eventEmitter.emit(isReconnect ? 'reconnect' : 'connect');
-      this.reconnecting = false;
-      this.backoff.reset();
+      this.eventEmitter.emit(this.reconnecting ? 'reconnect' : 'connect');
 
       const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
 
@@ -399,7 +400,12 @@ export class SubscriptionClient {
     this.client.onclose = () => {
       this.eventEmitter.emit('disconnect');
 
-      this.tryReconnect();
+      if (this.forceClose) {
+        this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
+        this.forceClose = false;
+      } else {
+        this.tryReconnect();
+      }
     };
 
     this.client.onerror = () => {
@@ -441,6 +447,9 @@ export class SubscriptionClient {
         break;
 
       case MessageTypes.GQL_CONNECTION_ACK:
+        this.reconnecting = false;
+        this.backoff.reset();
+
         if (this.connectionCallback) {
           this.connectionCallback();
         }
