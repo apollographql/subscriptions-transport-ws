@@ -371,7 +371,7 @@ export class SubscriptionClient {
 
     const delay = this.backoff.duration();
     setTimeout(() => {
-      this.connect(true);
+      this.connect();
     }, delay);
   }
 
@@ -386,13 +386,11 @@ export class SubscriptionClient {
     this.wasKeepAliveReceived ? this.wasKeepAliveReceived = false : this.close();
   }
 
-  private connect(isReconnect: boolean = false) {
+  private connect() {
     this.client = new this.wsImpl(this.url, GRAPHQL_WS);
 
     this.client.onopen = () => {
-      this.eventEmitter.emit(isReconnect ? 'reconnect' : 'connect');
-      this.reconnecting = false;
-      this.backoff.reset();
+      this.eventEmitter.emit(this.reconnecting ? 'reconnect' : 'connect');
 
       const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
 
@@ -446,6 +444,9 @@ export class SubscriptionClient {
         break;
 
       case MessageTypes.GQL_CONNECTION_ACK:
+        this.reconnecting = false;
+        this.backoff.reset();
+
         if (this.connectionCallback) {
           this.connectionCallback();
         }
