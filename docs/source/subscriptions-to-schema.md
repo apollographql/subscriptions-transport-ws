@@ -47,3 +47,25 @@ Then, later on your code, you can publish data to your topic by using `pubsub.pu
 ```js
 pubsub.publish('commentAdded', { commentAdded: { id: 1, content: 'Hello!' }})
 ```
+
+<h2 id="subscription-server">Payload Transformation</h2>
+
+When using `subscribe` field, it's also possible to manipulate the event payload before running it throught the GraphQL execution engine.
+
+Add `resolve` method near your `subscribe` and change the payload as you wish:
+
+ 
+```js
+const rootResolver = {
+    Subscription: {
+        commentAdded: {
+          resolve: (payload) => {
+            return {
+              customData: payload,
+            };
+          },
+          subscribe: () => pubsub.asyncIterator('commentAdded')
+        }
+    },
+};
+```
