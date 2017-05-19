@@ -67,6 +67,7 @@ export class SubscriptionClient {
   private connectionCallback: any;
   private eventEmitter: EventEmitter;
   private lazy: boolean;
+  private forceClose: boolean;
   private wsImpl: any;
   private wasKeepAliveReceived: boolean;
   private checkConnectionTimeoutId: any;
@@ -100,6 +101,7 @@ export class SubscriptionClient {
     this.reconnecting = false;
     this.reconnectionAttempts = reconnectionAttempts;
     this.lazy = !!lazy;
+    this.forceClose = false;
     this.backoff = new Backoff({ jitter: 0.5 });
     this.eventEmitter = new EventEmitter();
     this.middlewares = [];
@@ -121,6 +123,7 @@ export class SubscriptionClient {
 
   public close() {
     if (this.client !== null) {
+      this.forceClose = true;
       this.client.close();
     }
   }
@@ -402,7 +405,12 @@ export class SubscriptionClient {
     this.client.onclose = () => {
       this.eventEmitter.emit('disconnect');
 
-      this.tryReconnect();
+      if (this.forceClose) {
+        this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
+        this.forceClose = false;
+      } else {
+        this.tryReconnect();
+      }
     };
 
     this.client.onerror = () => {
