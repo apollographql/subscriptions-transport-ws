@@ -125,6 +125,7 @@ export class SubscriptionClient {
   public close() {
     if (this.client !== null) {
       this.forceClose = true;
+      this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
       this.client.close();
     }
   }
@@ -191,8 +192,8 @@ export class SubscriptionClient {
   public unsubscribe(opId: number) {
     if (this.operations[opId]) {
       delete this.operations[opId];
+      this.sendMessage(opId, MessageTypes.GQL_STOP, undefined);
     }
-    this.sendMessage(opId, MessageTypes.GQL_STOP, undefined);
   }
 
   public unsubscribeAll() {
@@ -338,12 +339,10 @@ export class SubscriptionClient {
         this.unsentMessagesQueue.push(message);
 
         break;
-      case this.client.CLOSING:
-      case this.client.CLOSED:
-        break;
       default:
         if (!this.reconnecting) {
-          throw new Error('Client is not connected to a websocket.');
+          throw new Error('A message was not sent because socket is not connected, is closing or ' +
+            'is already closed. Message was: ${JSON.parse(serializedMessage)}.');
         }
     }
   }
@@ -354,7 +353,6 @@ export class SubscriptionClient {
 
   private tryReconnect() {
     if (!this.reconnect || this.backoff.attempts > this.reconnectionAttempts) {
-      this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
       return;
     }
 
@@ -401,7 +399,6 @@ export class SubscriptionClient {
       this.eventEmitter.emit('disconnect');
 
       if (this.forceClose) {
-        this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
         this.forceClose = false;
       } else {
         this.tryReconnect();

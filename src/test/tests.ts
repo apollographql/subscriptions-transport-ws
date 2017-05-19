@@ -853,7 +853,7 @@ describe('Client', function () {
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       timeout: 100,
       reconnect: true,
-      reconnectionAttempts: 2,
+      reconnectionAttempts: 1,
     });
     const connectSpy = sinon.spy(subscriptionsClient, 'connect');
 
