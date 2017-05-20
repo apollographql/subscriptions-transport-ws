@@ -218,14 +218,14 @@ ReactDOM.render(
 - `options?: Object` : optional, object to modify default client behavior
   * `timeout?: number` : how long the client should wait in ms for a subscription to be started (default 5000 ms)how long the client should wait in ms for a subscription to be started (default 5000 ms)
   * `lazy?: boolean` : use to set lazy mode - connects only when first subscription created, and delay the socket initialization
-  * `connectionParams?: Object | Function` : object or function that will be available as first argument of `onConnect` (in server side)
+  * `connectionParams?: Object | Function` : object that will be available as first argument of `onConnect` (in server side), if passed a function - it will call it and send the return value.
   * `reconnect?: boolean` : automatic reconnect in case of connection error
   * `reconnectionAttempts?: number` : how much reconnect attempts
   * `connectionCallback?: (error) => {}` : optional, callback that called after the first init message, with the error (if there is one)
 - `webSocketImpl?: Object` - optional, WebSocket implementation. use this when your environment does not have a built-in native WebSocket (for example, with NodeJS client)
 
 ### Methods
-#### `subscribe(options, handler) => number`: subscribed to data and returns the subscription id
+#### `subscribe(options, handler) => number`: returns the operation id that identifies the operation
 - `options: {SubscriptionOptions}`
   * `query: string` : GraphQL subscription
   * `variables: Object` : GraphQL subscription variables
@@ -266,7 +266,7 @@ ReactDOM.render(
     * `operationName?: string` - GraphQL operation name
     * `context?: any` - Execution context for the operation
     
-### `close() => void` - closes the WebSocket connection manually
+### `close() => void` - closes the WebSocket connection manually, and ignores `reconnect` logic if it was set to `true`.
 
 ### `use(middlewares: MiddlewareInterface[]) => SubscriptionClient` - adds middleware to modify `OperationOptions` per each request
 - `middlewares: MiddlewareInterface[]` - Array contains list of middlewares (implemented `applyMiddleware` method) implementation, the `SubscriptionClient` will use the middlewares to modify `OperationOptions` for every operation
