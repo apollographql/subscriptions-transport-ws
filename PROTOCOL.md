@@ -21,6 +21,8 @@ export interface OperationMessage {
 #### GQL_CONNECTION_INIT
 Client sends this message after plain websocket connection to start the communication with the server
 
+The server will response only with `GQL_CONNECTION_ACK` or `GQL_CONNECTION_ERROR` to this message.
+
 - `payload: Object` : optional parameters that the client specifies in `connectionParams`
 
 #### GQL_START
@@ -50,7 +52,6 @@ It server also respond with this message in case of a parsing errors of the mess
 #### GQL_CONNECTION_ACK
 The server may responses with this message to the `GQL_CONNECTION_INIT` from client, indicates the server accepted the connection.
 
-The server will response only with `GQL_CONNECTION_ACK` or `GQL_CONNECTION_ERROR` to `GQL_CONNECTION_INIT` message.
 
 #### GQL_DATA
 The server sends this message to transfter the GraphQL execution result from the server to the client, this message is a response for `GQL_START` message.
@@ -68,7 +69,8 @@ Server sends this message upon a failing operation, before the GraphQL execution
 - `id: string` : operation ID of the operation that failed on the server
 
 #### GQL_COMPLETE
-Server sends this message to indicate that a GraphQL operation is done, and no more data will arrive (for queries and mutations, it called immediatly, and for subscriptions it called when unsubscribing)
+Server sends this message to indicate that a GraphQL operation is done, and no more data will arrive for the specific operation.
+
 - `id: string` : operation ID of the operation that completed
 
 #### GQL_CONNECTION_KEEP_ALIVE
@@ -79,10 +81,6 @@ The client starts to considerer the keep alive message only upon the first recei
 ### Messages Flow
 
 This is a demonstration of client-server communication, in order to get a better understanding of the protocol flow:
-
-
-- Server configured with GraphQL schema (and `PubSub` implementation when using subscriptions)
-- Client creates a WebSocket instance using `SubscriptionsClient` object.
 
 #### Session Init Phase
 
