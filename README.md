@@ -311,3 +311,7 @@ A quick way to add the `subscribe` and `unsubscribe` functions to the [network i
 
 * For GraphQL WebSocket protocol docs, [click here](https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md)    
 * This package also uses `AsyncIterator` internally using [iterall](https://github.com/leebyron/iterall), for more information [click here](https://github.com/ReactiveX/IxJS), or [the proposal](https://github.com/tc39/proposal-async-iteration)
+
+The current version of this transport, also support a previous version of the protocol.
+
+[You can find the old protocol docs here](https://github.com/apollographql/subscriptions-transport-ws/blob/cacb8692f3601344a4101d802443d046d73f8b23/README.md#client-server-communication)
