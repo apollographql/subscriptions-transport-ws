@@ -4,6 +4,7 @@
 - Client exposes new asyncronous middleware to modify `OperationOptions` [PR #78](https://github.com/apollographql/subscriptions-transport-ws/pull/78)
 - Added `WebSocketServer` error handler to prevent uncaught exceptions. Fixes [Issue #94](https://github.com/apollographql/subscriptions-transport-ws/issues/94)
 - Introduce lazy mode for connection, and accept function as `connectionParams` [PR #131]
+- Added new connection events to give a more accurate control over the connection state [PR #139]. Fixes [Issue #136].
 
 ### 0.6.0
 
