@@ -20,7 +20,7 @@ export interface OperationOptions {
   query: string;
   variables?: Object;
   operationName?: string;
-  context?: any;
+  [key: string]: any;
 }
 
 export type FormatedError = Error & {
