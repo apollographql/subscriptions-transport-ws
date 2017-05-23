@@ -27,7 +27,6 @@ export type ConnectionContext = {
 
 export interface OperationMessagePayload {
   [key: string]: any; // this will support for example any options sent in init like the auth token
-  context?: any;
   query?: string;
   variables?: { [key: string]: any };
   operationName?: string;
@@ -312,7 +311,10 @@ export class SubscriptionServer {
               query: parsedMessage.payload.query,
               variables: parsedMessage.payload.variables,
               operationName: parsedMessage.payload.operationName,
-              context: Object.assign({}, isObject(initResult) ? initResult : {}, parsedMessage.payload.context),
+              context: Object.assign(
+                {},
+                isObject(initResult) ? initResult : {},
+              ),
               formatResponse: <any>undefined,
               formatError: <any>undefined,
               callback: <any>undefined,
