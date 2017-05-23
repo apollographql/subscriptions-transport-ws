@@ -12,7 +12,6 @@ import { getOperationAST } from 'graphql/utilities/getOperationAST';
 
 import { GRAPHQL_WS } from './protocol';
 import { WS_TIMEOUT } from './defaults';
-import { MiddlewareInterface } from './middleware';
 import MessageTypes from './message-types';
 
 export * from './helpers';
@@ -21,7 +20,7 @@ export interface OperationOptions {
   query: string;
   variables?: Object;
   operationName?: string;
-  context?: any;
+  [key: string]: any;
 }
 
 export type FormatedError = Error & {
@@ -35,6 +34,10 @@ export interface Operation {
 
 export interface Operations {
   [id: string]: Operation;
+}
+
+export interface Middleware {
+  applyMiddleware(options: OperationOptions, next: Function): void;
 }
 
 export type ConnectionParams = {
@@ -71,8 +74,7 @@ export class SubscriptionClient {
   private wsImpl: any;
   private wasKeepAliveReceived: boolean;
   private checkConnectionTimeoutId: any;
-  private middlewares: MiddlewareInterface[];
-  private pendingSubscriptions: {[id: string]: boolean};
+  private middlewares: Middleware[];
 
   constructor(url: string, options?: ClientOptions, webSocketImpl?: any) {
     const {
@@ -105,7 +107,6 @@ export class SubscriptionClient {
     this.backoff = new Backoff({ jitter: 0.5 });
     this.eventEmitter = new EventEmitter();
     this.middlewares = [];
-    this.pendingSubscriptions = {};
     this.client = null;
 
     if (!this.lazy) {
@@ -124,6 +125,7 @@ export class SubscriptionClient {
   public close() {
     if (this.client !== null) {
       this.forceClose = true;
+      this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
       this.client.close();
     }
   }
@@ -187,21 +189,11 @@ export class SubscriptionClient {
     return this.on('reconnect', callback, context);
   }
 
-  public unsubscribe(id: number) {
-    if (this.client === null) {
-      return;
+  public unsubscribe(opId: number) {
+    if (this.operations[opId]) {
+      delete this.operations[opId];
+      this.sendMessage(opId, MessageTypes.GQL_STOP, undefined);
     }
-    // operation hasn't sent message yet
-    // cancel without sending message to server
-    if (this.pendingSubscriptions[id]) {
-      delete this.pendingSubscriptions[id];
-      return;
-    }
-
-    if (this.operations[id]) {
-      delete this.operations[id];
-    }
-    this.sendMessage(id, MessageTypes.GQL_STOP, undefined);
   }
 
   public unsubscribeAll() {
@@ -212,15 +204,19 @@ export class SubscriptionClient {
 
   public applyMiddlewares(options: OperationOptions): Promise<OperationOptions> {
     return new Promise((resolve, reject) => {
-      const queue = (funcs: MiddlewareInterface[], scope: any) => {
-        const next = () => {
-          if (funcs.length > 0) {
-            const f = funcs.shift();
-            if (f) {
-              f.applyMiddleware.apply(scope, [options, next]);
-            }
+      const queue = (funcs: Middleware[], scope: any) => {
+        const next = (error?: any) => {
+          if (error) {
+            reject(error);
           } else {
-            resolve(options);
+            if (funcs.length > 0) {
+              const f = funcs.shift();
+              if (f) {
+                f.applyMiddleware.apply(scope, [options, next]);
+              }
+            } else {
+              resolve(options);
+            }
           }
         };
         next();
@@ -230,23 +226,27 @@ export class SubscriptionClient {
     });
   }
 
-  public use(middlewares: MiddlewareInterface[]): SubscriptionClient {
+  public use(middlewares: Middleware[]): SubscriptionClient {
     middlewares.map((middleware) => {
       if (typeof middleware.applyMiddleware === 'function') {
         this.middlewares.push(middleware);
       } else {
-        throw new Error('Middleware must implement the applyMiddleware function');
+        throw new Error('Middleware must implement the applyMiddleware function.');
       }
     });
 
     return this;
   }
 
-  private checkSubscriptionOptions(options: OperationOptions, handler: (error: Error[], result?: any) => void) {
+  private checkOperationOptions(options: OperationOptions, handler: (error: Error[], result?: any) => void) {
     const { query, variables, operationName } = options;
 
     if (!query) {
       throw new Error('Must provide a query.');
+    }
+
+    if (!handler) {
+      throw new Error('Must provide an handler.');
     }
 
     if (
@@ -261,24 +261,20 @@ export class SubscriptionClient {
 
   private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): number {
     const opId = this.generateOperationId();
+    this.operations[opId] = { options: options, handler };
 
-    // add subscription to operation
-    this.pendingSubscriptions[opId] = true;
-
-    this.applyMiddlewares(options).then(opts => {
-      this.checkSubscriptionOptions(opts, handler);
-
-      // if operation is unsubscribed already
-      // this.pendingSubscriptions[opId] will be deleted
-      if (this.pendingSubscriptions[opId]) {
-        delete this.pendingSubscriptions[opId];
-        this.operations[opId] = { options: opts, handler };
-        this.sendMessage(opId, MessageTypes.GQL_START, options);
-      }
-    }).catch((e: Error) => {
-      this.unsubscribe(opId);
-      handler([e]);
-    });
+    this.applyMiddlewares(options)
+      .then(processedOptions => {
+        this.checkOperationOptions(processedOptions, handler);
+          if (this.operations[opId]) {
+            this.operations[opId] = { options: processedOptions, handler };
+            this.sendMessage(opId, MessageTypes.GQL_START, processedOptions);
+          }
+      })
+      .catch(error => {
+        this.unsubscribe(opId);
+        handler(this.formatErrors(error));
+      });
 
     return opId;
   }
@@ -343,12 +339,10 @@ export class SubscriptionClient {
         this.unsentMessagesQueue.push(message);
 
         break;
-      case this.client.CLOSING:
-      case this.client.CLOSED:
-        break;
       default:
         if (!this.reconnecting) {
-          throw new Error('Client is not connected to a websocket.');
+          throw new Error('A message was not sent because socket is not connected, is closing or ' +
+            'is already closed. Message was: ${JSON.parse(serializedMessage)}.');
         }
     }
   }
@@ -359,7 +353,6 @@ export class SubscriptionClient {
 
   private tryReconnect() {
     if (!this.reconnect || this.backoff.attempts > this.reconnectionAttempts) {
-      this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
       return;
     }
 
@@ -406,7 +399,6 @@ export class SubscriptionClient {
       this.eventEmitter.emit('disconnect');
 
       if (this.forceClose) {
-        this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
         this.forceClose = false;
       } else {
         this.tryReconnect();

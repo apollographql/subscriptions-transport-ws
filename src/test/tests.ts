@@ -313,6 +313,7 @@ describe('Client', function () {
         },
       }, function (error: any, result: any) {
         expect(error).to.be.lengthOf(1);
+        expect(error[0].message).to.be.equal('Must provide a query.');
         done();
       },
     );
@@ -419,39 +420,46 @@ describe('Client', function () {
   });
 
   it('should override OperationOptions with middleware', function (done) {
-    const CTX = 'testContext';
-    const CTX2 = 'overrideContext';
     const client3 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
-    client3.use([{
-      applyMiddleware(opts, next) {
-        // modify options for SubscriptionClient.subscribe here
-        setTimeout(() => {
-          opts.context = CTX2;
-          next();
-        }, 100);
+    let asyncFunc = (next: any) => {
+      setTimeout(() => {
+        next();
+      }, 100);
+    };
+    let spyApplyMiddlewareAsyncContents = sinon.spy(asyncFunc);
+    let middleware = {
+      applyMiddleware(opts: any, next: any) {
+        spyApplyMiddlewareAsyncContents(next);
       },
-    }]);
+    };
+    let spyApplyMiddlewareFunction = sinon.spy(middleware, 'applyMiddleware');
+    client3.use([ middleware ]);
 
     client3.subscribe({
-        query: `subscription context {
-          context
-        }`,
-        variables: {},
-        context: CTX,
+        query: `subscription useInfo($id: String) {
+            user(id: $id) {
+              id
+              name
+            }
+          }`,
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
+        },
       }, (error: any, result: any) => {
         client3.unsubscribeAll();
         if (error) {
           assert(false, 'got error during subscription creation');
         }
         if (result) {
-          assert.property(result, 'context');
-          assert.equal(result.context, CTX2);
+          assert.equal(spyApplyMiddlewareFunction.called, true);
+          assert.equal(spyApplyMiddlewareAsyncContents.called, true);
         }
         done();
       },
     );
     setTimeout(() => {
-      subscriptionManager.publish('context', {});
+      subscriptionManager.publish('user', {});
     }, 200);
   });
 
@@ -852,7 +860,7 @@ describe('Client', function () {
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       timeout: 100,
       reconnect: true,
-      reconnectionAttempts: 2,
+      reconnectionAttempts: 1,
     });
     const connectSpy = sinon.spy(subscriptionsClient, 'connect');
 
