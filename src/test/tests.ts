@@ -302,6 +302,81 @@ describe('Client', function () {
     });
   });
 
+  it('should emit connected event for client side when socket closed', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    const onConnectingSpy = sinon.spy();
+    const unregisterOnConnecting = client.onConnecting(onConnectingSpy);
+
+    const unregister = client.onConnected(() => {
+      unregisterOnConnecting();
+      unregister();
+      expect(onConnectingSpy.called).to.equal(true);
+      done();
+    });
+  });
+
+  it('should emit connecting event for client side when socket closed', (done) => {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    const onConnectedSpy = sinon.spy();
+    const unregisterOnConnected = subscriptionsClient.onConnected(onConnectedSpy);
+    const unregisterOnConnecting = subscriptionsClient.onConnecting(() => {
+      unregisterOnConnecting();
+      unregisterOnConnected();
+      expect(onConnectedSpy.called).to.equal(false);
+      done();
+    });
+  });
+
+  it('should emit disconnected event for client side when socket closed', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`, {
+      connectionCallback: () => {
+        client.client.close();
+      },
+    });
+
+    const unregister = client.onDisconnected(() => {
+      unregister();
+      done();
+    });
+  });
+
+  it('should emit reconnected event for client side when socket closed', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`, {
+      reconnect: true,
+      reconnectionAttempts: 1,
+      connectionCallback: () => {
+        client.client.close();
+      },
+    });
+    const onReconnectingSpy = sinon.spy();
+    const unregisterOnReconnecting = client.onReconnecting(onReconnectingSpy);
+
+    const unregister = client.onReconnected(() => {
+      unregisterOnReconnecting();
+      unregister();
+      expect(onReconnectingSpy.called).to.equal(true);
+      done();
+    });
+  });
+
+  it('should emit reconnecting event for client side when socket closed', (done) => {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`, {
+      reconnect: true,
+      reconnectionAttempts: 1,
+      connectionCallback: () => {
+        subscriptionsClient.client.close();
+      },
+    });
+    const onReconnectedSpy = sinon.spy();
+    const unregisterOnReconnected = subscriptionsClient.onReconnected(onReconnectedSpy);
+    const unregisterOnReconnecting = subscriptionsClient.onReconnecting(() => {
+      unregisterOnReconnecting();
+      unregisterOnReconnected();
+      expect(onReconnectedSpy.called).to.equal(false);
+      done();
+    });
+  });
+
   it('should throw an exception when query is not provided', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
@@ -481,7 +556,7 @@ describe('Client', function () {
     });
   });
 
-  it('should handle init_fail message and handle server that closes connection', (done) => {
+  it('should handle connection_error message and handle server that closes connection', (done) => {
     let client: any = null;
 
     wsServer.on('connection', (connection: any) => {

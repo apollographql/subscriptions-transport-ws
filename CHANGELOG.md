@@ -9,7 +9,7 @@
 - Added built-in support for `subscribe` from `graphql-js` [PR #133](https://github.com/apollographql/subscriptions-transport-ws/pull/133)
 - Fixed infinity reconnects when server accepts connections but its in an error state. [PR #135](https://github.com/apollographql/subscriptions-transport-ws/pull/135)
 - Force close client-side socket when using `close()`, and ignore reconnect logic. [PR #137](https://github.com/apollographql/subscriptions-transport-ws/pull/137)
-
+- Added new connection events to give a more accurate control over the connection state [PR #139]. Fixes [Issue #136].
 
 ### 0.6.0
 

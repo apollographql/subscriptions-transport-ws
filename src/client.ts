@@ -177,16 +177,54 @@ export class SubscriptionClient {
     };
   }
 
+  /**
+   * @deprecated This method will become deprecated in the next release.
+   * You can use onConnecting and onConnected instead.
+   */
   public onConnect(callback: ListenerFn, context?: any): Function {
-    return this.on('connect', callback, context);
+    this.logWarningOnNonProductionEnv('This method will become deprecated in the next release. ' +
+      'You can use onConnecting and onConnected instead.');
+    return this.onConnecting(callback, context);
   }
 
+  /**
+   * @deprecated This method will become deprecated in the next release.
+   * You can use onDisconnected instead.
+   */
   public onDisconnect(callback: ListenerFn, context?: any): Function {
-    return this.on('disconnect', callback, context);
+    this.logWarningOnNonProductionEnv('This method will become deprecated in the next release. ' +
+      'You can use onDisconnected instead.');
+    return this.onDisconnected(callback, context);
   }
 
+  /**
+   * @deprecated This method will become deprecated in the next release.
+   * You can use onReconnecting and onReconnected instead.
+   */
   public onReconnect(callback: ListenerFn, context?: any): Function {
-    return this.on('reconnect', callback, context);
+    this.logWarningOnNonProductionEnv('This method will become deprecated in the next release. ' +
+      'You can use onReconnecting and onReconnected instead.');
+    return this.onReconnecting(callback, context);
+  }
+
+  public onConnected(callback: ListenerFn, context?: any): Function {
+    return this.on('connected', callback, context);
+  }
+
+  public onConnecting(callback: ListenerFn, context?: any): Function {
+    return this.on('connecting', callback, context);
+  }
+
+  public onDisconnected(callback: ListenerFn, context?: any): Function {
+    return this.on('disconnected', callback, context);
+  }
+
+  public onReconnected(callback: ListenerFn, context?: any): Function {
+    return this.on('reconnected', callback, context);
+  }
+
+  public onReconnecting(callback: ListenerFn, context?: any): Function {
+    return this.on('reconnecting', callback, context);
   }
 
   public unsubscribe(opId: number) {
@@ -236,6 +274,12 @@ export class SubscriptionClient {
     });
 
     return this;
+  }
+
+  private logWarningOnNonProductionEnv(warning: string) {
+    if (process && process.env && process.env.NODE_ENV !== 'production') {
+      console.warn(warning);
+    }
   }
 
   private checkOperationOptions(options: OperationOptions, handler: (error: Error[], result?: any) => void) {
@@ -386,7 +430,7 @@ export class SubscriptionClient {
     this.client = new this.wsImpl(this.url, GRAPHQL_WS);
 
     this.client.onopen = () => {
-      this.eventEmitter.emit(this.reconnecting ? 'reconnect' : 'connect');
+      this.eventEmitter.emit(this.reconnecting ? 'reconnecting' : 'connecting');
 
       const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
 
@@ -396,7 +440,7 @@ export class SubscriptionClient {
     };
 
     this.client.onclose = () => {
-      this.eventEmitter.emit('disconnect');
+      this.eventEmitter.emit('disconnected');
 
       if (this.forceClose) {
         this.forceClose = false;
@@ -444,6 +488,7 @@ export class SubscriptionClient {
         break;
 
       case MessageTypes.GQL_CONNECTION_ACK:
+        this.eventEmitter.emit(this.reconnecting ? 'reconnected' : 'connected');
         this.reconnecting = false;
         this.backoff.reset();
 
