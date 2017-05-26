@@ -9,7 +9,8 @@
 - Added built-in support for `subscribe` from `graphql-js` [PR #133](https://github.com/apollographql/subscriptions-transport-ws/pull/133)
 - Fixed infinity reconnects when server accepts connections but its in an error state. [PR #135](https://github.com/apollographql/subscriptions-transport-ws/pull/135)
 - Force close client-side socket when using `close()`, and ignore reconnect logic. [PR #137](https://github.com/apollographql/subscriptions-transport-ws/pull/137)
-- Added new connection events to give a more accurate control over the connection state [PR #139]. Fixes [Issue #136].
+- Added new connection events to give a more accurate control over the connection state [PR #139](https://github.com/apollographql/subscriptions-transport-ws/pull/139). Fixes [Issue #136](https://github.com/apollographql/subscriptions-transport-ws/issues/136).
+- Replaced `Object.assign` by `lodash.assign` to extend browser support [PR #144](https://github.com/apollographql/subscriptions-transport-ws/pull/144). Fixes [Issue #141](https://github.com/apollographql/subscriptions-transport-ws/issues/141)
 
 ### 0.6.0
 
