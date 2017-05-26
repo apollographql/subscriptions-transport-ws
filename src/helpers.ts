@@ -1,4 +1,5 @@
 import { SubscriptionClient } from './client';
+import { assign } from 'lodash';
 
 /**
  * @deprecated This method will become deprecated in the new package graphql-transport-ws.
@@ -13,7 +14,7 @@ export function addGraphQLSubscriptions(networkInterface: any, wsClient: Subscri
       'GraphQLTransportWSClient to make queries, mutations and subscriptions over websockets.');
   }
 
-  return Object.assign(networkInterface, {
+  return assign(networkInterface, {
     subscribe(request: any, handler: any): number {
       return wsClient.subscribe(request, handler);
     },
