@@ -7,7 +7,6 @@ import {
   expect,
 } from 'chai';
 import * as sinon from 'sinon';
-import { SinonSpy } from '@types/sinon';
 import * as WebSocket from 'ws';
 import { execute } from 'graphql';
 
@@ -767,7 +766,7 @@ describe('Client', function () {
   });
 
   it('should call the connectionParams function upon connection to get connectionParams if connectionParams is a function', (done) => {
-    const connectionParams: SinonSpy = sinon.spy(() => ({
+    const connectionParams = sinon.spy(() => ({
       foo: 'bar',
     }));
 
@@ -1135,7 +1134,7 @@ describe('Client', function () {
 });
 
 describe('Server', function () {
-  let onSubscribeSpy: sinon.SinonSpy;
+  let onSubscribeSpy: any;
 
   beforeEach(() => {
     onSubscribeSpy = sinon.spy(handlers, 'onSubscribe');
@@ -1838,7 +1837,7 @@ describe('Server', function () {
 
 describe('Helpers', function () {
   it('should extend provided network interface correctly', (done) => {
-    let mockedSubscriptionClient = sinon.createStubInstance(SubscriptionClient);
+    let mockedSubscriptionClient: any = sinon.createStubInstance(SubscriptionClient);
     let mockNetworkInterface = {
       subscribe: sinon.stub(),
       unsubscribe: sinon.stub(),
@@ -1855,7 +1854,7 @@ describe('Helpers', function () {
   });
 
   it('should call console warn when env is not production', (done) => {
-    let mockedSubscriptionClient = sinon.createStubInstance(SubscriptionClient);
+    let mockedSubscriptionClient: any = sinon.createStubInstance(SubscriptionClient);
     let mockNetworkInterface = {
       subscribe: sinon.stub(),
       unsubscribe: sinon.stub(),
@@ -1871,7 +1870,7 @@ describe('Helpers', function () {
   });
 
   it('should not call console warn when env is production', (done) => {
-    let mockedSubscriptionClient = sinon.createStubInstance(SubscriptionClient);
+    let mockedSubscriptionClient: any = sinon.createStubInstance(SubscriptionClient);
     let mockNetworkInterface = {
       subscribe: sinon.stub(),
       unsubscribe: sinon.stub(),
