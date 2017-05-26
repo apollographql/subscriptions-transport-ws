@@ -21,7 +21,7 @@ import {
   GraphQLString,
 } from 'graphql';
 
-import { PubSub, SubscriptionManager } from 'graphql-subscriptions';
+import { PubSub, SubscriptionManager, SubscriptionOptions } from 'graphql-subscriptions';
 
 import MessageTypes  from '../message-types';
 
@@ -34,7 +34,6 @@ import { SubscriptionServer } from '../server';
 import { SubscriptionClient } from '../client';
 import { addGraphQLSubscriptions } from '../helpers';
 import { OperationMessagePayload } from '../server';
-import { SubscriptionOptions } from 'graphql-subscriptions/dist/pubsub';
 import { $$asyncIterator } from 'iterall';
 
 const TEST_PORT = 4953;
