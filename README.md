@@ -244,18 +244,28 @@ ReactDOM.render(
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
 
-#### `onConnect(callback, thisContext) => Function` - shorthand for `.on('connect', ...)`
-- `callback: Function`: function to be called when websocket connects and initialized.
+#### `onConnected(callback, thisContext) => Function` - shorthand for `.on('connected', ...)`
+- `callback: Function`: function to be called when websocket connects and initialized, after ACK message returned from the server
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
 
-#### `onReconnect(callback, thisContext) => Function` - shorthand for `.on('reconnect', ...)`
-- `callback: Function`: function to be called when websocket re-connects and initialized.
+#### `onReconnected(callback, thisContext) => Function` - shorthand for `.on('reconnected', ...)`
+- `callback: Function`: function to be called when websocket reconnects and initialized, after ACK message returned from the server
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
 
-#### `onDisconnect(callback, thisContext) => Function` - shorthand for `.on('disconnect', ...)`
-- `callback: Function`: function to be called when websocket disconnects.
+#### `onConnecting(callback, thisContext) => Function` - shorthand for `.on('connecting', ...)`
+- `callback: Function`: function to be called when websocket starts it's connection
+- `thisContext: any`: `this` context to use when calling the callback function.
+- => Returns an `off` method to cancel the event subscription.
+
+#### `onReconnecting(callback, thisContext) => Function` - shorthand for `.on('reconnecting', ...)`
+- `callback: Function`: function to be called when websocket starts it's reconnection 
+- `thisContext: any`: `this` context to use when calling the callback function.
+- => Returns an `off` method to cancel the event subscription.
+
+#### `onDisconnected(callback, thisContext) => Function` - shorthand for `.on('disconnected', ...)`
+- `callback: Function`: function to be called when websocket disconnected.
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
 
@@ -272,6 +282,22 @@ ReactDOM.render(
 - `middlewares: MiddlewareInterface[]` - Array contains list of middlewares (implemented `applyMiddleware` method) implementation, the `SubscriptionClient` will use the middlewares to modify `OperationOptions` for every operation
 
 ### `status: number` : returns the current socket's `readyState`
+
+#### **@deprecated** `onConnect(callback, thisContext) => Function` - shorthand for `.on('connect', ...)`
+- `callback: Function`: function to be called when websocket connects and initialized.
+- `thisContext: any`: `this` context to use when calling the callback function.
+- => Returns an `off` method to cancel the event subscription.
+
+#### **@deprecated** `onReconnect(callback, thisContext) => Function` - shorthand for `.on('reconnect', ...)`
+- `callback: Function`: function to be called when websocket re-connects and initialized.
+- `thisContext: any`: `this` context to use when calling the callback function.
+- => Returns an `off` method to cancel the event subscription.
+
+#### **@deprecated** `onDisconnect(callback, thisContext) => Function` - shorthand for `.on('disconnect', ...)`
+- `callback: Function`: function to be called when websocket disconnects.
+- `thisContext: any`: `this` context to use when calling the callback function.
+- => Returns an `off` method to cancel the event subscription.
+
 
 ## Client-side helpers
 
