@@ -122,12 +122,10 @@ const rootResolver = {
     Mutation: () => { ... },
     Subscription: {
         commentAdded: {
-          subscribe: withFilter(pubsub.asyncIterator('commentAdded'), (payload, variables) => {
+          subscribe: withFilter(() => pubsub.asyncIterator('commentAdded'), (payload, variables) => {
              return payload.commentAdded.repository_name === variables.repoFullName;
           }),
         }
     },
 };
 ```
-
-> Note that when using withFilter, you don't need to wrap your return value with a function.
