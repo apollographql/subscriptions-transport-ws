@@ -34,7 +34,7 @@ import { PubSub } from 'graphql-subscriptions';
 export const pubsub = new PubSub();
 ```
 
-Now, use your `PubSub` instance, along with your GraphQL `schema`, `execute` and `subscribe`:
+Now, create `SubscriptionServer` instance, with your GraphQL `schema`, `execute` and `subscribe` (from `graphql-js` package):
 
 ```js
 import { createServer } from 'http';
