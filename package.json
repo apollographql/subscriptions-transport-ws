@@ -9,7 +9,7 @@
     "url": "git+https://github.com/apollostack/subscriptions-transport-ws.git"
   },
   "dependencies": {
-    "@types/ws": "^0.0.41",
+    "@types/ws": "^0.0.42",
     "backo2": "^1.0.2",
     "eventemitter3": "^2.0.3",
     "graphql-subscriptions": "^0.4.1",
