@@ -34,7 +34,7 @@
     "prepublish": "npm run compile && npm run browser-compile"
   },
   "devDependencies": {
-    "@types/chai": "^3.5.1",
+    "@types/chai": "^4.0.0",
     "@types/graphql": "^0.9.0",
     "@types/lodash": "4.14.64",
     "@types/mocha": "^2.2.41",
