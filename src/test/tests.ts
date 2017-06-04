@@ -2008,6 +2008,7 @@ describe('Client<->Server Flow', () => {
     expect(resolveAsyncIteratorSpy.callCount).to.eq(1);
     // should be 0 because subscribe called only in the beginning
     expect(subscriptionAsyncIteratorSpy.callCount).to.eq(0);
+    client2.unsubscribe();
     testServer.close();
   });
 
