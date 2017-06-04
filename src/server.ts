@@ -125,7 +125,9 @@ export class SubscriptionServer {
     this.wsServer = new WebSocket.Server(socketOptions || {});
 
     this.wsServer.on('connection', ((socket: WebSocket, request: IncomingMessage) => {
-      socket.upgradeReq = request;
+      // Add `upgradeReq` to the socket object to support old API, without creating a memory leak
+      // See: https://github.com/websockets/ws/pull/1099
+      (socket as any).upgradeReq = request;
       // NOTE: the old GRAPHQL_SUBSCRIPTIONS protocol support should be removed in the future
       if (socket.protocol === undefined ||
         (socket.protocol.indexOf(GRAPHQL_WS) === -1 && socket.protocol.indexOf(GRAPHQL_SUBSCRIPTIONS) === -1)) {

@@ -9,7 +9,7 @@
     "url": "git+https://github.com/apollostack/subscriptions-transport-ws.git"
   },
   "dependencies": {
-    "@types/ws": "^0.0.41",
+    "@types/ws": "^3.0.0",
     "backo2": "^1.0.2",
     "eventemitter3": "^2.0.3",
     "graphql-subscriptions": "^0.4.1",
@@ -34,9 +34,9 @@
     "prepublish": "npm run compile && npm run browser-compile"
   },
   "devDependencies": {
-    "@types/chai": "^3.5.1",
+    "@types/chai": "^4.0.0",
     "@types/graphql": "^0.9.0",
-    "@types/lodash": "4.14.64",
+    "@types/lodash": "^4.14.65",
     "@types/mocha": "^2.2.41",
     "@types/node": "^7.0.27",
     "@types/sinon": "^2.3.0",
