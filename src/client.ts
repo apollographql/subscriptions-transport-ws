@@ -116,17 +116,18 @@ export class SubscriptionClient {
 
   public get status() {
     if (this.client === null) {
-      return 0; //readyState 'CONNECTING'
+      return this.wsImpl.CLOSED;
     }
 
     return this.client.readyState;
   }
 
-  public close() {
+  public close(isForced = true) {
     if (this.client !== null) {
-      this.forceClose = true;
+      this.forceClose = isForced;
       this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
       this.client.close();
+      this.client = null;
     }
   }
 
@@ -423,7 +424,7 @@ export class SubscriptionClient {
   }
 
   private checkConnection() {
-    this.wasKeepAliveReceived ? this.wasKeepAliveReceived = false : this.close();
+    this.wasKeepAliveReceived ? this.wasKeepAliveReceived = false : this.close(false);
   }
 
   private connect() {

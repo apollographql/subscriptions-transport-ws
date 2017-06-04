@@ -1936,6 +1936,47 @@ describe('Message Types', function () {
 });
 
 describe('Client<->Server Flow', () => {
+  it('should reconnect after manually closing the connection and then resubscribing', (done) => {
+    const testServer = createServer(notFoundRequestListener);
+    testServer.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    SubscriptionServer.create({
+      schema: subscriptionsSchema,
+      execute,
+      subscribe,
+    }, {
+      server: testServer,
+      path: '/',
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    let isFirstTime = true;
+
+    client.onConnected(async () => {
+      // Manually close the connection only in the first time, to avoid infinite loop
+      if (isFirstTime) {
+        isFirstTime = false;
+
+        setTimeout(() => {
+          // Disconnect the client
+          client.close();
+
+          // Subscribe to data, without manually reconnect before
+          const opId = client.subscribe({
+            query: `query { testString }`,
+            variables: {},
+          }, (err, res) => {
+            expect(opId).not.to.eq(null);
+            expect(err).to.eq(null);
+            expect(res.testString).to.eq('value');
+            testServer.close();
+            done();
+          });
+        }, 300);
+      }
+    });
+  });
+
   it('should close iteration over AsyncIterator when client unsubscribes', async () => {
     subscriptionAsyncIteratorSpy.reset();
     resolveAsyncIteratorSpy.reset();
