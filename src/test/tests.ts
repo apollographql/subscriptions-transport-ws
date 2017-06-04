@@ -2008,6 +2008,7 @@ describe('Client<->Server Flow', () => {
     expect(resolveAsyncIteratorSpy.callCount).to.eq(1);
     // should be 0 because subscribe called only in the beginning
     expect(subscriptionAsyncIteratorSpy.callCount).to.eq(0);
+    testServer.close();
   });
 
   it('should close iteration over AsyncIterator when client disconnects', async () => {
@@ -2076,6 +2077,7 @@ describe('Client<->Server Flow', () => {
     expect(client2.spy.callCount).to.eq(1);
     // should be 1 because there is only one subscriber now (client2)
     expect(resolveAsyncIteratorSpy.callCount).to.eq(1);
+    testServer.close();
   });
 
   it('should handle correctly multiple subscriptions one after each other', (done) => {
