@@ -1,6 +1,11 @@
 // chai style expect().to.be.true violates no-unused-expression
 /* tslint:disable:no-unused-expression */
 
+// Temporary workaround for missing typings
+declare module 'graphql' {
+  export function subscribe(): any;
+}
+
 import 'mocha';
 import {
   assert,
@@ -8,11 +13,13 @@ import {
 } from 'chai';
 import * as sinon from 'sinon';
 import * as WebSocket from 'ws';
-import { execute } from 'graphql';
+import { execute, subscribe } from 'graphql';
 
 Object.assign(global, {
   WebSocket: WebSocket,
 });
+
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 import {
   GraphQLObjectType,
@@ -110,6 +117,38 @@ const schema = new GraphQLSchema({
       error: {
         type: GraphQLString, resolve: () => {
           throw new Error('E1');
+        },
+      },
+    },
+  }),
+});
+
+const subscriptionsPubSub = new PubSub();
+const TEST_PUBLICATION = 'test_publication';
+const subscriptionAsyncIteratorSpy = sinon.spy();
+const resolveAsyncIteratorSpy = sinon.spy();
+
+const subscriptionsSchema = new GraphQLSchema({
+  query: new GraphQLObjectType({
+    name: 'Query',
+    fields: {
+      testString: { type: GraphQLString, resolve: () => 'value' },
+    },
+  }),
+  subscription: new GraphQLObjectType({
+    name: 'Subscription',
+    fields: {
+      somethingChanged: {
+        type: GraphQLString,
+        resolve: payload => {
+          resolveAsyncIteratorSpy();
+
+          return payload;
+        },
+        subscribe: () => {
+          subscriptionAsyncIteratorSpy();
+
+          return subscriptionsPubSub.asyncIterator(TEST_PUBLICATION);
         },
       },
     },
@@ -1897,6 +1936,151 @@ describe('Message Types', function () {
 });
 
 describe('Client<->Server Flow', () => {
+  it('should close iteration over AsyncIterator when client unsubscribes', async () => {
+    subscriptionAsyncIteratorSpy.reset();
+    resolveAsyncIteratorSpy.reset();
+
+    const testServer = createServer(notFoundRequestListener);
+    testServer.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    SubscriptionServer.create({
+      schema: subscriptionsSchema,
+      execute,
+      subscribe,
+    }, {
+      server: testServer,
+      path: '/',
+    });
+
+    const createClientAndSubscribe = (): Promise<any> => {
+      const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+      let opId: any = null;
+      const cbSpy = sinon.spy();
+
+      client.onConnected(() => {
+        opId = client.subscribe({
+          query: `subscription { somethingChanged }`,
+          variables: {},
+        }, (err, res) => {
+          cbSpy(err, res);
+        });
+      });
+
+      return new Promise(resolve => {
+        setTimeout(() => {
+          resolve({
+            unsubscribe: () => opId && client.unsubscribe(opId),
+            spy: cbSpy,
+          });
+        }, 300);
+      });
+    };
+
+    const client1 = await createClientAndSubscribe();
+    const client2 = await createClientAndSubscribe();
+
+    // Publish data - both client should get this message
+    subscriptionsPubSub.publish(TEST_PUBLICATION, { somethingChanged: 'test-payload' });
+    await wait(400);
+    // Each client listener should call once
+    expect(client1.spy.callCount).to.eq(1);
+    expect(client2.spy.callCount).to.eq(1);
+    // But the async iterator subscription should call twice, one for each subscription
+    expect(subscriptionAsyncIteratorSpy.callCount).to.eq(2);
+    expect(resolveAsyncIteratorSpy.callCount).to.eq(2);
+    // Clear spies before publishing again
+    subscriptionAsyncIteratorSpy.reset();
+    resolveAsyncIteratorSpy.reset();
+    client1.spy.reset();
+    client2.spy.reset();
+
+    // Unsubscribe client 1
+    client1.unsubscribe();
+    await wait(300);
+
+    // Now only client 2 should get the published payload
+    subscriptionsPubSub.publish(TEST_PUBLICATION, { somethingChanged: 'test-payload-2' });
+    await wait(400);
+
+    expect(client1.spy.callCount).to.eq(0);
+    expect(client2.spy.callCount).to.eq(1);
+    // should be 1 because there is only one subscriber now (client2)
+    expect(resolveAsyncIteratorSpy.callCount).to.eq(1);
+    // should be 0 because subscribe called only in the beginning
+    expect(subscriptionAsyncIteratorSpy.callCount).to.eq(0);
+    client2.unsubscribe();
+    testServer.close();
+  });
+
+  it('should close iteration over AsyncIterator when client disconnects', async () => {
+    resolveAsyncIteratorSpy.reset();
+
+    const testServer = createServer(notFoundRequestListener);
+    testServer.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    SubscriptionServer.create({
+      schema: subscriptionsSchema,
+      execute,
+      subscribe,
+    }, {
+      server: testServer,
+      path: '/',
+    });
+
+    const createClientAndSubscribe = (): Promise<any> => {
+      const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+      const cbSpy = sinon.spy();
+
+      client.onConnected(() => {
+        client.subscribe({
+          query: `subscription { somethingChanged }`,
+          variables: {},
+        }, (err, res) => {
+          cbSpy(err, res);
+        });
+      });
+
+      return new Promise(resolve => {
+        setTimeout(() => {
+          resolve({
+            close: () => client.close(),
+            spy: cbSpy,
+          });
+        }, 300);
+      });
+    };
+
+    const client1 = await createClientAndSubscribe();
+    const client2 = await createClientAndSubscribe();
+
+    // Publish data - both client should get this message
+    subscriptionsPubSub.publish(TEST_PUBLICATION, { somethingChanged: 'test-payload' });
+    await wait(400);
+    // Each client listener should call once
+    expect(client1.spy.callCount).to.eq(1);
+    expect(client2.spy.callCount).to.eq(1);
+    // But the async iterator subscription should call twice, one for each subscription
+    expect(resolveAsyncIteratorSpy.callCount).to.eq(2);
+    // Clear spies before publishing again
+    resolveAsyncIteratorSpy.reset();
+    client1.spy.reset();
+    client2.spy.reset();
+
+    // Close client 1
+    client1.close();
+    await wait(300);
+
+    // Now only client 2 should get the published payload
+    subscriptionsPubSub.publish(TEST_PUBLICATION, { somethingChanged: 'test-payload-2' });
+    await wait(400);
+
+    expect(client1.spy.callCount).to.eq(0);
+    expect(client2.spy.callCount).to.eq(1);
+    // should be 1 because there is only one subscriber now (client2)
+    expect(resolveAsyncIteratorSpy.callCount).to.eq(1);
+    testServer.close();
+  });
+
   it('should handle correctly multiple subscriptions one after each other', (done) => {
     // This tests the use case of a UI component that creates a subscription acoording to it's
     // local data, for example: subscribe to changed on a visible items in a list, and it might
