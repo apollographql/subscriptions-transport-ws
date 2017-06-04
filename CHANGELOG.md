@@ -3,6 +3,12 @@
 ### vNEXT
 - ...
 
+### 0.7.1
+- Fix for reconnect after manual close [PR #164](https://github.com/apollographql/subscriptions-transport-ws/pull/164)
+- test(disconnect): added tests for client-server flow for unsubscribe and disconnect [PR #163](https://github.com/apollographql/subscriptions-transport-ws/pull/163)
+- Various dependencies updates [PR #152](https://github.com/apollographql/subscriptions-transport-ws/pull/152) [PR #162](https://github.com/apollographql/subscriptions-transport-ws/pull/162)
+- docs(README): fix docs [PR #151](https://github.com/apollographql/subscriptions-transport-ws/pull/151)
+
 ### 0.7.0
 - Client exposes new asyncronous middleware to modify `OperationOptions` [PR #78](https://github.com/apollographql/subscriptions-transport-ws/pull/78)
 - Added `WebSocketServer` error handler to prevent uncaught exceptions. Fixes [Issue #94](https://github.com/apollographql/subscriptions-transport-ws/issues/94)
