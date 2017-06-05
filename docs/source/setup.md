@@ -95,7 +95,7 @@ You can see [an example for creating subscription resolver here](/tools/graphql-
 
 <h2 id="filter-subscriptions">Filter Subscriptions</h2>
 
-Somtimes a client will want filter out specific events based on context and arguments.
+Sometimes a client will want filter out specific events based on context and arguments.
 
 To do so, we can use `withFilter` helper from this package, which wraps `AsyncItrator` with a filter function, and let you control each publication for each user.
 
