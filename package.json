@@ -40,7 +40,7 @@
     "@types/mocha": "^2.2.41",
     "@types/node": "^7.0.27",
     "@types/sinon": "^2.3.0",
-    "chai": "^3.5.0",
+    "chai": "^4.0.2",
     "graphql": "^0.10.0",
     "istanbul": "^1.0.0-alpha.2",
     "lodash": "^4.17.1",
