@@ -228,7 +228,7 @@ export class SubscriptionClient {
     return this.on('reconnecting', callback, context);
   }
 
-  public unsubscribe(opId: number) {
+  public unsubscribe(opId: string) {
     if (this.operations[opId]) {
       delete this.operations[opId];
       this.sendMessage(opId, MessageTypes.GQL_STOP, undefined);
@@ -237,7 +237,7 @@ export class SubscriptionClient {
 
   public unsubscribeAll() {
     Object.keys(this.operations).forEach( subId => {
-      this.unsubscribe(parseInt(subId, 10));
+      this.unsubscribe(subId);
     });
   }
 
@@ -304,7 +304,7 @@ export class SubscriptionClient {
     }
   }
 
-  private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): number {
+  private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): string {
     const opId = this.generateOperationId();
     this.operations[opId] = { options: options, handler };
 
@@ -324,7 +324,7 @@ export class SubscriptionClient {
     return opId;
   }
 
-  private buildMessage(id: number, type: string, payload: any) {
+  private buildMessage(id: string, type: string, payload: any) {
     const payloadToReturn = payload && payload.query ?
       {
         ...payload,
@@ -362,7 +362,7 @@ export class SubscriptionClient {
     }];
   }
 
-  private sendMessage(id: number, type: string, payload: any) {
+  private sendMessage(id: string, type: string, payload: any) {
     this.sendMessageRaw(this.buildMessage(id, type, payload));
   }
 
@@ -392,8 +392,8 @@ export class SubscriptionClient {
     }
   }
 
-  private generateOperationId() {
-    return ++this.nextOperationId;
+  private generateOperationId(): string {
+    return String(++this.nextOperationId);
   }
 
   private tryReconnect() {
@@ -404,7 +404,7 @@ export class SubscriptionClient {
     if (!this.reconnecting) {
       Object.keys(this.operations).forEach((key) => {
         this.unsentMessagesQueue.push(
-          this.buildMessage(parseInt(key, 10), MessageTypes.GQL_START, this.operations[key].options),
+          this.buildMessage(key, MessageTypes.GQL_START, this.operations[key].options),
         );
       });
       this.reconnecting = true;
@@ -462,7 +462,7 @@ export class SubscriptionClient {
 
   private processReceivedData(receivedData: any) {
     let parsedMessage: any;
-    let opId: number;
+    let opId: string;
 
     try {
       parsedMessage = JSON.parse(receivedData);
@@ -478,6 +478,7 @@ export class SubscriptionClient {
       ].indexOf(parsedMessage.type) !== -1 && !this.operations[opId]
     ) {
       this.unsubscribe(opId);
+
       return;
     }
 

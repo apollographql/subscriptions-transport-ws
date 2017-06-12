@@ -15,10 +15,10 @@ export function addGraphQLSubscriptions(networkInterface: any, wsClient: Subscri
   }
 
   return assign(networkInterface, {
-    subscribe(request: any, handler: any): number {
+    subscribe(request: any, handler: any): string {
       return wsClient.subscribe(request, handler);
     },
-    unsubscribe(id: number): void {
+    unsubscribe(id: string): void {
       wsClient.unsubscribe(id);
     },
   });
