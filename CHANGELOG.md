@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Increase default keep-alive timeout to 30s [PR #177](https://github.com/apollographql/subscriptions-transport-ws/pull/177)
 - ...
 
 ### 0.7.1
