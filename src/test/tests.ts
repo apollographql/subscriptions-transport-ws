@@ -1727,7 +1727,7 @@ describe('Server', function () {
 
   it('does not send more subscription data after client unsubscribes', function (done) {
     const client4 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
-    let subId: number;
+    let subId: string;
     setTimeout(() => {
       client4.unsubscribe(subId);
     }, 50);
