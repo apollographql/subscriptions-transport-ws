@@ -89,7 +89,7 @@ export const executeFromSubscriptionManager = (subscriptionManager: Subscription
 
         if (subIdPromise) {
           subIdPromise.then((opId: number) => {
-            if (opId) {
+            if (!isNaN(opId) && opId >= 0) {
               subscriptionManager.unsubscribe(opId);
             }
           });
