@@ -216,7 +216,7 @@ ReactDOM.render(
 ### `Constructor(url, options, connectionCallback)`
 - `url: string` : url that the client will connect to, starts with `ws://` or `wss://`
 - `options?: Object` : optional, object to modify default client behavior
-  * `timeout?: number` : how long the client should wait in ms for a subscription to be started (default 5000 ms)how long the client should wait in ms for a subscription to be started (default 5000 ms)
+  * `timeout?: number` : how long the client should wait in ms for a keep-alive message from the server (default 5000 ms), this parameter is ignored if the server does not send keep-alive messages.
   * `lazy?: boolean` : use to set lazy mode - connects only when first subscription created, and delay the socket initialization
   * `connectionParams?: Object | Function` : object that will be available as first argument of `onConnect` (in server side), if passed a function - it will call it and send the return value.
   * `reconnect?: boolean` : automatic reconnect in case of connection error
