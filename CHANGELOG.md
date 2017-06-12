@@ -1,9 +1,10 @@
 # Changelog
 
 ### vNEXT
+
+### 0.7.2
 - Increase default keep-alive timeout to 30s [PR #177](https://github.com/apollographql/subscriptions-transport-ws/pull/177)
 - Operation key is now `string` instead of `number` [PR #176](https://github.com/apollographql/subscriptions-transport-ws/pull/176)
-- ...
 
 ### 0.7.1
 - Fix for reconnect after manual close [PR #164](https://github.com/apollographql/subscriptions-transport-ws/pull/164)
