@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Operation key is now `string` instead of `number` [PR #176](https://github.com/apollographql/subscriptions-transport-ws/pull/176)
 - ...
 
 ### 0.7.1
