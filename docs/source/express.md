@@ -29,7 +29,7 @@ server.listen(PORT, () => {
     new SubscriptionServer({
       execute,
       subscribe,
-      myGraphQLSchema,
+      schema: myGraphQLSchema,
     }, {
       server: server,
       path: '/subscriptions',
