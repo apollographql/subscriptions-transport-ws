@@ -11,8 +11,6 @@ import { execute, subscribe } from 'graphql';
 import { SubscriptionServer } from 'subscriptions-transport-ws';
 import { myGraphQLSchema } from './my-schema';
 
-const pubsub = new PubSub();
-
 new SubscriptionServer({
   schema: myGraphQLSchema,
   execute,
