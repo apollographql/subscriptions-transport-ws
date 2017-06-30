@@ -125,7 +125,11 @@ export class SubscriptionClient {
   public close(isForced = true) {
     if (this.client !== null) {
       this.forceClose = isForced;
-      this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
+
+      if (this.forceClose) {
+        this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
+      }
+
       this.client.close();
       this.client = null;
     }
