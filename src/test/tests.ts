@@ -1138,7 +1138,7 @@ describe('Client', function () {
     }, 200);
   });
 
-  it.only('should force close the connection without tryReconnect', function (done) {
+  it('should force close the connection without tryReconnect', function (done) {
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       reconnect: true,
       reconnectionAttempts: 1,
@@ -1176,7 +1176,7 @@ describe('Client', function () {
     }, 500);
   });
 
-  it.only('should close the connection without sent connection terminate and reconnect', function (done) {
+  it('should close the connection without sent connection terminate and reconnect', function (done) {
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       reconnect: true,
       reconnectionAttempts: 1,
