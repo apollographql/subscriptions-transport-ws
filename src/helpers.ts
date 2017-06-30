@@ -1,5 +1,5 @@
 import { SubscriptionClient } from './client';
-import { assign } from 'lodash';
+import assign from 'lodash/assign';
 
 /**
  * @deprecated This method will become deprecated in the new package graphql-transport-ws.
