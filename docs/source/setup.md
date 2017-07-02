@@ -52,38 +52,54 @@ First install the `subscriptions-transport-ws` package:
 npm install --save subscriptions-transport-ws
 ```
 
-`SubscriptionsServer` expect a `schema`, `execute` and `subscribe` (optional) and a http server:
+`SubscriptionsServer` expect a `schema`, `execute` and `subscribe` (optional) and a http server. Here is complete setup code, supporting both queries and subscriptions. 
 
 ```js
-import { createServer } from 'http';
+import express from 'express';
+import {
+  graphqlExpress,
+  graphiqlExpress,
+} from 'graphql-server-express';
+import bodyParser from 'body-parser';
+import cors from 'cors';
 import { execute, subscribe } from 'graphql';
+import { createServer } from 'http';
 import { SubscriptionServer } from 'subscriptions-transport-ws';
-import { schema } from './schema';
 
-const WS_PORT = 5000;
+import { schema } from './src/schema';
 
-// Create WebSocket listener server
-const websocketServer = createServer((request, response) => {
-  response.writeHead(404);
-  response.end();
-});
+const PORT = 3000;
+const server = express();
 
-// Bind it to port and start listening
-websocketServer.listen(WS_PORT, () => console.log(
-  `Websocket Server is now running on http://localhost:${WS_PORT}`
-));
+server.use('*', cors({ origin: 'http://localhost:3000' }));
 
-const subscriptionsServer = new SubscriptionServer(
-  {
+server.use('/graphql', bodyParser.json(), graphqlExpress({
+  schema
+}));
+
+server.use('/graphiql', graphiqlExpress({
+  endpointURL: '/graphql',
+  subscriptionsEndpoint: `ws://localhost:4000/subscriptions`
+}));
+
+// Wrap the Express server
+const ws = createServer(server);
+ws.listen(PORT, () => {
+  console.log(`GraphQL Server is now running on http://localhost:${PORT}`);
+  // Set up the WebSocket for handling GraphQL subscriptions
+  new SubscriptionServer({
     execute,
     subscribe,
-    schema,
-  },
-  {
-    server: websocketServer
-  }
-);
+    schema
+  }, {
+    server: ws,
+    path: '/subscriptions',
+  });
+});
+
 ```
+
+See [the Laddad demo app for complete working sample code](https://dev-blog.apollodata.com/tutorial-graphql-subscriptions-server-side-e51c32dc2951).
 
 <h2 id="subscription-resolver">Subscription Resolver</h2>
 
