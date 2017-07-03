@@ -528,6 +528,7 @@ export class SubscriptionClient {
 
         if (this.checkConnectionTimeoutId) {
           clearTimeout(this.checkConnectionTimeoutId);
+          this.checkConnection();
         }
         this.checkConnectionTimeoutId = setTimeout(this.checkConnection.bind(this), this.wsTimeout);
         break;

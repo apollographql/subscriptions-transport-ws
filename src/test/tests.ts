@@ -215,7 +215,7 @@ new SubscriptionServer(options, { server: httpServer });
 
 const httpServerWithKA = createServer(notFoundRequestListener);
 httpServerWithKA.listen(KEEP_ALIVE_TEST_PORT);
-new SubscriptionServer(Object.assign({}, options, { keepAlive: 10 }), { server: httpServerWithKA });
+new SubscriptionServer(Object.assign({}, options, { keepAlive: 500 }), { server: httpServerWithKA });
 
 const httpServerWithEvents = createServer(notFoundRequestListener);
 httpServerWithEvents.listen(EVENTS_TEST_PORT);
@@ -1030,7 +1030,7 @@ describe('Client', function () {
   it('should take care of received keep alive', (done) => {
     let wasKAReceived = false;
 
-    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, { timeout: 5 });
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, { timeout: 600 });
     const originalOnMessage = subscriptionsClient.client.onmessage;
     subscriptionsClient.client.onmessage = (dataReceived: any) => {
       let receivedDataParsed = JSON.parse(dataReceived.data);
@@ -1046,18 +1046,28 @@ describe('Client', function () {
       expect(wasKAReceived).to.equal(true);
       expect(subscriptionsClient.status).to.equal(WebSocket.CLOSED);
       done();
-    }, 100);
+    }, 1200);
   });
 
   it('should correctly clear timeout if receives ka too early', (done) => {
-    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, { timeout: 25 });
+    let receivedKeepAlive = 0;
+
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, { timeout: 600 });
     const checkConnectionSpy = sinon.spy(subscriptionsClient, 'checkConnection');
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    subscriptionsClient.client.onmessage = (dataReceived: any) => {
+      let receivedDataParsed = JSON.parse(dataReceived.data);
+      if (receivedDataParsed.type === MessageTypes.GQL_CONNECTION_KEEP_ALIVE) {
+        ++receivedKeepAlive;
+        originalOnMessage(dataReceived);
+      }
+    };
 
     setTimeout(() => {
-      expect(checkConnectionSpy.callCount).to.be.equal(1);
+      expect(checkConnectionSpy.callCount).to.be.equal(receivedKeepAlive);
       expect(subscriptionsClient.status).to.be.equal(subscriptionsClient.client.OPEN);
       done();
-    }, 100);
+    }, 1300);
   });
 
   it('should take care of invalid message received', (done) => {
