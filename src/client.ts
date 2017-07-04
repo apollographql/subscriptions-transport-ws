@@ -75,6 +75,7 @@ export class SubscriptionClient {
   private wasKeepAliveReceived: boolean;
   private tryReconnectTimeoutId: any;
   private checkConnectionIntervalId: any;
+  private maxConnectTimeoutId: any;
   private middlewares: Middleware[];
 
   constructor(url: string, options?: ClientOptions, webSocketImpl?: any) {
@@ -128,10 +129,24 @@ export class SubscriptionClient {
       this.closedByUser = closedByUser;
 
       if (isForced) {
+        if (this.checkConnectionIntervalId) {
+          clearInterval(this.checkConnectionIntervalId);
+        }
+
+        if (this.maxConnectTimeoutId) {
+          clearTimeout(this.maxConnectTimeoutId);
+          this.maxConnectTimeoutId = null;
+        }
+
+        if (this.tryReconnectTimeoutId) {
+          clearTimeout(this.tryReconnectTimeoutId);
+          this.tryReconnectTimeoutId = null;
+        }
+
         this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
       }
 
-      if (closedByUser && this.client.status < this.wsImpl.OPEN) {
+      if (closedByUser) {
         this.client.close();
       }
       this.client = null;
@@ -444,15 +459,24 @@ export class SubscriptionClient {
     this.wasKeepAliveReceived ? this.wasKeepAliveReceived = false : this.close(false, true);
   }
 
-  private connect() {
-    this.client = new this.wsImpl(this.url, GRAPHQL_WS);
+  private checkMaxConnectTimeout() {
+    if (this.maxConnectTimeoutId) {
+      clearTimeout(this.maxConnectTimeoutId);
+      this.maxConnectTimeoutId = null;
+    }
 
     // Max timeout trying to connect
-    setTimeout(() => {
+    this.maxConnectTimeoutId = setTimeout(() => {
       if (this.status !== this.wsImpl.OPEN) {
         this.close(false, true);
       }
     }, this.wsTimeout);
+  }
+
+  private connect() {
+    this.client = new this.wsImpl(this.url, GRAPHQL_WS);
+
+    this.checkMaxConnectTimeout();
 
     this.client.onopen = () => {
       this.closedByUser = false;
