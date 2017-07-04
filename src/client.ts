@@ -461,6 +461,7 @@ export class SubscriptionClient {
     this.client.onerror = () => {
       // Capture and ignore errors to prevent unhandled exceptions, wait for
       // onclose to fire before attempting a reconnect.
+      this.close(false, true);
     };
 
     this.client.onmessage = ({ data }: {data: any}) => {
