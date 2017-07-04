@@ -314,7 +314,7 @@ describe('Client', function () {
   it('should emit disconnect event for client side when socket closed', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`, {
       connectionCallback: () => {
-        client.client.close(1001);
+        client.client.close();
       },
     });
 
@@ -970,7 +970,7 @@ describe('Client', function () {
     });
 
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
-      timeout: 10,
+      timeout: 100,
       reconnect: true,
       reconnectionAttempts: 1,
     });
@@ -979,7 +979,7 @@ describe('Client', function () {
     setTimeout(() => {
       expect(connectSpy.callCount).to.be.equal(2);
       done();
-    }, 1500);
+    }, 500);
   });
 
   it('should stop trying to reconnect if not receives the ack from the server', function (done) {
@@ -1174,7 +1174,7 @@ describe('Client', function () {
       let receivedDataParsed = JSON.parse(dataReceived.data);
       if (receivedDataParsed.type === MessageTypes.GQL_CONNECTION_ACK) {
         originalOnMessage(dataReceived);
-        subscriptionsClient.close(true);
+        subscriptionsClient.close();
       }
     };
 
