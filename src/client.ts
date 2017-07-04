@@ -70,7 +70,7 @@ export class SubscriptionClient {
   private connectionCallback: any;
   private eventEmitter: EventEmitter;
   private lazy: boolean;
-  private forceClose: boolean;
+  private closedByUser: boolean;
   private wsImpl: any;
   private wasKeepAliveReceived: boolean;
   private checkConnectionTimeoutId: any;
@@ -103,7 +103,7 @@ export class SubscriptionClient {
     this.reconnecting = false;
     this.reconnectionAttempts = reconnectionAttempts;
     this.lazy = !!lazy;
-    this.forceClose = false;
+    this.closedByUser = false;
     this.backoff = new Backoff({ jitter: 0.5 });
     this.eventEmitter = new EventEmitter();
     this.middlewares = [];
@@ -122,16 +122,23 @@ export class SubscriptionClient {
     return this.client.readyState;
   }
 
-  public close(isForced = true) {
+  public close(isForced = true, closedByUser = true) {
     if (this.client !== null) {
-      this.forceClose = isForced;
+      this.closedByUser = closedByUser;
 
-      if (this.forceClose) {
+      if (isForced) {
         this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
       }
 
-      this.client.close();
+      if (closedByUser) {
+        this.client.close();
+      }
       this.client = null;
+      this.eventEmitter.emit('disconnected');
+
+      if (!isForced) {
+        this.tryReconnect();
+      }
     }
   }
 
@@ -435,6 +442,7 @@ export class SubscriptionClient {
     this.client = new this.wsImpl(this.url, GRAPHQL_WS);
 
     this.client.onopen = () => {
+      this.closedByUser = false;
       this.eventEmitter.emit(this.reconnecting ? 'reconnecting' : 'connecting');
 
       const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
@@ -445,12 +453,8 @@ export class SubscriptionClient {
     };
 
     this.client.onclose = () => {
-      this.eventEmitter.emit('disconnected');
-
-      if (this.forceClose) {
-        this.forceClose = false;
-      } else {
-        this.tryReconnect();
+      if ( !this.closedByUser ) {
+        this.close(false, false);
       }
     };
 
