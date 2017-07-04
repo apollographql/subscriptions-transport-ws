@@ -131,6 +131,7 @@ export class SubscriptionClient {
       if (isForced) {
         if (this.checkConnectionIntervalId) {
           clearInterval(this.checkConnectionIntervalId);
+          this.checkConnectionIntervalId = null;
         }
 
         if (this.maxConnectTimeoutId) {
@@ -146,7 +147,7 @@ export class SubscriptionClient {
         this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
       }
 
-      if (closedByUser) {
+      if (this.client.status === this.wsImpl.OPEN) {
         this.client.close();
       }
       this.client = null;
@@ -456,7 +457,12 @@ export class SubscriptionClient {
   }
 
   private checkConnection() {
-    this.wasKeepAliveReceived ? this.wasKeepAliveReceived = false : this.close(false, true);
+    if (this.wasKeepAliveReceived) {
+      this.wasKeepAliveReceived = false;
+      return;
+    }
+
+    this.close(false, true);
   }
 
   private checkMaxConnectTimeout() {
