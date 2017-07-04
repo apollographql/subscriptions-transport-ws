@@ -2,6 +2,8 @@
 
 ### vNEXT
 
+- docs(README): Fix onEvent(eventName, callback, thisContext) list of eventName [PR #205](https://github.com/apollographql/subscriptions-transport-ws/pull/205)
+
 ### 0.7.3
 - Fix for first subscription is never unsubscribed [PR #179](https://github.com/apollographql/subscriptions-transport-ws/pull/179)
 
