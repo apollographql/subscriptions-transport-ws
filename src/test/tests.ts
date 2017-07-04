@@ -959,33 +959,28 @@ describe('Client', function () {
   });
 
   it('should stop trying to reconnect to the server', function (done) {
-    let connections = 0;
     wsServer.on('connection', (connection: WebSocket) => {
-      connections += 1;
-      if (connections === 1) {
-        wsServer.close();
-      } else {
-        assert(false);
-      }
+      connection.close();
     });
 
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
-      timeout: 100,
+      timeout: 500,
       reconnect: true,
-      reconnectionAttempts: 1,
+      reconnectionAttempts: 2,
     });
     const connectSpy = sinon.spy(subscriptionsClient, 'connect');
 
     setTimeout(() => {
       expect(connectSpy.callCount).to.be.equal(2);
       done();
-    }, 500);
+    }, 1500);
   });
 
-  it('should stop trying to reconnect if not receives the ack from the server', function (done) {
+  it('should stop trying to reconnect to the server if it not receives the ack', function (done) {
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      timeout: 500,
       reconnect: true,
-      reconnectionAttempts: 1,
+      reconnectionAttempts: 2,
     });
     const connectSpy = sinon.spy(subscriptionsClient, 'connect');
     wsServer.on('connection', (connection: any) => {
@@ -1001,20 +996,23 @@ describe('Client', function () {
     setTimeout(() => {
       expect(connectSpy.callCount).to.be.equal(2);
       done();
-    }, 1000);
+    }, 1500);
   });
 
   it('should keep trying to reconnect if receives the ack from the server', function (done) {
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      timeout: 500,
       reconnect: true,
-      reconnectionAttempts: 1,
+      reconnectionAttempts: 2,
     });
     const connectSpy = sinon.spy(subscriptionsClient, 'connect');
+    let connections = 0;
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
         // mock server
         if (parsedMessage.type === MessageTypes.GQL_CONNECTION_INIT) {
+          ++connections;
           connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK, payload: {} }));
           connection.close();
         }
@@ -1022,9 +1020,11 @@ describe('Client', function () {
     });
 
     setTimeout(() => {
+      expect(connections).to.be.greaterThan(3);
       expect(connectSpy.callCount).to.be.greaterThan(2);
+      wsServer.close();
       done();
-    }, 1000);
+    }, 1900);
   });
 
   it('should take care of received keep alive', (done) => {
