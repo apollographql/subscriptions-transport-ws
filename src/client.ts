@@ -131,7 +131,7 @@ export class SubscriptionClient {
         this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
       }
 
-      if (closedByUser) {
+      if (closedByUser && this.client.status < this.wsImpl.OPEN) {
         this.client.close();
       }
       this.client = null;
@@ -441,7 +441,7 @@ export class SubscriptionClient {
   }
 
   private checkConnection() {
-    this.wasKeepAliveReceived ? this.wasKeepAliveReceived = false : this.close(false);
+    this.wasKeepAliveReceived ? this.wasKeepAliveReceived = false : this.close(false, true);
   }
 
   private connect() {
