@@ -129,27 +129,13 @@ export class SubscriptionClient {
       this.closedByUser = closedByUser;
 
       if (isForced) {
-        if (this.checkConnectionIntervalId) {
-          clearInterval(this.checkConnectionIntervalId);
-          this.checkConnectionIntervalId = null;
-        }
-
-        if (this.maxConnectTimeoutId) {
-          clearTimeout(this.maxConnectTimeoutId);
-          this.maxConnectTimeoutId = null;
-        }
-
-        if (this.tryReconnectTimeoutId) {
-          clearTimeout(this.tryReconnectTimeoutId);
-          this.tryReconnectTimeoutId = null;
-        }
-
+        this.clearCheckConnectionInterval();
+        this.clearMaxConnectTimeout();
+        this.clearTryReconnectTimeout();
         this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
       }
 
-      if (this.client.status === this.wsImpl.OPEN) {
-        this.client.close();
-      }
+      this.client.close();
       this.client = null;
       this.eventEmitter.emit('disconnected');
 
@@ -305,6 +291,27 @@ export class SubscriptionClient {
     return this;
   }
 
+  private clearCheckConnectionInterval() {
+    if (this.checkConnectionIntervalId) {
+      clearInterval(this.checkConnectionIntervalId);
+      this.checkConnectionIntervalId = null;
+    }
+  }
+
+  private clearMaxConnectTimeout() {
+    if (this.maxConnectTimeoutId) {
+      clearTimeout(this.maxConnectTimeoutId);
+      this.maxConnectTimeoutId = null;
+    }
+    }
+
+  private clearTryReconnectTimeout() {
+    if (this.tryReconnectTimeoutId) {
+      clearTimeout(this.tryReconnectTimeoutId);
+      this.tryReconnectTimeoutId = null;
+    }
+  }
+
   private logWarningOnNonProductionEnv(warning: string) {
     if (process && process.env && process.env.NODE_ENV !== 'production') {
       console.warn(warning);
@@ -438,10 +445,7 @@ export class SubscriptionClient {
       this.reconnecting = true;
     }
 
-    if (this.tryReconnectTimeoutId) {
-      clearTimeout(this.tryReconnectTimeoutId);
-      this.tryReconnectTimeoutId = null;
-    }
+    this.clearTryReconnectTimeout();
 
     const delay = this.backoff.duration();
     this.tryReconnectTimeoutId = setTimeout(() => {
@@ -466,10 +470,7 @@ export class SubscriptionClient {
   }
 
   private checkMaxConnectTimeout() {
-    if (this.maxConnectTimeoutId) {
-      clearTimeout(this.maxConnectTimeoutId);
-      this.maxConnectTimeoutId = null;
-    }
+    this.clearMaxConnectTimeout();
 
     // Max timeout trying to connect
     this.maxConnectTimeoutId = setTimeout(() => {
@@ -487,11 +488,7 @@ export class SubscriptionClient {
     this.client.onopen = () => {
       this.closedByUser = false;
       this.eventEmitter.emit(this.reconnecting ? 'reconnecting' : 'connecting');
-
-      if (this.tryReconnectTimeoutId) {
-        clearTimeout(this.tryReconnectTimeoutId);
-        this.tryReconnectTimeoutId = null;
-      }
+      this.clearMaxConnectTimeout();
 
       const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
 
@@ -509,7 +506,6 @@ export class SubscriptionClient {
     this.client.onerror = () => {
       // Capture and ignore errors to prevent unhandled exceptions, wait for
       // onclose to fire before attempting a reconnect.
-      this.close(false, true);
     };
 
     this.client.onmessage = ({ data }: {data: any}) => {
