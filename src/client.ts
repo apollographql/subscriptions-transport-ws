@@ -466,7 +466,9 @@ export class SubscriptionClient {
       return;
     }
 
-    this.close(false, true);
+    if (!this.reconnecting) {
+      this.close(false, true);
+    }
   }
 
   private checkMaxConnectTimeout() {
@@ -486,9 +488,9 @@ export class SubscriptionClient {
     this.checkMaxConnectTimeout();
 
     this.client.onopen = () => {
+      this.clearMaxConnectTimeout();
       this.closedByUser = false;
       this.eventEmitter.emit(this.reconnecting ? 'reconnecting' : 'connecting');
-      this.clearMaxConnectTimeout();
 
       const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
 
