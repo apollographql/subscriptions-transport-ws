@@ -9,6 +9,12 @@
     "url": "git+https://github.com/apollostack/subscriptions-transport-ws.git"
   },
   "dependencies": {
+    "@types/chai": "^4.0.0",
+    "@types/graphql": "^0.9.0",
+    "@types/lodash": "^4.14.65",
+    "@types/mocha": "^2.2.41",
+    "@types/node": "^8.0.0",
+    "@types/sinon": "^2.3.0",
     "@types/ws": "^3.0.0",
     "backo2": "^1.0.2",
     "eventemitter3": "^2.0.3",
@@ -31,21 +37,17 @@
     "coverage": "node ./node_modules/istanbul/lib/cli.js cover _mocha -- --full-trace ./dist/test/tests.js",
     "postcoverage": "remap-istanbul --input coverage/coverage.raw.json --type lcovonly --output coverage/lcov.info",
     "browser-compile": "webpack --config \"./unpkg-webpack.config.js\"",
-    "prepublish": "npm run compile && npm run browser-compile"
+    "prepublishOnly": "npm run compile && npm run browser-compile && rimraf src",
+    "postinstall": "npm run compile && npm run browser-compile"
   },
   "devDependencies": {
-    "@types/chai": "^4.0.0",
-    "@types/graphql": "^0.9.0",
-    "@types/lodash": "^4.14.65",
-    "@types/mocha": "^2.2.41",
-    "@types/node": "^8.0.0",
-    "@types/sinon": "^2.3.0",
     "chai": "^4.0.2",
     "graphql": "^0.10.1",
     "istanbul": "^1.0.0-alpha.2",
     "lodash": "^4.17.1",
     "mocha": "^3.3.0",
     "remap-istanbul": "^0.9.5",
+    "rimraf": "^2.6.1",
     "sinon": "^2.1.0",
     "tslint": "^5.4.2",
     "typescript": "^2.3.0",
