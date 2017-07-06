@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
++- Fix to make library able to be installed from a branch [PR #208](https://github.com/apollographql/subscriptions-transport-ws/pull/208) 
 
 ### 0.7.3
 - Fix for first subscription is never unsubscribed [PR #179](https://github.com/apollographql/subscriptions-transport-ws/pull/179)
