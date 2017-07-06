@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Expose opId `onOperationComplete` method [PR #211](https://github.com/apollographql/subscriptions-transport-ws/pull/211)
 
 ### 0.7.3
 - Fix for first subscription is never unsubscribed [PR #179](https://github.com/apollographql/subscriptions-transport-ws/pull/179)
