@@ -17,10 +17,6 @@
     "lib": ["es6", "esnext"],
     "types": [
       "node"
-    ],
-    "typeRoots": [
-      "node_modules/@types",
-      "../@types"
     ]
   },
   "exclude": [
