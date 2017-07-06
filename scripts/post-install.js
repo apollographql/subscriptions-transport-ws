@@ -11,7 +11,11 @@ function exec(command) {
 }
 
 stat('dist', function(error, stat) {
+    if (process && process.env && process.env.npm_config_only !== 'dev') {
+        exec('npm install --only=dev');
+    }
+
     if (error || !stat.isDirectory()) {
-        exec('npm run compile && npm run browser-compile');
+        exec('npm run compile && npm run browser-compile && rimraf src');
     }
 });
