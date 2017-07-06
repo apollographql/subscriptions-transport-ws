@@ -228,7 +228,7 @@ new SubscriptionServer(onConnectErrorOptions, { server: httpServerWithOnConnectE
 const httpServerWithDelay = createServer(notFoundRequestListener);
 httpServerWithDelay.listen(DELAYED_TEST_PORT);
 new SubscriptionServer(Object.assign({}, options, {
-  onSubscribe: (msg: OperationMessagePayload | any, params: SubscriptionOptions) => {
+  onSubscribe: (msg: OperationMessagePayload | any, params: SubscriptionOptions): any => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         resolve(Object.assign({}, params, { context: msg['context'] }));
