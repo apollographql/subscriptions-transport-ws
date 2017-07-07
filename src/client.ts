@@ -70,11 +70,14 @@ export class SubscriptionClient {
   private connectionCallback: any;
   private eventEmitter: EventEmitter;
   private lazy: boolean;
-  private forceClose: boolean;
+  private closedByUser: boolean;
   private wsImpl: any;
   private wasKeepAliveReceived: boolean;
-  private checkConnectionTimeoutId: any;
+  private tryReconnectTimeoutId: any;
+  private checkConnectionIntervalId: any;
+  private maxConnectTimeoutId: any;
   private middlewares: Middleware[];
+  private maxConnectTimeGenerator: any;
 
   constructor(url: string, options?: ClientOptions, webSocketImpl?: any) {
     const {
@@ -103,11 +106,12 @@ export class SubscriptionClient {
     this.reconnecting = false;
     this.reconnectionAttempts = reconnectionAttempts;
     this.lazy = !!lazy;
-    this.forceClose = false;
+    this.closedByUser = false;
     this.backoff = new Backoff({ jitter: 0.5 });
     this.eventEmitter = new EventEmitter();
     this.middlewares = [];
     this.client = null;
+    this.maxConnectTimeGenerator = this.createMaxConnectTimeGenerator();
 
     if (!this.lazy) {
       this.connect();
@@ -122,12 +126,24 @@ export class SubscriptionClient {
     return this.client.readyState;
   }
 
-  public close(isForced = true) {
+  public close(isForced = true, closedByUser = true) {
     if (this.client !== null) {
-      this.forceClose = isForced;
-      this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
+      this.closedByUser = closedByUser;
+
+      if (isForced) {
+        this.clearCheckConnectionInterval();
+        this.clearMaxConnectTimeout();
+        this.clearTryReconnectTimeout();
+        this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
+      }
+
       this.client.close();
       this.client = null;
+      this.eventEmitter.emit('disconnected');
+
+      if (!isForced) {
+        this.tryReconnect();
+      }
     }
   }
 
@@ -277,6 +293,38 @@ export class SubscriptionClient {
     return this;
   }
 
+  private createMaxConnectTimeGenerator() {
+    const minValue = 1000;
+    const maxValue = this.wsTimeout;
+
+    return new Backoff({
+      min: minValue,
+      max: maxValue,
+      factor: 1.2,
+    });
+  }
+
+  private clearCheckConnectionInterval() {
+    if (this.checkConnectionIntervalId) {
+      clearInterval(this.checkConnectionIntervalId);
+      this.checkConnectionIntervalId = null;
+    }
+  }
+
+  private clearMaxConnectTimeout() {
+    if (this.maxConnectTimeoutId) {
+      clearTimeout(this.maxConnectTimeoutId);
+      this.maxConnectTimeoutId = null;
+    }
+    }
+
+  private clearTryReconnectTimeout() {
+    if (this.tryReconnectTimeoutId) {
+      clearTimeout(this.tryReconnectTimeoutId);
+      this.tryReconnectTimeoutId = null;
+    }
+  }
+
   private logWarningOnNonProductionEnv(warning: string) {
     if (process && process.env && process.env.NODE_ENV !== 'production') {
       console.warn(warning);
@@ -369,7 +417,7 @@ export class SubscriptionClient {
   // send message, or queue it if connection is not open
   private sendMessageRaw(message: Object) {
     switch (this.status) {
-      case this.client.OPEN:
+      case this.wsImpl.OPEN:
         let serializedMessage: string = JSON.stringify(message);
         let parsedMessage: any;
         try {
@@ -380,7 +428,7 @@ export class SubscriptionClient {
 
         this.client.send(serializedMessage);
         break;
-      case this.client.CONNECTING:
+      case this.wsImpl.CONNECTING:
         this.unsentMessagesQueue.push(message);
 
         break;
@@ -397,7 +445,7 @@ export class SubscriptionClient {
   }
 
   private tryReconnect() {
-    if (!this.reconnect || this.backoff.attempts > this.reconnectionAttempts) {
+    if (!this.reconnect || this.backoff.attempts >= this.reconnectionAttempts) {
       return;
     }
 
@@ -410,8 +458,10 @@ export class SubscriptionClient {
       this.reconnecting = true;
     }
 
+    this.clearTryReconnectTimeout();
+
     const delay = this.backoff.duration();
-    setTimeout(() => {
+    this.tryReconnectTimeoutId = setTimeout(() => {
       this.connect();
     }, delay);
   }
@@ -424,13 +474,35 @@ export class SubscriptionClient {
   }
 
   private checkConnection() {
-    this.wasKeepAliveReceived ? this.wasKeepAliveReceived = false : this.close(false);
+    if (this.wasKeepAliveReceived) {
+      this.wasKeepAliveReceived = false;
+      return;
+    }
+
+    if (!this.reconnecting) {
+      this.close(false, true);
+    }
+  }
+
+  private checkMaxConnectTimeout() {
+    this.clearMaxConnectTimeout();
+
+    // Max timeout trying to connect
+    this.maxConnectTimeoutId = setTimeout(() => {
+      if (this.status !== this.wsImpl.OPEN) {
+        this.close(false, true);
+      }
+    }, this.maxConnectTimeGenerator.duration());
   }
 
   private connect() {
     this.client = new this.wsImpl(this.url, GRAPHQL_WS);
 
+    this.checkMaxConnectTimeout();
+
     this.client.onopen = () => {
+      this.clearMaxConnectTimeout();
+      this.closedByUser = false;
       this.eventEmitter.emit(this.reconnecting ? 'reconnecting' : 'connecting');
 
       const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
@@ -441,12 +513,8 @@ export class SubscriptionClient {
     };
 
     this.client.onclose = () => {
-      this.eventEmitter.emit('disconnected');
-
-      if (this.forceClose) {
-        this.forceClose = false;
-      } else {
-        this.tryReconnect();
+      if ( !this.closedByUser ) {
+        this.close(false, false);
       }
     };
 
@@ -493,6 +561,7 @@ export class SubscriptionClient {
         this.eventEmitter.emit(this.reconnecting ? 'reconnected' : 'connected');
         this.reconnecting = false;
         this.backoff.reset();
+        this.maxConnectTimeGenerator.reset();
 
         if (this.connectionCallback) {
           this.connectionCallback();
@@ -522,10 +591,11 @@ export class SubscriptionClient {
           this.checkConnection();
         }
 
-        if (this.checkConnectionTimeoutId) {
-          clearTimeout(this.checkConnectionTimeoutId);
+        if (this.checkConnectionIntervalId) {
+          clearInterval(this.checkConnectionIntervalId);
+          this.checkConnection();
         }
-        this.checkConnectionTimeoutId = setTimeout(this.checkConnection.bind(this), this.wsTimeout);
+        this.checkConnectionIntervalId = setInterval(this.checkConnection.bind(this), this.wsTimeout);
         break;
 
       default:
