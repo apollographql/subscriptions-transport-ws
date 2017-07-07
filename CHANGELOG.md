@@ -1,7 +1,11 @@
 # Changelog
 
 ### vNEXT
+- Fix for non forced closes (now it wont send connection_terminate) [PR #197](https://github.com/apollographql/subscriptions-transport-ws/pull/197) 
+- A lot of connection's flow improvements (on connect, on disconnect and on reconnect) [PR #197](https://github.com/apollographql/subscriptions-transport-ws/pull/197)
 - Require specific lodash/assign module instead of entire package, so memory impact is reduced [PR #196](https://github.com/apollographql/subscriptions-transport-ws/pull/196)
+
+- docs(README): Fix onEvent(eventName, callback, thisContext) list of eventName [PR #205](https://github.com/apollographql/subscriptions-transport-ws/pull/205)
 
 ### 0.7.3
 - Fix for first subscription is never unsubscribed [PR #179](https://github.com/apollographql/subscriptions-transport-ws/pull/179)
