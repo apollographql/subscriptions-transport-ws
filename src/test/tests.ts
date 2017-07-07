@@ -3,6 +3,7 @@
 
 // Temporary workaround for missing typings
 declare module 'graphql' {
+  // tslint:disable-next-line
   export function subscribe(): any;
 }
 
@@ -159,7 +160,7 @@ const subscriptionManager = new SubscriptionManager({
   schema,
   pubsub: new PubSub(),
   setupFunctions: {
-    'userFiltered': (options: SubscriptionOptions, args: { [key: string]: any }) => ({
+    'userFiltered': (opts: SubscriptionOptions, args: { [key: string]: any }) => ({
       'userFiltered': {
         filter: (user: any) => {
           return !args['id'] || user.id === args['id'];
@@ -228,7 +229,7 @@ new SubscriptionServer(onConnectErrorOptions, { server: httpServerWithOnConnectE
 const httpServerWithDelay = createServer(notFoundRequestListener);
 httpServerWithDelay.listen(DELAYED_TEST_PORT);
 new SubscriptionServer(Object.assign({}, options, {
-  onSubscribe: (msg: OperationMessagePayload | any, params: SubscriptionOptions) => {
+  onSubscribe: (msg: OperationMessagePayload | any, params: SubscriptionOptions): Promise<any> => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         resolve(Object.assign({}, params, { context: msg['context'] }));
