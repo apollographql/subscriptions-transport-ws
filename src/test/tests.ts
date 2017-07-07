@@ -3,6 +3,7 @@
 
 // Temporary workaround for missing typings
 declare module 'graphql' {
+  // tslint:disable-next-line
   export function subscribe(): any;
 }
 
@@ -159,7 +160,7 @@ const subscriptionManager = new SubscriptionManager({
   schema,
   pubsub: new PubSub(),
   setupFunctions: {
-    'userFiltered': (options: SubscriptionOptions, args: { [key: string]: any }) => ({
+    'userFiltered': (opts: SubscriptionOptions, args: { [key: string]: any }) => ({
       'userFiltered': {
         filter: (user: any) => {
           return !args['id'] || user.id === args['id'];
