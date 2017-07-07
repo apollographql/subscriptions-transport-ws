@@ -77,6 +77,7 @@ export class SubscriptionClient {
   private checkConnectionIntervalId: any;
   private maxConnectTimeoutId: any;
   private middlewares: Middleware[];
+  private maxConnectTimeGenerator: any;
 
   constructor(url: string, options?: ClientOptions, webSocketImpl?: any) {
     const {
@@ -110,6 +111,7 @@ export class SubscriptionClient {
     this.eventEmitter = new EventEmitter();
     this.middlewares = [];
     this.client = null;
+    this.maxConnectTimeGenerator = this.createMaxConnectTimeGenerator();
 
     if (!this.lazy) {
       this.connect();
@@ -289,6 +291,17 @@ export class SubscriptionClient {
     });
 
     return this;
+  }
+
+  private createMaxConnectTimeGenerator() {
+    const minValue = 1000;
+    const maxValue = this.wsTimeout;
+
+    return new Backoff({
+      min: minValue,
+      max: maxValue,
+      factor: 1.2,
+    });
   }
 
   private clearCheckConnectionInterval() {
@@ -479,7 +492,7 @@ export class SubscriptionClient {
       if (this.status !== this.wsImpl.OPEN) {
         this.close(false, true);
       }
-    }, this.wsTimeout);
+    }, this.maxConnectTimeGenerator.duration());
   }
 
   private connect() {
@@ -548,6 +561,7 @@ export class SubscriptionClient {
         this.eventEmitter.emit(this.reconnecting ? 'reconnected' : 'connected');
         this.reconnecting = false;
         this.backoff.reset();
+        this.maxConnectTimeGenerator.reset();
 
         if (this.connectionCallback) {
           this.connectionCallback();
