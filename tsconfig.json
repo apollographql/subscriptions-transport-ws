@@ -14,7 +14,10 @@
     "pretty": true,
     "declaration": true,
     "skipLibCheck": true,
-    "lib": ["es6", "esnext"]
+    "lib": ["es6", "esnext"],
+    "types": [
+      "node"
+    ]
   },
   "exclude": [
     "node_modules",
