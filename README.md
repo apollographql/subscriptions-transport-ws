@@ -216,9 +216,9 @@ ReactDOM.render(
 ### `Constructor(url, options, connectionCallback)`
 - `url: string` : url that the client will connect to, starts with `ws://` or `wss://`
 - `options?: Object` : optional, object to modify default client behavior
-  * `timeout?: number` : how long the client should wait in ms for a keep-alive message from the server (default 30000 ms), this parameter is ignored if the server does not send keep-alive messages.
+  * `timeout?: number` : how long the client should wait in ms for a keep-alive message from the server (default 10000 ms), this parameter is ignored if the server does not send keep-alive messages. This will also be used to calculate the max connection time per connect/reconnect
   * `lazy?: boolean` : use to set lazy mode - connects only when first subscription created, and delay the socket initialization
-  * `connectionParams?: Object | Function` : object that will be available as first argument of `onConnect` (in server side), if passed a function - it will call it and send the return value.
+  * `connectionParams?: Object | Function` : object that will be available as first argument of `onConnect` (in server side), if passed a function - it will call it and send the return value
   * `reconnect?: boolean` : automatic reconnect in case of connection error
   * `reconnectionAttempts?: number` : how much reconnect attempts
   * `connectionCallback?: (error) => {}` : optional, callback that called after the first init message, with the error (if there is one)
@@ -239,7 +239,7 @@ ReactDOM.render(
 #### `unsubscribeAll() => void` - unsubscribes from all active subscriptions.
 
 #### `on(eventName, callback, thisContext) => Function`
-- `eventName: string`: the name of the event, available events are: `connect`, `reconnect` and `disconnect`
+- `eventName: string`: the name of the event, available events are: `connecting`, `connected`, `reconnecting`, `reconnected` and `disconnected`
 - `callback: Function`: function to be called when websocket connects and initialized.
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
