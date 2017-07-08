@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Return after first post-install when it should install dev dependencies [PR #218](https://github.com/apollographql/subscriptions-transport-ws/pull/218)
 
 ### 0.8.0
 - Expose opId `onOperationComplete` method [PR #211](https://github.com/apollographql/subscriptions-transport-ws/pull/211)
