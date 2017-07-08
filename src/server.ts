@@ -222,7 +222,7 @@ export class SubscriptionServer {
       delete connectionContext.operations[opId];
 
       if (this.onOperationComplete) {
-        this.onOperationComplete(connectionContext.socket);
+        this.onOperationComplete(connectionContext.socket, opId);
       }
     }
   }
