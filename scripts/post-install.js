@@ -12,8 +12,8 @@ function exec(command) {
 
 stat('dist', function(error, stat) {
     if (process && process.env && process.env.npm_config_only !== 'dev') {
-            exec('npm install --only=dev');
-            return;
+        exec('npm install --only=dev');
+        return;
     }
 
     if (error || !stat.isDirectory()) {
