@@ -99,7 +99,7 @@ ws.listen(PORT, () => {
 
 ```
 
-See [the Laddad demo app for complete working sample code](https://dev-blog.apollodata.com/tutorial-graphql-subscriptions-server-side-e51c32dc2951).
+See [the tutorial on Medium for complete working sample code](https://dev-blog.apollodata.com/tutorial-graphql-subscriptions-server-side-e51c32dc2951).
 
 <h2 id="subscription-resolver">Subscription Resolver</h2>
 
