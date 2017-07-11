@@ -1,6 +1,8 @@
 # Changelog
 
 ### vNEXT
+
+### 0.8.1
 - Send first keep alive message right after the ack [PR #223](https://github.com/apollographql/subscriptions-transport-ws/pull/223)
 - Return after first post-install when it should install dev dependencies [PR #218](https://github.com/apollographql/subscriptions-transport-ws/pull/218)
 - On installing from branch install dev dependencies only if dist folder isnt found [PR #219](https://github.com/apollographql/subscriptions-transport-ws/pull/219)
