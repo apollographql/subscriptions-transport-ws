@@ -89,6 +89,7 @@ export class SubscriptionServer {
   private subscribe: SubscribeFunction;
   private schema: GraphQLSchema;
   private rootValue: any;
+  private keepAlive: number;
 
   /**
    * @deprecated onSubscribe is deprecated, use onOperation instead
@@ -115,6 +116,7 @@ export class SubscriptionServer {
     this.onOperationComplete = onUnsubscribe ? onUnsubscribe : onOperationComplete;
     this.onConnect = onConnect;
     this.onDisconnect = onDisconnect;
+    this.keepAlive = keepAlive;
 
     this.onSubscribe = onSubscribe ?
       defineDeprecateFunctionWrapper('onSubscribe function is deprecated. Use onOperation instead.') : null;
@@ -145,14 +147,14 @@ export class SubscriptionServer {
       connectionContext.operations = {};
 
       // Regular keep alive messages if keepAlive is set
-      if (keepAlive) {
+      if (this.keepAlive) {
         const keepAliveTimer = setInterval(() => {
           if (socket.readyState === WebSocket.OPEN) {
             this.sendMessage(connectionContext, undefined, MessageTypes.GQL_CONNECTION_KEEP_ALIVE, undefined);
           } else {
             clearInterval(keepAliveTimer);
           }
-        }, keepAlive);
+        }, this.keepAlive);
       }
 
       const connectionClosedHandler = (error: any) => {
@@ -279,6 +281,15 @@ export class SubscriptionServer {
               MessageTypes.GQL_CONNECTION_ACK,
               undefined,
             );
+
+            if (this.keepAlive) {
+              this.sendMessage(
+                connectionContext,
+                undefined,
+                MessageTypes.GQL_CONNECTION_KEEP_ALIVE,
+                undefined,
+              );
+            }
           }).catch((error: Error) => {
             this.sendError(
               connectionContext,
