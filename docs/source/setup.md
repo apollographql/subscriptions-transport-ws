@@ -31,8 +31,10 @@ export const pubsub = new PubSub();
 // ... Later in your code, when you want to publish data over subscription, run:
 
 const payload = {
-    id: '1',
-    content: 'Hello!',
+    commentAdded: {
+        id: '1',
+        content: 'Hello!',
+    }
 };
 
 pubsub.publish('commentAdded', payload);
