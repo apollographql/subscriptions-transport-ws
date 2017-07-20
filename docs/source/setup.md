@@ -71,7 +71,7 @@ import { schema } from './src/schema';
 const PORT = 3000;
 const server = express();
 
-server.use('*', cors({ origin: 'http://localhost:3000' }));
+server.use('*', cors({ origin: `http://localhost:${PORT}` }));
 
 server.use('/graphql', bodyParser.json(), graphqlExpress({
   schema
@@ -79,7 +79,7 @@ server.use('/graphql', bodyParser.json(), graphqlExpress({
 
 server.use('/graphiql', graphiqlExpress({
   endpointURL: '/graphql',
-  subscriptionsEndpoint: `ws://localhost:4000/subscriptions`
+  subscriptionsEndpoint: `ws://localhost:${PORT}/subscriptions`
 }));
 
 // Wrap the Express server
