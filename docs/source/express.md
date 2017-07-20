@@ -10,7 +10,7 @@ For example: if your server is already running on port 3000 and accepts GraphQL 
 ```js
 import express from 'express';
 import bodyParser from 'body-parser';
-import { graphqlExpress } from 'graphql-server-express';
+import { graphqlExpress } from 'apollo-server-express';
 import { createServer } from 'http';
 import { execute, subscribe } from 'graphql';
 import { PubSub } from 'graphql-subscriptions';
