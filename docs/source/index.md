@@ -3,7 +3,7 @@ title: Installation
 order: 401
 ---
 
-This section details how to set up a Apollo Server to support subscriptions based on `graphql` subscriptions and `subscriptions-transport-ws`. 
+This section details how to set up a GraphQL server to support subscriptions based on `graphql` subscriptions and `subscriptions-transport-ws`. 
 
 We will use the `PubSub` implementation from `graphql-subscriptions`, and we will connect it to `subscribe` executor of `graphql`, and publish the data using `subscriptions-transport-ws` (a WebSocket server and client library for GraphQL that can be used directly in a JavaScript app or wired up to a fully-featured GraphQL client like Apollo or Relay.
 
