@@ -969,7 +969,7 @@ describe('Client', function () {
       reconnect: true,
       reconnectionAttempts: 2,
     });
-    const connectSpy = sinon.spy(subscriptionsClient, 'connect');
+    const connectSpy = sinon.spy(subscriptionsClient as any, 'connect');
 
     setTimeout(() => {
       expect(connectSpy.callCount).to.be.equal(2);
@@ -983,7 +983,7 @@ describe('Client', function () {
       reconnect: true,
       reconnectionAttempts: 2,
     });
-    const connectSpy = sinon.spy(subscriptionsClient, 'connect');
+    const connectSpy = sinon.spy(subscriptionsClient as any, 'connect');
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
@@ -1006,7 +1006,7 @@ describe('Client', function () {
       reconnect: true,
       reconnectionAttempts: 2,
     });
-    const connectSpy = sinon.spy(subscriptionsClient, 'connect');
+    const connectSpy = sinon.spy(subscriptionsClient as any, 'connect');
     let connections = 0;
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
@@ -1054,7 +1054,7 @@ describe('Client', function () {
     let receivedKeepAlive = 0;
 
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, { timeout: 600 });
-    const checkConnectionSpy = sinon.spy(subscriptionsClient, 'checkConnection');
+    const checkConnectionSpy = sinon.spy(subscriptionsClient as any, 'checkConnection');
     const originalOnMessage = subscriptionsClient.client.onmessage;
     subscriptionsClient.client.onmessage = (dataReceived: any) => {
       let receivedDataParsed = JSON.parse(dataReceived.data);
@@ -1121,7 +1121,7 @@ describe('Client', function () {
 
   it('should call executeOperation when query is called', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
-    const executeOperationSpy = sinon.spy(client, 'executeOperation');
+    const executeOperationSpy = sinon.spy(client as any, 'executeOperation');
 
     client.query({
       query: `query useInfo($id: String) {
@@ -1154,7 +1154,7 @@ describe('Client', function () {
       reconnect: true,
       reconnectionAttempts: 1,
     });
-    const tryReconnectSpy = sinon.spy(subscriptionsClient, 'tryReconnect');
+    const tryReconnectSpy = sinon.spy(subscriptionsClient as any, 'tryReconnect');
     let receivedConnecitonTerminate = false;
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
@@ -1192,7 +1192,7 @@ describe('Client', function () {
       reconnect: true,
       reconnectionAttempts: 1,
     });
-    const tryReconnectSpy = sinon.spy(subscriptionsClient, 'tryReconnect');
+    const tryReconnectSpy = sinon.spy(subscriptionsClient as any, 'tryReconnect');
     let receivedConnecitonTerminate = false;
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
@@ -1477,7 +1477,7 @@ describe('Server', function () {
 
   it('should call unsubscribe when client closes the connection', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
-    const spy = sinon.spy(eventsServer, 'unsubscribe');
+    const spy = sinon.spy(eventsServer as any, 'unsubscribe');
 
     client.subscribe({
         query: `subscription useInfo($id: String) {

@@ -8,3 +8,5 @@ browser/
 .idea/
 .vscode/
 npm-debug.log.*
+package-lock.json
+yarn.lock
