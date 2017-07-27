@@ -172,7 +172,9 @@ export class SubscriptionClient {
         operationPayloadData = null;
       }
 
-      handler(operationPayloadErrors, operationPayloadData);
+      if (error !== null || result !== null) {
+        handler(operationPayloadErrors, operationPayloadData);
+      }
     };
 
     if (this.client === null) {
