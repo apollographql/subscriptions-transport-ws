@@ -220,7 +220,10 @@ export class SubscriptionServer {
 
   private unsubscribe(connectionContext: ConnectionContext, opId: string) {
     if (connectionContext.operations && connectionContext.operations[opId]) {
-      connectionContext.operations[opId].return();
+      if (connectionContext.operations[opId].return) {
+        connectionContext.operations[opId].return();
+      }
+
       delete connectionContext.operations[opId];
 
       if (this.onOperationComplete) {

@@ -147,6 +147,26 @@ export class SubscriptionClient {
     }
   }
 
+  public executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): string {
+    const opId = this.generateOperationId();
+    this.operations[opId] = { options: options, handler };
+
+    this.applyMiddlewares(options)
+      .then(processedOptions => {
+        this.checkOperationOptions(processedOptions, handler);
+        if (this.operations[opId]) {
+          this.operations[opId] = { options: processedOptions, handler };
+          this.sendMessage(opId, MessageTypes.GQL_START, processedOptions);
+        }
+      })
+      .catch(error => {
+        this.unsubscribe(opId);
+        handler(this.formatErrors(error));
+      });
+
+    return opId;
+  }
+
   public query(options: OperationOptions): Promise<ExecutionResult> {
     return new Promise((resolve, reject) => {
       const handler = (error: Error[], result?: any) => {
@@ -172,7 +192,9 @@ export class SubscriptionClient {
         operationPayloadData = null;
       }
 
-      handler(operationPayloadErrors, operationPayloadData);
+      if (error !== null || result !== null) {
+        handler(operationPayloadErrors, operationPayloadData);
+      }
     };
 
     if (this.client === null) {
@@ -350,26 +372,6 @@ export class SubscriptionClient {
       throw new Error('Incorrect option types. query must be a string or a document,' +
         '`operationName` must be a string, and `variables` must be an object.');
     }
-  }
-
-  private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): string {
-    const opId = this.generateOperationId();
-    this.operations[opId] = { options: options, handler };
-
-    this.applyMiddlewares(options)
-      .then(processedOptions => {
-        this.checkOperationOptions(processedOptions, handler);
-          if (this.operations[opId]) {
-            this.operations[opId] = { options: processedOptions, handler };
-            this.sendMessage(opId, MessageTypes.GQL_START, processedOptions);
-          }
-      })
-      .catch(error => {
-        this.unsubscribe(opId);
-        handler(this.formatErrors(error));
-      });
-
-    return opId;
   }
 
   private buildMessage(id: string, type: string, payload: any) {
@@ -569,6 +571,7 @@ export class SubscriptionClient {
         break;
 
       case MessageTypes.GQL_COMPLETE:
+        this.operations[opId].handler(null, null);
         delete this.operations[opId];
         break;
 
