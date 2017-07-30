@@ -17,6 +17,7 @@
     "lodash.assign": "^4.2.0",
     "lodash.isobject": "^3.0.2",
     "lodash.isstring": "^4.0.1",
+    "symbol-observable": "^1.0.4",
     "ws": "^3.0.0"
   },
   "scripts": {
