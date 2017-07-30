@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Add request interface as a preperation for Apollo 2.0 [PR #242](https://github.com/apollographql/subscriptions-transport-ws/pull/242)
 - Add Validation step to server [PR #241](https://github.com/apollographql/subscriptions-transport-ws/pull/241)
 - Call operation handler before delete the operation on operation complete [PR #239](https://github.com/apollographql/subscriptions-transport-ws/pull/239)
 
