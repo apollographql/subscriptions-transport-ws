@@ -14,7 +14,7 @@ import {
 } from 'chai';
 import * as sinon from 'sinon';
 import * as WebSocket from 'ws';
-import { execute, subscribe } from 'graphql';
+import { specifiedRules, execute, subscribe } from 'graphql';
 
 Object.assign(global, {
   WebSocket: WebSocket,
@@ -2025,6 +2025,48 @@ describe('Client<->Server Flow', () => {
             expect(opId).not.to.eq(null);
             expect(err).to.eq(null);
             expect(res.testString).to.eq('value');
+            testServer.close();
+            done();
+          });
+        }, 300);
+      }
+    });
+  });
+
+  it('validate requests against schema', (done) => {
+    const testServer = createServer(notFoundRequestListener);
+    testServer.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    SubscriptionServer.create({
+      schema: subscriptionsSchema,
+      execute,
+      subscribe,
+      validationRules: specifiedRules,
+    }, {
+      server: testServer,
+      path: '/',
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    let isFirstTime = true;
+
+    client.onConnected(async () => {
+      // Manually close the connection only in the first time, to avoid infinite loop
+      if (isFirstTime) {
+        isFirstTime = false;
+
+        setTimeout(() => {
+          // Disconnect the client
+          client.close(false);
+
+          // Subscribe to data, without manually reconnect before
+          const opId = client.subscribe({
+            query: `query { invalid }`,
+            variables: {},
+          }, (err, res) => {
+            expect(opId).not.to.eq(null);
+            expect(res).to.eq(null);
+            expect(err[0].message).to.eq('Cannot query field "invalid" on type "Query".');
             testServer.close();
             done();
           });

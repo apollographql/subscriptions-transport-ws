@@ -4,7 +4,15 @@ import MessageTypes from './message-types';
 import { GRAPHQL_WS, GRAPHQL_SUBSCRIPTIONS } from './protocol';
 import { SubscriptionManager } from 'graphql-subscriptions';
 import isObject = require('lodash.isobject');
-import { parse, ExecutionResult, GraphQLSchema, DocumentNode } from 'graphql';
+import {
+  parse,
+  ExecutionResult,
+  GraphQLSchema,
+  DocumentNode,
+  validate,
+  ValidationContext,
+  specifiedRules,
+} from 'graphql';
 import { executeFromSubscriptionManager } from './adapters/subscription-manager';
 import { createEmptyIterable } from './utils/empty-iterable';
 import { createAsyncIterator, forAwaitEach, isAsyncIterable } from 'iterall';
@@ -57,6 +65,7 @@ export interface ServerOptions {
   schema?: GraphQLSchema;
   execute?: ExecuteFunction;
   subscribe?: SubscribeFunction;
+  validationRules?: Array<(context: ValidationContext) => any>;
 
   onOperation?: Function;
   onOperationComplete?: Function;
@@ -90,6 +99,7 @@ export class SubscriptionServer {
   private schema: GraphQLSchema;
   private rootValue: any;
   private keepAlive: number;
+  private specifiedRules: Array<(context: ValidationContext) => any>;
 
   /**
    * @deprecated onSubscribe is deprecated, use onOperation instead
@@ -110,6 +120,7 @@ export class SubscriptionServer {
       onOperationComplete, onConnect, onDisconnect, keepAlive,
     } = options;
 
+    this.specifiedRules = options.validationRules || specifiedRules;
     this.loadExecutor(options);
 
     this.onOperation = onSubscribe ? onSubscribe : onOperation;
@@ -360,8 +371,20 @@ export class SubscriptionServer {
 
               const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
               let executionIterable: AsyncIterator<ExecutionResult>;
+              let validationErrors: Error[] = [];
 
-              if (this.subscribe && isASubscriptionOperation(document, params.operationName)) {
+              if ( this.schema ) {
+                // NOTE: This is a temporary condition to support the legacy subscription manager.
+                // As soon as subscriptionManager support is removed, we can remove the if
+                // and keep only the validation part.
+                validationErrors = validate(this.schema, document, this.specifiedRules);
+              }
+
+              if ( validationErrors.length > 0 ) {
+                executionIterable = createIterableFromPromise<ExecutionResult>(
+                  Promise.resolve({ errors: validationErrors }),
+                );
+              } else if (this.subscribe && isASubscriptionOperation(document, params.operationName)) {
                 executionIterable = this.subscribe(this.schema,
                   document,
                   this.rootValue,
