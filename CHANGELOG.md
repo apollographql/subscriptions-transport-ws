@@ -1,14 +1,16 @@
 # Changelog
 
 ### vNEXT
-- Add request interface as a preperation for Apollo 2.0 [PR #242](https://github.com/apollographql/subscriptions-transport-ws/pull/242)
+
+### 0.8.2
+- Add request interface as a preparation for Apollo 2.0 [PR #242](https://github.com/apollographql/subscriptions-transport-ws/pull/242)
 - Add Validation step to server [PR #241](https://github.com/apollographql/subscriptions-transport-ws/pull/241)
 - Call operation handler before delete the operation on operation complete [PR #239](https://github.com/apollographql/subscriptions-transport-ws/pull/239)
 
 ### 0.8.1
 - Send first keep alive message right after the ack [PR #223](https://github.com/apollographql/subscriptions-transport-ws/pull/223)
 - Return after first post-install when it should install dev dependencies [PR #218](https://github.com/apollographql/subscriptions-transport-ws/pull/218)
-- On installing from branch install dev dependencies only if dist folder isnt found [PR #219](https://github.com/apollographql/subscriptions-transport-ws/pull/219)
+- On installing from branch install dev dependencies only if dist folder isn't found [PR #219](https://github.com/apollographql/subscriptions-transport-ws/pull/219)
 
 ### 0.8.0
 - Expose opId `onOperationComplete` method [PR #211](https://github.com/apollographql/subscriptions-transport-ws/pull/211)
