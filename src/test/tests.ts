@@ -1306,6 +1306,48 @@ describe('Server', function () {
     });
   });
 
+  it('should have request interface (apollo client 2.0)', (done) => {
+    const server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    SubscriptionServer.create({
+      schema,
+      execute,
+    }, {
+      server,
+      path: '/',
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    client.onConnect(() => {
+      let hasValue = false;
+
+      client.request({
+        query: `query { testString }`,
+        variables: {},
+      }).subscribe({
+        next: (res) => {
+          expect(hasValue).to.equal(false);
+          expect(res).to.deep.equal({ data: { testString: 'value' } });
+          hasValue = true;
+        },
+        error: (err) => {
+          server.close();
+
+          done(new Error('unexpected error from subscribe'));
+        },
+        complete: () => {
+          server.close();
+
+          if ( false === hasValue ) {
+            return done(new Error('No value recived from observable'));
+          }
+          done();
+        },
+      });
+    });
+  });
+
   it('should return an error when invalid execute method provided', (done) => {
     const server = createServer(notFoundRequestListener);
     server.listen(SERVER_EXECUTOR_TESTS_PORT);

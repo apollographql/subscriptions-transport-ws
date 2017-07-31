@@ -8,7 +8,9 @@ import isString = require('lodash.isstring');
 import isObject = require('lodash.isobject');
 import { ExecutionResult } from 'graphql/execution/execute';
 import { print } from 'graphql/language/printer';
+import { DocumentNode } from 'graphql/language/ast';
 import { getOperationAST } from 'graphql/utilities/getOperationAST';
+import $$observable from 'symbol-observable';
 
 import { GRAPHQL_WS } from './protocol';
 import { WS_TIMEOUT } from './defaults';
@@ -16,8 +18,20 @@ import MessageTypes from './message-types';
 
 export * from './helpers';
 
+export interface Observer<T> {
+  next?: (value: T) => void;
+  error?: (error: Error) => void;
+  complete?: () => void;
+}
+
+export interface Observable<T> {
+  subscribe(observer: Observer<T>): {
+    unsubscribe: () => void;
+  };
+}
+
 export interface OperationOptions {
-  query: string;
+  query?: string | DocumentNode;
   variables?: Object;
   operationName?: string;
   [key: string]: any;
@@ -147,26 +161,54 @@ export class SubscriptionClient {
     }
   }
 
-  public executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): string {
-    const opId = this.generateOperationId();
-    this.operations[opId] = { options: options, handler };
+  public request(request: OperationOptions): Observable<ExecutionResult> {
+    const getObserver = this.getObserver.bind(this);
+    const executeOperation = this.executeOperation.bind(this);
+    const unsubscribe = this.unsubscribe.bind(this);
 
-    this.applyMiddlewares(options)
-      .then(processedOptions => {
-        this.checkOperationOptions(processedOptions, handler);
-        if (this.operations[opId]) {
-          this.operations[opId] = { options: processedOptions, handler };
-          this.sendMessage(opId, MessageTypes.GQL_START, processedOptions);
-        }
-      })
-      .catch(error => {
-        this.unsubscribe(opId);
-        handler(this.formatErrors(error));
-      });
+    let opId: string;
 
-    return opId;
+    return {
+      [$$observable]() {
+        return this;
+      },
+      subscribe(
+        observerOrNext: ((Observer<ExecutionResult>) | ((v: ExecutionResult) => void)),
+        onError?: (error: Error) => void,
+        onComplete?: () => void,
+      ) {
+        const observer = getObserver(observerOrNext, onError, onComplete);
+
+        opId = executeOperation({
+          query: request.query,
+          variables: request.variables,
+          operationName: request.operationName,
+        }, function (error: Error[], result: any) {
+          if ( error === null && result === null ) {
+            observer.complete();
+          } else if (error) {
+            observer.error(error[0]);
+          } else {
+            observer.next(result);
+          }
+        });
+
+        return {
+          unsubscribe: () => {
+            if ( opId ) {
+              unsubscribe(opId);
+              opId = null;
+            }
+          },
+        };
+      },
+    };
   }
 
+  /**
+   * @deprecated This method will become deprecated in the next release.
+   * request should be used.
+   */
   public query(options: OperationOptions): Promise<ExecutionResult> {
     return new Promise((resolve, reject) => {
       const handler = (error: Error[], result?: any) => {
@@ -182,6 +224,10 @@ export class SubscriptionClient {
     });
   }
 
+  /**
+   * @deprecated This method will become deprecated in the next release.
+   * request should be used.
+   */
   public subscribe(options: OperationOptions, handler: (error: Error[], result?: any) => void) {
     const legacyHandler = (error: Error[], result?: any) => {
       let operationPayloadData = result && result.data || null;
@@ -313,6 +359,42 @@ export class SubscriptionClient {
     });
 
     return this;
+  }
+
+  private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): string {
+    const opId = this.generateOperationId();
+    this.operations[opId] = { options: options, handler };
+
+    this.applyMiddlewares(options)
+      .then(processedOptions => {
+        this.checkOperationOptions(processedOptions, handler);
+        if (this.operations[opId]) {
+          this.operations[opId] = { options: processedOptions, handler };
+          this.sendMessage(opId, MessageTypes.GQL_START, processedOptions);
+        }
+      })
+      .catch(error => {
+        this.unsubscribe(opId);
+        handler(this.formatErrors(error));
+      });
+
+    return opId;
+  }
+
+  private getObserver<T>(
+    observerOrNext: ((Observer<T>) | ((v: T) => void)),
+    error?: (e: Error) => void,
+    complete?: () => void,
+  ) {
+    if ( typeof observerOrNext === 'function' ) {
+      return {
+        next: (v: T) => observerOrNext(v),
+        error: (e: Error) => error && error(e),
+        complete: () => complete && complete(),
+      };
+    }
+
+    return observerOrNext;
   }
 
   private createMaxConnectTimeGenerator() {
