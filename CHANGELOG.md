@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Gracefully unsubscribe to all pending operations before a requested close by the user  [PR #245](https://github.com/apollographql/subscriptions-transport-ws/pull/245)
 
 ### 0.8.2
 - Add request interface as a preparation for Apollo 2.0 [PR #242](https://github.com/apollographql/subscriptions-transport-ws/pull/242)
