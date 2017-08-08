@@ -11,7 +11,7 @@ It sits between your application's logic and the GraphQL subscriptions engine - 
 
 `graphql-subscriptions` exposes a default `PubSub` class you can use for a simple usage of data publication.
 
-The `PubSub` implmentation also includes an mechanism that converts a specific `PubSub` event into a stream of `AsyncIterator`, which you can use with `graphql` subscriptions resolver.
+The `PubSub` implementation also includes a mechanism that converts a specific `PubSub` event into a stream of `AsyncIterator`, which you can use with `graphql` subscriptions resolver.
 
 > Check out how to change the `PubSub` mechanism to an external one [here](/tools/graphql-subscriptions/external-pubsub.html)
 
