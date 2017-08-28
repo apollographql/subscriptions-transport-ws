@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Bugfix: Observer callbacks should be optional [PR #256](https://github.com/apollographql/subscriptions-transport-ws/pull/256)
 
 ### 0.8.2
 - Add request interface as a preparation for Apollo 2.0 [PR #242](https://github.com/apollographql/subscriptions-transport-ws/pull/242)
