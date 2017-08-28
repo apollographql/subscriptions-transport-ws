@@ -51,14 +51,16 @@ export type ExecuteFunction = (schema: GraphQLSchema,
                                rootValue?: any,
                                contextValue?: any,
                                variableValues?: { [key: string]: any },
-                               operationName?: string) => Promise<ExecutionResult> | AsyncIterator<ExecutionResult>;
+                               operationName?: string) => Promise<ExecutionResult> |
+                               AsyncIterator<ExecutionResult> |
+                               Promise<AsyncIterator<ExecutionResult>>;
 
 export type SubscribeFunction = (schema: GraphQLSchema,
                                  document: DocumentNode,
                                  rootValue?: any,
                                  contextValue?: any,
                                  variableValues?: { [key: string]: any },
-                                 operationName?: string) => AsyncIterator<ExecutionResult>;
+                                 operationName?: string) => AsyncIterator<ExecutionResult> | Promise<AsyncIterator<ExecutionResult>>;
 
 export interface ServerOptions {
   rootValue?: any;
@@ -385,7 +387,7 @@ export class SubscriptionServer {
               }
 
               const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
-              let executionIterable: AsyncIterator<ExecutionResult>;
+              let executionIterable: AsyncIterator<ExecutionResult> | Promise<AsyncIterator<ExecutionResult>>;
               let validationErrors: Error[] = [];
 
               if ( this.schema ) {
@@ -428,6 +430,11 @@ export class SubscriptionServer {
                 }
               }
 
+              return Promise.resolve(executionIterable).then((ei) => ({
+                executionIterable: ei,
+                params,
+              }));
+            }).then(({ executionIterable, params }) => {
               forAwaitEach(
                 createAsyncIterator(executionIterable) as any,
                 (value: ExecutionResult) => {
