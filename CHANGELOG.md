@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Add `close` method to server [PR #257](https://github.com/apollographql/subscriptions-transport-ws/pull/257)
 
 ### 0.8.2
 - Add request interface as a preparation for Apollo 2.0 [PR #242](https://github.com/apollographql/subscriptions-transport-ws/pull/242)
