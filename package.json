@@ -33,6 +33,9 @@
     "prepublishOnly": "npm run compile && npm run browser-compile && rimraf src",
     "postinstall": "node scripts/post-install.js"
   },
+  "peerDependencies": {
+    "graphql": "^0.10.0 || ^0.11.0"
+  },
   "devDependencies": {
     "@types/chai": "^4.0.0",
     "@types/graphql": "^0.11.1",
