@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Add support for GraphQL 0.11.0 [PR #261](https://github.com/apollographql/subscriptions-transport-ws/pull/261)
 
 ### 0.8.3
 - docs(README): Fix options example for subscribe methods [PR #266](https://github.com/apollographql/subscriptions-transport-ws/pull/266)
