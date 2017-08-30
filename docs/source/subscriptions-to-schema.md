@@ -42,7 +42,7 @@ const rootResolver = {
 };
 ```
 
-Then, later on your code, you can publish data to your topic by using `pubsub.publish` with the topic name and the payload to want to publish:
+Then, later in your code, you can publish data to your topic by using `pubsub.publish` with the topic name and the payload you want to publish:
 
 ```js
 pubsub.publish('commentAdded', { commentAdded: { id: 1, content: 'Hello!' }})
