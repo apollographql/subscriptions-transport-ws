@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- docs(README): Fix options example for subscribe methods [PR #266](https://github.com/apollographql/subscriptions-transport-ws/pull/266)
 
 ### 0.8.2
 - Add request interface as a preparation for Apollo 2.0 [PR #242](https://github.com/apollographql/subscriptions-transport-ws/pull/242)
