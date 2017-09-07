@@ -1367,7 +1367,7 @@ describe('Server', function () {
         variables: {},
       }, (err) => {
         expect(err.length).to.equal(1);
-        expect(err[0].message).to.equal('GraphQL execute engine is not available');
+        expect(err[0].message).to.equal('GraphQL execute/subscribe engine is not available');
         client.client.close();
         server.close();
         done();
@@ -1375,14 +1375,14 @@ describe('Server', function () {
     });
   });
 
-  it('should accept execute method than returns an AsyncIterator', (done) => {
+  it('should accept execute method that returns an AsyncIterator', (done) => {
     const server = createServer(notFoundRequestListener);
     server.listen(SERVER_EXECUTOR_TESTS_PORT);
 
     const executeWithAsyncIterable = () => {
       let called = false;
 
-      return {
+      return Promise.resolve({
         next() {
           if (called === true) {
             return this.return();
@@ -1401,12 +1401,68 @@ describe('Server', function () {
         [$$asyncIterator]() {
           return this;
         },
-      };
+      });
     };
 
     SubscriptionServer.create({
       schema,
       execute: executeWithAsyncIterable,
+    }, {
+      server,
+      path: '/',
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    client.onConnect(() => {
+      client.subscribe({
+        query: `query { testString }`,
+        variables: {},
+      }, (err, res) => {
+        if (err) {
+          assert(false, 'unexpected error from subscribe');
+        } else {
+          expect(res).to.deep.equal({ testString: 'value' });
+        }
+
+        server.close();
+        done();
+      });
+    });
+  });
+
+  it('should accept subscribe method that returns an Promise', (done) => {
+    const server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    const subscribeWithPromiseAsyncIterable = () => {
+      let called = false;
+
+      return Promise.resolve({
+        next() {
+          if (called === true) {
+            return this.return();
+          }
+
+          called = true;
+
+          return Promise.resolve({ value: { data: { testString: 'value' } }, done: false });
+        },
+        return() {
+          return Promise.resolve({ value: undefined, done: true });
+        },
+        throw(e: Error) {
+          return Promise.reject(e);
+        },
+        [$$asyncIterator]() {
+          return this;
+        },
+      });
+    };
+
+    SubscriptionServer.create({
+      schema,
+      execute,
+      subscribe: subscribeWithPromiseAsyncIterable,
     }, {
       server,
       path: '/',

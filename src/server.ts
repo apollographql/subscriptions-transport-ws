@@ -46,19 +46,22 @@ export interface OperationMessage {
   type: string;
 }
 
+export type GraphQLExecutionResult = Promise<ExecutionResult|AsyncIterator<ExecutionResult>>
+  | AsyncIterator<ExecutionResult>;
+
 export type ExecuteFunction = (schema: GraphQLSchema,
                                document: DocumentNode,
                                rootValue?: any,
                                contextValue?: any,
                                variableValues?: { [key: string]: any },
-                               operationName?: string) => Promise<ExecutionResult> | AsyncIterator<ExecutionResult>;
+                               operationName?: string) => GraphQLExecutionResult;
 
 export type SubscribeFunction = (schema: GraphQLSchema,
                                  document: DocumentNode,
                                  rootValue?: any,
                                  contextValue?: any,
                                  variableValues?: { [key: string]: any },
-                                 operationName?: string) => AsyncIterator<ExecutionResult>;
+                                 operationName?: string) => GraphQLExecutionResult;
 
 export interface ServerOptions {
   rootValue?: any;
@@ -370,9 +373,8 @@ export class SubscriptionServer {
               }
 
               const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
-              let executionIterable: AsyncIterator<ExecutionResult>;
               let validationErrors: Error[] = [];
-
+              let promise: Promise<AsyncIterable<ExecutionResult>|ExecutionResult>;
               if ( this.schema ) {
                 // NOTE: This is a temporary condition to support the legacy subscription manager.
                 // As soon as subscriptionManager support is removed, we can remove the if
@@ -381,18 +383,12 @@ export class SubscriptionServer {
               }
 
               if ( validationErrors.length > 0 ) {
-                executionIterable = createIterableFromPromise<ExecutionResult>(
+                promise = Promise.resolve(createIterableFromPromise<ExecutionResult>(
                   Promise.resolve({ errors: validationErrors }),
-                );
-              } else if (this.subscribe && isASubscriptionOperation(document, params.operationName)) {
-                executionIterable = this.subscribe(this.schema,
-                  document,
-                  this.rootValue,
-                  params.context,
-                  params.variables,
-                  params.operationName);
+                )) as Promise<ExecutionResult>;
               } else {
-                const promiseOrIterable = this.execute(this.schema,
+                const method = this.subscribe && isASubscriptionOperation(document, params.operationName) ? this.subscribe : this.execute;
+                const promiseOrIterable = method(this.schema,
                   document,
                   this.rootValue,
                   params.context,
@@ -400,58 +396,69 @@ export class SubscriptionServer {
                   params.operationName);
 
                 if (!isAsyncIterable(promiseOrIterable) && promiseOrIterable instanceof Promise) {
-                  executionIterable = createIterableFromPromise<ExecutionResult>(promiseOrIterable);
+                  // executionIterable = createIterableFromPromise<AsyncIterator<ExecutionResult>|ExecutionResult>(promiseOrIterable);
+                  promise = promiseOrIterable as Promise<AsyncIterable<ExecutionResult>|ExecutionResult>;
                 } else if (isAsyncIterable(promiseOrIterable)) {
-                  executionIterable = promiseOrIterable as any;
+                  promise = Promise.resolve(promiseOrIterable as AsyncIterable<ExecutionResult>);
                 } else {
                   // Unexpected return value from execute - log it as error and trigger an error to client side
-                  console.error('Invalid `execute` return type! Only Promise or AsyncIterable are valid values!');
+                  console.error('Invalid return type from execute or subscribe! Only Promise or AsyncIterable are valid values!');
 
                   this.sendError(connectionContext, opId, {
-                    message: 'GraphQL execute engine is not available',
+                    message: 'GraphQL execute/subscribe engine is not available',
                   });
                 }
               }
 
-              forAwaitEach(
-                createAsyncIterator(executionIterable) as any,
-                (value: ExecutionResult) => {
-                  let result = value;
+              return promise
+              .then((resultOrIterator: AsyncIterable<ExecutionResult>|ExecutionResult) => {
+                let executionIterable = isAsyncIterable(resultOrIterator) ? (
+                  resultOrIterator
+                  ) : (
+                    createIterableFromPromise<ExecutionResult>(Promise.resolve(resultOrIterator))
+                  );
 
-                  if (params.formatResponse) {
-                    try {
-                      result = params.formatResponse(value, params);
-                    } catch (err) {
-                      console.error('Error in formatError function:', err);
+                forAwaitEach(
+                  createAsyncIterator(executionIterable) as any,
+                  (value: ExecutionResult) => {
+                    let result = value;
+
+                    if (params.formatResponse) {
+                      try {
+                        result = params.formatResponse(value, params);
+                      } catch (err) {
+                        console.error('Error in formatError function:', err);
+                      }
                     }
-                  }
 
-                  this.sendMessage(connectionContext, opId, MessageTypes.GQL_DATA, result);
-                })
-                .then(() => {
-                  this.sendMessage(connectionContext, opId, MessageTypes.GQL_COMPLETE, null);
-                })
-                .catch((e: Error) => {
-                  let error = e;
+                    this.sendMessage(connectionContext, opId, MessageTypes.GQL_DATA, result);
+                  })
+                  .then(() => {
+                    this.sendMessage(connectionContext, opId, MessageTypes.GQL_COMPLETE, null);
+                  })
+                  .catch((e: Error) => {
+                    let error = e;
 
-                  if (params.formatError) {
-                    try {
-                      error = params.formatError(e, params);
-                    } catch (err) {
-                      console.error('Error in formatError function: ', err);
+                    if (params.formatError) {
+                      try {
+                        error = params.formatError(e, params);
+                      } catch (err) {
+                        console.error('Error in formatError function: ', err);
+                      }
                     }
-                  }
 
-                  // plain Error object cannot be JSON stringified.
-                  if (Object.keys(e).length === 0) {
-                    error = { name: e.name, message: e.message };
-                  }
+                    // plain Error object cannot be JSON stringified.
+                    if (Object.keys(e).length === 0) {
+                      error = { name: e.name, message: e.message };
+                    }
 
-                  this.sendError(connectionContext, opId, error);
-                });
+                    this.sendError(connectionContext, opId, error);
+                  });
 
-              return executionIterable;
-            }).then((subscription: ExecutionIterator) => {
+                  return executionIterable;
+              });
+            })
+            .then((subscription: ExecutionIterator) => {
               connectionContext.operations[opId] = subscription;
             }).then(() => {
               // NOTE: This is a temporary code to support the legacy protocol.
