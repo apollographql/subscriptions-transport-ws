@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Change publishing to use `.npmignore` instead of deleting src directory.
 
 ### 0.8.3
 - docs(README): Fix options example for subscribe methods [PR #266](https://github.com/apollographql/subscriptions-transport-ws/pull/266)
