@@ -137,7 +137,7 @@ Now, when you want to use subscriptions in client side, use your `ApolloClient` 
 
 ```js
 apolloClient.subscribeToMore({
-    document: gql`
+    query: gql`
         subscription onNewItem {
             newItemCreated {
                 id
