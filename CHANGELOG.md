@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Gracefully unsubscribe to all pending operations before a requested close by the user  [PR #245](https://github.com/apollographql/subscriptions-transport-ws/pull/245)
 - Add `close` method to server [PR #257](https://github.com/apollographql/subscriptions-transport-ws/pull/257)
 - Bugfix: Observer callbacks should be optional [PR #256](https://github.com/apollographql/subscriptions-transport-ws/pull/256)
 

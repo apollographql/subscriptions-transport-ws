@@ -148,6 +148,7 @@ export class SubscriptionClient {
         this.clearCheckConnectionInterval();
         this.clearMaxConnectTimeout();
         this.clearTryReconnectTimeout();
+        this.unsubscribeAll();
         this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
       }
 
@@ -525,7 +526,7 @@ export class SubscriptionClient {
       default:
         if (!this.reconnecting) {
           throw new Error('A message was not sent because socket is not connected, is closing or ' +
-            'is already closed. Message was: ${JSON.parse(serializedMessage)}.');
+            'is already closed. Message was: ' + JSON.stringify(message));
         }
     }
   }
