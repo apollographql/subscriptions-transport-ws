@@ -1,6 +1,8 @@
 # Changelog
 
 ### vNEXT
+
+### 0.8.3
 - docs(README): Fix options example for subscribe methods [PR #266](https://github.com/apollographql/subscriptions-transport-ws/pull/266)
 - Gracefully unsubscribe to all pending operations before a requested close by the user  [PR #245](https://github.com/apollographql/subscriptions-transport-ws/pull/245)
 - Add `close` method to server [PR #257](https://github.com/apollographql/subscriptions-transport-ws/pull/257)
@@ -18,8 +20,8 @@
 
 ### 0.8.0
 - Expose opId `onOperationComplete` method [PR #211](https://github.com/apollographql/subscriptions-transport-ws/pull/211)
-- Fix to make library able to be installed from a branch [PR #208](https://github.com/apollographql/subscriptions-transport-ws/pull/208) 
-- Fix for non forced closes (now it wont send connection_terminate) [PR #197](https://github.com/apollographql/subscriptions-transport-ws/pull/197) 
+- Fix to make library able to be installed from a branch [PR #208](https://github.com/apollographql/subscriptions-transport-ws/pull/208)
+- Fix for non forced closes (now it wont send connection_terminate) [PR #197](https://github.com/apollographql/subscriptions-transport-ws/pull/197)
 - A lot of connection's flow improvements (on connect, on disconnect and on reconnect) [PR #197](https://github.com/apollographql/subscriptions-transport-ws/pull/197)
 - Require specific lodash/assign module instead of entire package, so memory impact is reduced [PR #196](https://github.com/apollographql/subscriptions-transport-ws/pull/196)
 - docs(README): Fix onEvent(eventName, callback, thisContext) list of eventName [PR #205](https://github.com/apollographql/subscriptions-transport-ws/pull/205)
@@ -42,7 +44,7 @@
 - Added `WebSocketServer` error handler to prevent uncaught exceptions. Fixes [Issue #94](https://github.com/apollographql/subscriptions-transport-ws/issues/94)
 - Updated `ws` dependency to the lastest.
 - Introduce lazy mode for connection, and accept function as `connectionParams` [PR #131](https://github.com/apollographql/subscriptions-transport-ws/pull/131)
-- Extend transport protocol to support GraphQL queries and mutations over WebSocket [PR #108](https://github.com/apollographql/subscriptions-transport-ws/pull/108) 
+- Extend transport protocol to support GraphQL queries and mutations over WebSocket [PR #108](https://github.com/apollographql/subscriptions-transport-ws/pull/108)
 - Added built-in support for `subscribe` from `graphql-js` [PR #133](https://github.com/apollographql/subscriptions-transport-ws/pull/133)
 - Fixed infinity reconnects when server accepts connections but its in an error state. [PR #135](https://github.com/apollographql/subscriptions-transport-ws/pull/135)
 - Force close client-side socket when using `close()`, and ignore reconnect logic. [PR #137](https://github.com/apollographql/subscriptions-transport-ws/pull/137)
