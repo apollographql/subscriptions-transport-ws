@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Add `close` method to server [PR #257](https://github.com/apollographql/subscriptions-transport-ws/pull/257)
 - Bugfix: Observer callbacks should be optional [PR #256](https://github.com/apollographql/subscriptions-transport-ws/pull/256)
 
 ### 0.8.2

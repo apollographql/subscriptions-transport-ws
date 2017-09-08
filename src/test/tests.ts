@@ -1306,6 +1306,40 @@ describe('Server', function () {
     });
   });
 
+  it('server close should work', (done) => {
+    const server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    const subServer = SubscriptionServer.create({
+      schema,
+      execute,
+    }, {
+      server,
+      path: '/',
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    client.onDisconnect(() => {
+      server.close();
+      done();
+    });
+
+    client.onConnect(() => {
+      client.subscribe({
+        query: `query { testString }`,
+        variables: {},
+      }, (err, res) => {
+        if (err) {
+          assert(false, 'unexpected error from subscribe');
+        } else {
+          expect(res).to.deep.equal({ testString: 'value' });
+        }
+
+        subServer.close();
+      });
+    });
+  });
+
   it('should have request interface (apollo client 2.0)', (done) => {
     const server = createServer(notFoundRequestListener);
     server.listen(SERVER_EXECUTOR_TESTS_PORT);
