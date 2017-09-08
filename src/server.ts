@@ -99,6 +99,7 @@ export class SubscriptionServer {
   private schema: GraphQLSchema;
   private rootValue: any;
   private keepAlive: number;
+  private closeHandler: () => void;
   private specifiedRules: Array<(context: ValidationContext) => any>;
 
   /**
@@ -137,7 +138,7 @@ export class SubscriptionServer {
     // Init and connect websocket server to http
     this.wsServer = new WebSocket.Server(socketOptions || {});
 
-    this.wsServer.on('connection', ((socket: WebSocket, request: IncomingMessage) => {
+    const connectionHandler = ((socket: WebSocket, request: IncomingMessage) => {
       // Add `upgradeReq` to the socket object to support old API, without creating a memory leak
       // See: https://github.com/websockets/ws/pull/1099
       (socket as any).upgradeReq = request;
@@ -192,7 +193,21 @@ export class SubscriptionServer {
       socket.on('error', connectionClosedHandler);
       socket.on('close', connectionClosedHandler);
       socket.on('message', this.onMessage(connectionContext));
-    }) as any);
+    });
+
+    this.wsServer.on('connection', connectionHandler);
+    this.closeHandler = () => {
+      this.wsServer.removeListener('connection', connectionHandler);
+      this.wsServer.close();
+    };
+  }
+
+  public get server(): WebSocket.Server {
+    return this.wsServer;
+  }
+
+  public close(): void {
+    this.closeHandler();
   }
 
   private loadExecutor(options: ServerOptions) {
