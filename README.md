@@ -102,7 +102,7 @@ const apolloClient = new ApolloClient({
 
 ### Hybrid WebSocket Transport
 
-To start with a full WebSocket transport, that handles only `subscription`s over WebSocket, create your `SubscriptionClient` and a regular HTTP network interface, then extend your network interface to use the WebSocket client for GraphQL subscriptions:
+To start with a hybrid WebSocket transport, that handles only `subscription`s over WebSocket, create your `SubscriptionClient` and a regular HTTP network interface, then extend your network interface to use the WebSocket client for GraphQL subscriptions:
 
 ```js
 import {SubscriptionClient, addGraphQLSubscriptions} from 'subscriptions-transport-ws';
