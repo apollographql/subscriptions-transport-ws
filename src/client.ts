@@ -186,11 +186,17 @@ export class SubscriptionClient {
           operationName: request.operationName,
         }, function (error: Error[], result: any) {
           if ( error === null && result === null ) {
-            observer.complete();
+            if ( observer.complete ) {
+              observer.complete();
+            }
           } else if (error) {
-            observer.error(error[0]);
+            if ( observer.error ) {
+              observer.error(error[0]);
+            }
           } else {
-            observer.next(result);
+            if ( observer.next ) {
+              observer.next(result);
+            }
           }
         });
 
