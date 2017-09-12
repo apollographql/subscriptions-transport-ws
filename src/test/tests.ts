@@ -28,7 +28,7 @@ import {
   GraphQLString,
 } from 'graphql';
 
-import { PubSub, withFilter, SubscriptionOptions } from 'graphql-subscriptions';
+import { PubSub, withFilter } from 'graphql-subscriptions';
 
 import MessageTypes  from '../message-types';
 
@@ -37,7 +37,7 @@ import {
 } from '../protocol';
 
 import { createServer, IncomingMessage, ServerResponse } from 'http';
-import { SubscriptionServer } from '../server';
+import { SubscriptionServer, ExecutionParams } from '../server';
 import { SubscriptionClient } from '../client';
 import { addGraphQLSubscriptions } from '../helpers';
 import { OperationMessagePayload } from '../server';
@@ -173,7 +173,7 @@ const subscriptionsSchema = new GraphQLSchema({
 
 // indirect call to support spying
 const handlers = {
-  onSubscribe: (msg: OperationMessagePayload, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+  onSubscribe: (msg: OperationMessagePayload, params: ExecutionParams<any>, webSocketRequest: WebSocket) => {
     return Promise.resolve(Object.assign({}, params, { context: msg['context'] }));
   },
 };
@@ -182,7 +182,7 @@ const options = {
   schema,
   subscribe,
   execute,
-  onSubscribe: (msg: OperationMessagePayload | any, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+  onSubscribe: (msg: OperationMessagePayload | any, params: ExecutionParams<any>, webSocketRequest: WebSocket) => {
     return handlers.onSubscribe(msg, params, webSocketRequest);
   },
 };
@@ -192,7 +192,7 @@ const eventsOptions = {
   subscribe,
   execute,
   onSubscribe: sinon.spy((msg: OperationMessagePayload
-                            | any, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+                            | any, params: ExecutionParams<any>, webSocketRequest: WebSocket) => {
     return Promise.resolve(Object.assign({}, params, { context: msg['context'] }));
   }),
   onUnsubscribe: sinon.spy(),
@@ -236,7 +236,7 @@ new SubscriptionServer(onConnectErrorOptions, { server: httpServerWithOnConnectE
 const httpServerWithDelay = createServer(notFoundRequestListener);
 httpServerWithDelay.listen(DELAYED_TEST_PORT);
 new SubscriptionServer(Object.assign({}, options, {
-  onSubscribe: (msg: OperationMessagePayload | any, params: SubscriptionOptions): Promise<any> => {
+  onSubscribe: (msg: OperationMessagePayload | any, params: ExecutionParams<any>): Promise<any> => {
     return new Promise((resolve, reject) => {
       setTimeout(() => {
         resolve(Object.assign({}, params, { context: msg['context'] }));
@@ -1965,7 +1965,7 @@ describe('Server', function () {
   it.skip('handles errors prior to graphql execution', function (done) {
     // replace the onSubscribeSpy with a custom handler, the spy will restore
     // the original method
-    handlers.onSubscribe = (msg: OperationMessagePayload, params: SubscriptionOptions, webSocketRequest: WebSocket) => {
+    handlers.onSubscribe = (msg: OperationMessagePayload, params: ExecutionParams<any>, webSocketRequest: WebSocket) => {
       return Promise.resolve(Object.assign({}, params, {
         context: () => {
           throw new Error('bad');

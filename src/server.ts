@@ -22,6 +22,16 @@ import { IncomingMessage } from 'http';
 
 export type ExecutionIterator = AsyncIterator<ExecutionResult>;
 
+export interface ExecutionParams<TContext = any> {
+  query: string | DocumentNode;
+  variables: { [key: string]: any };
+  operationName: string;
+  context: TContext;
+  formatResponse?: Function;
+  formatError?: Function;
+  callback?: Function;
+}
+
 export type ConnectionContext = {
   initPromise?: Promise<any>,
   isLegacy: boolean,
@@ -328,7 +338,7 @@ export class SubscriptionServer {
               this.unsubscribe(connectionContext, opId);
             }
 
-            const baseParams = {
+            const baseParams: ExecutionParams = {
               query: parsedMessage.payload.query,
               variables: parsedMessage.payload.variables,
               operationName: parsedMessage.payload.operationName,
