@@ -2,7 +2,6 @@ import * as WebSocket from 'ws';
 
 import MessageTypes from './message-types';
 import { GRAPHQL_WS, GRAPHQL_SUBSCRIPTIONS } from './protocol';
-import { SubscriptionManager } from 'graphql-subscriptions';
 import isObject = require('lodash.isobject');
 import {
   parse,
@@ -13,7 +12,6 @@ import {
   ValidationContext,
   specifiedRules,
 } from 'graphql';
-import { executeFromSubscriptionManager } from './adapters/subscription-manager';
 import { createEmptyIterable } from './utils/empty-iterable';
 import { createAsyncIterator, forAwaitEach, isAsyncIterable } from 'iterall';
 import { createIterableFromPromise } from './utils/promise-to-iterable';
@@ -23,6 +21,16 @@ import { defineDeprecateFunctionWrapper } from './legacy/define-deprecation-func
 import { IncomingMessage } from 'http';
 
 export type ExecutionIterator = AsyncIterator<ExecutionResult>;
+
+export interface ExecutionParams<TContext = any> {
+  query: string | DocumentNode;
+  variables: { [key: string]: any };
+  operationName: string;
+  context: TContext;
+  formatResponse?: Function;
+  formatError?: Function;
+  callback?: Function;
+}
 
 export type ConnectionContext = {
   initPromise?: Promise<any>,
@@ -51,14 +59,16 @@ export type ExecuteFunction = (schema: GraphQLSchema,
                                rootValue?: any,
                                contextValue?: any,
                                variableValues?: { [key: string]: any },
-                               operationName?: string) => Promise<ExecutionResult> | AsyncIterator<ExecutionResult>;
+                               operationName?: string) => Promise<ExecutionResult> |
+                               AsyncIterator<ExecutionResult> |
+                               Promise<AsyncIterator<ExecutionResult>>;
 
 export type SubscribeFunction = (schema: GraphQLSchema,
                                  document: DocumentNode,
                                  rootValue?: any,
                                  contextValue?: any,
                                  variableValues?: { [key: string]: any },
-                                 operationName?: string) => AsyncIterator<ExecutionResult>;
+                                 operationName?: string) => AsyncIterator<ExecutionResult> | Promise<AsyncIterator<ExecutionResult>>;
 
 export interface ServerOptions {
   rootValue?: any;
@@ -73,10 +83,6 @@ export interface ServerOptions {
   onDisconnect?: Function;
   keepAlive?: number;
 
-  /**
-   * @deprecated subscriptionManager is deprecated, use executor instead
-   */
-  subscriptionManager?: SubscriptionManager;
   /**
    * @deprecated onSubscribe is deprecated, use onOperation instead
    */
@@ -211,37 +217,20 @@ export class SubscriptionServer {
   }
 
   private loadExecutor(options: ServerOptions) {
-    const { subscriptionManager, execute, subscribe, schema, rootValue } = options;
+    const { execute, subscribe, schema, rootValue } = options;
 
-    if (!subscriptionManager && !execute) {
-      throw new Error('Must provide `subscriptionManager` or `execute` to websocket server constructor.');
+    if (!execute) {
+      throw new Error('Must provide `execute` for websocket server constructor.');
     }
 
-    if (subscriptionManager && execute) {
-      throw new Error('Must provide `subscriptionManager` or `execute` and not both.');
-    }
-
-    if (subscribe && !execute) {
-      throw new Error('Must provide `execute` when providing `subscribe`!');
-    }
-
-    if (execute && !schema) {
-      throw new Error('Must provide `schema` when using `execute`.');
-    }
-
-    if (subscriptionManager) {
-      console.warn('subscriptionManager is deprecated, use `execute` or `subscribe` directly from `graphql-js`!');
+    if (!schema) {
+      throw new Error('`schema` is missing');
     }
 
     this.schema = schema;
     this.rootValue = rootValue;
-
-    if (subscriptionManager) {
-      this.execute = executeFromSubscriptionManager(subscriptionManager);
-    } else {
-      this.execute = execute;
-      this.subscribe = subscribe;
-    }
+    this.execute = execute;
+    this.subscribe = subscribe;
   }
 
   private unsubscribe(connectionContext: ConnectionContext, opId: string) {
@@ -349,7 +338,7 @@ export class SubscriptionServer {
               this.unsubscribe(connectionContext, opId);
             }
 
-            const baseParams = {
+            const baseParams: ExecutionParams = {
               query: parsedMessage.payload.query,
               variables: parsedMessage.payload.variables,
               operationName: parsedMessage.payload.operationName,
@@ -385,15 +374,8 @@ export class SubscriptionServer {
               }
 
               const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
-              let executionIterable: AsyncIterator<ExecutionResult>;
-              let validationErrors: Error[] = [];
-
-              if ( this.schema ) {
-                // NOTE: This is a temporary condition to support the legacy subscription manager.
-                // As soon as subscriptionManager support is removed, we can remove the if
-                // and keep only the validation part.
-                validationErrors = validate(this.schema, document, this.specifiedRules);
-              }
+              let executionIterable: AsyncIterator<ExecutionResult> | Promise<AsyncIterator<ExecutionResult>>;
+              const validationErrors: Error[] = validate(this.schema, document, this.specifiedRules);
 
               if ( validationErrors.length > 0 ) {
                 executionIterable = createIterableFromPromise<ExecutionResult>(
@@ -428,6 +410,11 @@ export class SubscriptionServer {
                 }
               }
 
+              return Promise.resolve(executionIterable).then((ei) => ({
+                executionIterable: ei,
+                params,
+              }));
+            }).then(({ executionIterable, params }) => {
               forAwaitEach(
                 createAsyncIterator(executionIterable) as any,
                 (value: ExecutionResult) => {
