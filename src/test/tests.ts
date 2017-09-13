@@ -947,27 +947,6 @@ describe('Client', function () {
     }, 1000);
   });
 
-  // XXX: This test not really working..
-  // and im not sure how it was expected to work.
-  it.skip('should throw an exception when the sent message is not a valid json', function (done) {
-
-
-    setTimeout(() => {
-      expect(() => {
-        let client: SubscriptionClient = null;
-
-        wsServer.on('connection', (connection: any) => {
-          connection.on('message', (message: any) => {
-            connection.send('invalid json');
-          });
-        });
-
-        client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
-        done();
-      }).to.throw();
-    }, 1000);
-  });
-
   it('should stop trying to reconnect to the server', function (done) {
     wsServer.on('connection', (connection: WebSocket) => {
       connection.close();
@@ -1957,44 +1936,6 @@ describe('Server', function () {
       assert.isAbove(errors.length, 0, 'Number of errors is greater than 0.');
       done();
     });
-  });
-
-  // XXX: IMO this is not relevant, and was not a valid behavior.
-  // context should be resolved once per connection (onConnect which is tested)
-  // then onSubscribe can modify the object but it shouldn't reresolve function.
-  it.skip('handles errors prior to graphql execution', function (done) {
-    // replace the onSubscribeSpy with a custom handler, the spy will restore
-    // the original method
-    handlers.onSubscribe = (msg: OperationMessagePayload, params: ExecutionParams<any>, webSocketRequest: WebSocket) => {
-      return Promise.resolve(Object.assign({}, params, {
-        context: () => {
-          throw new Error('bad');
-        },
-      }));
-    };
-
-    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
-    client.subscribe({
-      query: `
-        subscription context {
-          context
-        }
-      `,
-      variables: {},
-      context: {},
-    }, (error: any, result: any) => {
-      client.unsubscribeAll();
-      if (error) {
-        assert(Array.isArray(error));
-        assert.equal(error[0].message, 'bad');
-      } else {
-        assert(false);
-      }
-      done();
-    });
-    setTimeout(() => {
-      testPubsub.publish('context', {});
-    }, 100);
   });
 
   it('sends a keep alive signal in the socket', function (done) {
