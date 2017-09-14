@@ -133,20 +133,40 @@ const apolloClient = new ApolloClient({
 });
 ```
 
-Now, when you want to use subscriptions in client side, use your `ApolloClient` instance, with `subscribe` or `subscribeToMore` (according to your apollo-client usage):
+Now, when you want to use subscriptions in client side, use your `ApolloClient` instance, with `subscribe` or `query` `subscribeToMore`:
 
 ```js
-apolloClient.subscribeToMore({
-    query: gql`
-        subscription onNewItem {
-            newItemCreated {
-                id
-            }
-        }`,
-    variables: {},
-    updateQuery: (prev, {subscriptionData}) => {
-        // Modify your store and return new state with the new arrived data
-    }
+apolloClient.subscribe({
+  query: gql`
+    subscription onNewItem {
+        newItemCreated {
+            id
+        }
+    }`,
+  variables: {}
+}).subscribe({
+  next (data) {
+    // Notify your application with the new arrived data
+  }
+});
+```
+
+```js
+apolloClient.query({
+  query: ITEM_LIST_QUERY,
+  variables: {}
+}).subscribeToMore({
+  document: gql`
+    subscription onNewItem {
+        newItemCreated {
+            id
+        }
+    }`,
+  variables: {},
+  updateQuery: (prev, { subscriptionData, variables }) => {
+    // Perform updates on previousResult with subscriptionData
+    return updatedResult;
+  }
 });
 ```
 
