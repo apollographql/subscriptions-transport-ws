@@ -16,8 +16,6 @@ import { GRAPHQL_WS } from './protocol';
 import { WS_TIMEOUT } from './defaults';
 import MessageTypes from './message-types';
 
-export * from './helpers';
-
 export interface Observer<T> {
   next?: (value: T) => void;
   error?: (error: Error) => void;
@@ -180,11 +178,7 @@ export class SubscriptionClient {
       ) {
         const observer = getObserver(observerOrNext, onError, onComplete);
 
-        opId = executeOperation({
-          query: request.query,
-          variables: request.variables,
-          operationName: request.operationName,
-        }, function (error: Error[], result: any) {
+        opId = executeOperation(request, (error: Error[], result: any) => {
           if ( error === null && result === null ) {
             if ( observer.complete ) {
               observer.complete();
@@ -212,91 +206,12 @@ export class SubscriptionClient {
     };
   }
 
-  /**
-   * @deprecated This method will become deprecated in the next release.
-   * request should be used.
-   */
-  public query(options: OperationOptions): Promise<ExecutionResult> {
-    return new Promise((resolve, reject) => {
-      const handler = (error: Error[], result?: any) => {
-        if (result) {
-          resolve(result);
-        } else {
-          reject(error);
-        }
-      };
-
-      // NOTE: as soon as we move into observables, we don't need to wait GQL_COMPLETE for queries and mutations
-      this.executeOperation(options, handler);
-    });
-  }
-
-  /**
-   * @deprecated This method will become deprecated in the next release.
-   * request should be used.
-   */
-  public subscribe(options: OperationOptions, handler: (error: Error[], result?: any) => void) {
-    const legacyHandler = (error: Error[], result?: any) => {
-      let operationPayloadData = result && result.data || null;
-      let operationPayloadErrors = result && result.errors  || null;
-
-      if (error) {
-        operationPayloadErrors = error;
-        operationPayloadData = null;
-      }
-
-      if (error !== null || result !== null) {
-        handler(operationPayloadErrors, operationPayloadData);
-      }
-    };
-
-    if (this.client === null) {
-      this.connect();
-    }
-
-    if (!handler) {
-      throw new Error('Must provide an handler.');
-    }
-
-    return this.executeOperation(options, legacyHandler);
-  }
-
   public on(eventName: string, callback: ListenerFn, context?: any): Function {
     const handler = this.eventEmitter.on(eventName, callback, context);
 
     return () => {
       handler.off(eventName, callback, context);
     };
-  }
-
-  /**
-   * @deprecated This method will become deprecated in the next release.
-   * You can use onConnecting and onConnected instead.
-   */
-  public onConnect(callback: ListenerFn, context?: any): Function {
-    this.logWarningOnNonProductionEnv('This method will become deprecated in the next release. ' +
-      'You can use onConnecting and onConnected instead.');
-    return this.onConnecting(callback, context);
-  }
-
-  /**
-   * @deprecated This method will become deprecated in the next release.
-   * You can use onDisconnected instead.
-   */
-  public onDisconnect(callback: ListenerFn, context?: any): Function {
-    this.logWarningOnNonProductionEnv('This method will become deprecated in the next release. ' +
-      'You can use onDisconnected instead.');
-    return this.onDisconnected(callback, context);
-  }
-
-  /**
-   * @deprecated This method will become deprecated in the next release.
-   * You can use onReconnecting and onReconnected instead.
-   */
-  public onReconnect(callback: ListenerFn, context?: any): Function {
-    this.logWarningOnNonProductionEnv('This method will become deprecated in the next release. ' +
-      'You can use onReconnecting and onReconnected instead.');
-    return this.onReconnecting(callback, context);
   }
 
   public onConnected(callback: ListenerFn, context?: any): Function {
@@ -317,13 +232,6 @@ export class SubscriptionClient {
 
   public onReconnecting(callback: ListenerFn, context?: any): Function {
     return this.on('reconnecting', callback, context);
-  }
-
-  public unsubscribe(opId: string) {
-    if (this.operations[opId]) {
-      delete this.operations[opId];
-      this.sendMessage(opId, MessageTypes.GQL_STOP, undefined);
-    }
   }
 
   public unsubscribeAll() {
@@ -369,6 +277,10 @@ export class SubscriptionClient {
   }
 
   private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): string {
+    if (this.client === null) {
+      this.connect();
+    }
+
     const opId = this.generateOperationId();
     this.operations[opId] = { options: options, handler };
 
@@ -433,12 +345,6 @@ export class SubscriptionClient {
     if (this.tryReconnectTimeoutId) {
       clearTimeout(this.tryReconnectTimeoutId);
       this.tryReconnectTimeoutId = null;
-    }
-  }
-
-  private logWarningOnNonProductionEnv(warning: string) {
-    if (process && process.env && process.env.NODE_ENV !== 'production') {
-      console.warn(warning);
     }
   }
 
@@ -692,6 +598,13 @@ export class SubscriptionClient {
 
       default:
         throw new Error('Invalid message type!');
+    }
+  }
+
+  private unsubscribe(opId: string) {
+    if (this.operations[opId]) {
+      delete this.operations[opId];
+      this.sendMessage(opId, MessageTypes.GQL_STOP, undefined);
     }
   }
 }

@@ -225,16 +225,12 @@ ReactDOM.render(
 - `webSocketImpl?: Object` - optional, WebSocket implementation. use this when your environment does not have a built-in native WebSocket (for example, with NodeJS client)
 
 ### Methods
-#### `subscribe(options, handler) => number`: returns the operation id that identifies the operation
-- `options: {SubscriptionOptions}`
+#### `request(options) => Observable<ExecutionResult>`: returns observable to execute the operation.
+- `options: {OperationOptions}`
   * `query: string` : GraphQL subscription
   * `variables: Object` : GraphQL subscription variables
   * `operationName: string` : operation name of the subscription
   * `context: Object` : use to override context for a specific call
-- `handler: (errors: Error[], result?: any) => void` : function to handle any errors and results from the subscription response
-
-#### `unsubscribe(id) => void` - unsubscribes from a specific subscription
-- `id: string` : the subscription ID of the subscription to unsubscribe from
 
 #### `unsubscribeAll() => void` - unsubscribes from all active subscriptions.
 
@@ -269,43 +265,12 @@ ReactDOM.render(
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
 
-### `query(options: OperationOptions) => Promise<ExecutionResult>` : Executes GraphQL operation over the WebSocket
-- `options: OperationOptions`:
-    * `query: string` - GraphQL operation as string or parsed GraphQL document node
-    * `variables?: Object` - Object with GraphQL variables
-    * `operationName?: string` - GraphQL operation name
-    * `context?: any` - Execution context for the operation
-    
 ### `close() => void` - closes the WebSocket connection manually, and ignores `reconnect` logic if it was set to `true`.
 
 ### `use(middlewares: MiddlewareInterface[]) => SubscriptionClient` - adds middleware to modify `OperationOptions` per each request
 - `middlewares: MiddlewareInterface[]` - Array contains list of middlewares (implemented `applyMiddleware` method) implementation, the `SubscriptionClient` will use the middlewares to modify `OperationOptions` for every operation
 
 ### `status: number` : returns the current socket's `readyState`
-
-#### **@deprecated** `onConnect(callback, thisContext) => Function` - shorthand for `.on('connect', ...)`
-- `callback: Function`: function to be called when websocket connects and initialized.
-- `thisContext: any`: `this` context to use when calling the callback function.
-- => Returns an `off` method to cancel the event subscription.
-
-#### **@deprecated** `onReconnect(callback, thisContext) => Function` - shorthand for `.on('reconnect', ...)`
-- `callback: Function`: function to be called when websocket re-connects and initialized.
-- `thisContext: any`: `this` context to use when calling the callback function.
-- => Returns an `off` method to cancel the event subscription.
-
-#### **@deprecated** `onDisconnect(callback, thisContext) => Function` - shorthand for `.on('disconnect', ...)`
-- `callback: Function`: function to be called when websocket disconnects.
-- `thisContext: any`: `this` context to use when calling the callback function.
-- => Returns an `off` method to cancel the event subscription.
-
-
-## Client-side helpers
-
-#### `addGraphQLSubscriptions(networkInterface, wsClient) => void`
-- `networkInterface: any` - network interface to extend with `subscribe` and `unsubscribe` methods.
-- `wsClient: SubscriptionClient` - network interface to extend with `subscribe` and `unsubscribe` methods.
-
-A quick way to add the `subscribe` and `unsubscribe` functions to the [network interface](http://dev.apollodata.com/core/network.html#createNetworkInterface), when using Hybrid socket mode.
 
 
 ## SubscriptionServer
@@ -314,16 +279,12 @@ A quick way to add the `subscribe` and `unsubscribe` functions to the [network i
   * `rootValue?: any` : Root value to use when executing GraphQL root operations
   * `schema?: GraphQLSchema` : GraphQL schema object
   * `execute?: (schema, document, rootValue, contextValue, variableValues, operationName) => Promise<ExecutionResult> | AsyncIterator<ExecutionResult>` : GraphQL `execute` function, provide the default one from `graphql` package. Return value of `AsyncItrator` is also valid since this package also support reactive `execute` methods.
-  * `subscribe?: (schema, document, rootValue, contextValue, variableValues, operationName) => Promise<AsyncIterator<ExecutionResult>>` : GraphQL `subscribe` function, provide the default one from `graphql` package.
+  * `subscribe?: (schema, document, rootValue, contextValue, variableValues, operationName) => Promise<ExecutionResult | AsyncIterator<ExecutionResult>>` : GraphQL `subscribe` function, provide the default one from `graphql` package.
   * `onOperation?: (message: SubscribeMessage, params: SubscriptionOptions, webSocket: WebSocket)` : optional method to create custom params that will be used when resolving this operation
   * `onOperationComplete?: (webSocket: WebSocket, opId: string)` : optional method that called when a GraphQL operation is done (for query and mutation it's immeditaly, and for subscriptions when unsubscribing)
   * `onConnect?: (connectionParams: Object, webSocket: WebSocket)` : optional method that called when a client connects to the socket, called with the `connectionParams` from the client, if the return value is an object, its elements will be added to the context. return `false` or throw an exception to reject the connection. May return a Promise.
   * `onDisconnect?: (webSocket: WebSocket)` : optional method that called when a client disconnects
   * `keepAlive?: number` : optional interval in ms to send `KEEPALIVE` messages to all clients
-  
-
-  * **@deprecated** `onSubscribe?: (message: SubscribeMessage, params: SubscriptionOptions, webSocket: WebSocket)` : optional method to create custom params that will be used when resolving this subscription
-  * **@deprecated** `onUnsubscribe?: (webSocket: WebSocket)` : optional method that called when a client unsubscribe
 
 - `socketOptions: {WebSocket.IServerOptions}` : options to pass to the WebSocket object (full docs [here](https://github.com/websockets/ws/blob/master/doc/ws.md))    
   * `server?: HttpServer` - existing HTTP server to use (use without `host`/`port`)

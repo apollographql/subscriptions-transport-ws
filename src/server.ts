@@ -11,13 +11,13 @@ import {
   validate,
   ValidationContext,
   specifiedRules,
+  GraphQLFieldResolver,
 } from 'graphql';
 import { createEmptyIterable } from './utils/empty-iterable';
 import { createAsyncIterator, forAwaitEach, isAsyncIterable } from 'iterall';
 import { createIterableFromPromise } from './utils/promise-to-iterable';
 import { isASubscriptionOperation } from './utils/is-subscriptions';
 import { parseLegacyProtocolMessage } from './legacy/parse-legacy-protocol';
-import { defineDeprecateFunctionWrapper } from './legacy/define-deprecation-function-wrapper';
 import { IncomingMessage } from 'http';
 
 export type ExecutionIterator = AsyncIterator<ExecutionResult>;
@@ -59,16 +59,21 @@ export type ExecuteFunction = (schema: GraphQLSchema,
                                rootValue?: any,
                                contextValue?: any,
                                variableValues?: { [key: string]: any },
-                               operationName?: string) => Promise<ExecutionResult> |
-                               AsyncIterator<ExecutionResult> |
-                               Promise<AsyncIterator<ExecutionResult>>;
+                               operationName?: string,
+                               fieldResolver?: GraphQLFieldResolver<any, any>) =>
+                               Promise<ExecutionResult> |
+                               AsyncIterator<ExecutionResult>;
 
 export type SubscribeFunction = (schema: GraphQLSchema,
                                  document: DocumentNode,
                                  rootValue?: any,
                                  contextValue?: any,
                                  variableValues?: { [key: string]: any },
-                                 operationName?: string) => AsyncIterator<ExecutionResult> | Promise<AsyncIterator<ExecutionResult>>;
+                                 operationName?: string,
+                                 fieldResolver?: GraphQLFieldResolver<any, any>,
+                                 subscribeFieldResolver?: GraphQLFieldResolver<any, any>) =>
+                                 AsyncIterator<ExecutionResult> |
+                                 Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
 
 export interface ServerOptions {
   rootValue?: any;
@@ -82,15 +87,6 @@ export interface ServerOptions {
   onConnect?: Function;
   onDisconnect?: Function;
   keepAlive?: number;
-
-  /**
-   * @deprecated onSubscribe is deprecated, use onOperation instead
-   */
-  onSubscribe?: Function;
-  /**
-   * @deprecated onUnsubscribe is deprecated, use onOperationComplete instead
-   */
-  onUnsubscribe?: Function;
 }
 
 export class SubscriptionServer {
@@ -108,38 +104,23 @@ export class SubscriptionServer {
   private closeHandler: () => void;
   private specifiedRules: Array<(context: ValidationContext) => any>;
 
-  /**
-   * @deprecated onSubscribe is deprecated, use onOperation instead
-   */
-  private onSubscribe: Function;
-  /**
-   * @deprecated onUnsubscribe is deprecated, use onOperationComplete instead
-   */
-  private onUnsubscribe: Function;
-
   public static create(options: ServerOptions, socketOptions: WebSocket.IServerOptions) {
     return new SubscriptionServer(options, socketOptions);
   }
 
   constructor(options: ServerOptions, socketOptions: WebSocket.IServerOptions) {
     const {
-      onSubscribe, onUnsubscribe, onOperation,
-      onOperationComplete, onConnect, onDisconnect, keepAlive,
+      onOperation, onOperationComplete, onConnect, onDisconnect, keepAlive,
     } = options;
 
     this.specifiedRules = options.validationRules || specifiedRules;
     this.loadExecutor(options);
 
-    this.onOperation = onSubscribe ? onSubscribe : onOperation;
-    this.onOperationComplete = onUnsubscribe ? onUnsubscribe : onOperationComplete;
+    this.onOperation = onOperation;
+    this.onOperationComplete = onOperationComplete;
     this.onConnect = onConnect;
     this.onDisconnect = onDisconnect;
     this.keepAlive = keepAlive;
-
-    this.onSubscribe = onSubscribe ?
-      defineDeprecateFunctionWrapper('onSubscribe function is deprecated. Use onOperation instead.') : null;
-    this.onUnsubscribe = onUnsubscribe ?
-      defineDeprecateFunctionWrapper('onUnsubscribe function is deprecated. Use onOperationComplete instead.') : null;
 
     // Init and connect websocket server to http
     this.wsServer = new WebSocket.Server(socketOptions || {});
@@ -357,11 +338,6 @@ export class SubscriptionServer {
 
             if (this.onOperation) {
               let messageForCallback: any = parsedMessage;
-
-              if (this.onSubscribe) {
-                messageForCallback = parsedMessage.payload;
-              }
-
               promisedParams = Promise.resolve(this.onOperation(messageForCallback, baseParams, connectionContext.socket));
             }
 
@@ -374,22 +350,20 @@ export class SubscriptionServer {
               }
 
               const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
-              let executionIterable: AsyncIterator<ExecutionResult> | Promise<AsyncIterator<ExecutionResult>>;
+              let executionIterable: Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
               const validationErrors: Error[] = validate(this.schema, document, this.specifiedRules);
 
               if ( validationErrors.length > 0 ) {
-                executionIterable = createIterableFromPromise<ExecutionResult>(
+                executionIterable = Promise.resolve(createIterableFromPromise<ExecutionResult>(
                   Promise.resolve({ errors: validationErrors }),
-                );
-              } else if (this.subscribe && isASubscriptionOperation(document, params.operationName)) {
-                executionIterable = this.subscribe(this.schema,
-                  document,
-                  this.rootValue,
-                  params.context,
-                  params.variables,
-                  params.operationName);
+                ));
               } else {
-                const promiseOrIterable = this.execute(this.schema,
+                let executor: SubscribeFunction | ExecuteFunction = this.execute;
+                if (this.subscribe && isASubscriptionOperation(document, params.operationName)) {
+                  executor = this.subscribe;
+                }
+
+                const promiseOrIterable = executor(this.schema,
                   document,
                   this.rootValue,
                   params.context,
@@ -397,9 +371,9 @@ export class SubscriptionServer {
                   params.operationName);
 
                 if (!isAsyncIterable(promiseOrIterable) && promiseOrIterable instanceof Promise) {
-                  executionIterable = createIterableFromPromise<ExecutionResult>(promiseOrIterable);
+                  executionIterable = promiseOrIterable;
                 } else if (isAsyncIterable(promiseOrIterable)) {
-                  executionIterable = promiseOrIterable as any;
+                  executionIterable = Promise.resolve(promiseOrIterable as any as AsyncIterator<ExecutionResult>);
                 } else {
                   // Unexpected return value from execute - log it as error and trigger an error to client side
                   console.error('Invalid `execute` return type! Only Promise or AsyncIterable are valid values!');
@@ -410,8 +384,9 @@ export class SubscriptionServer {
                 }
               }
 
-              return Promise.resolve(executionIterable).then((ei) => ({
-                executionIterable: ei,
+              return executionIterable.then((ei) => ({
+                executionIterable: isAsyncIterable(ei) ?
+                  ei : createAsyncIterator([ ei ]),
                 params,
               }));
             }).then(({ executionIterable, params }) => {
