@@ -1,6 +1,8 @@
 # Changelog
 
 ### vNEXT
+
+### 0.9.0
 - docs(README): Fix example for subscribe and subscribeToMore [PR #273](https://github.com/apollographql/subscriptions-transport-ws/pull/273)
 - Add support for GraphQL 0.11.0 [PR #261](https://github.com/apollographql/subscriptions-transport-ws/pull/261)
 - **BREAKING CHANGE**: Remove support for Subscription Manager [PR #261](https://github.com/apollographql/subscriptions-transport-ws/pull/261)
