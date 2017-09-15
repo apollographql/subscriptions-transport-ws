@@ -133,7 +133,7 @@ const apolloClient = new ApolloClient({
 });
 ```
 
-Now, when you want to use subscriptions in client side, use your `ApolloClient` instance, with `subscribe` or `query` `subscribeToMore`:
+Now, when you want to use subscriptions in client side, use your `ApolloClient` instance, with [`subscribe`](http://dev.apollodata.com/core/apollo-client-api.html#ObservableQuery\.subscribe) or `query` [`subscribeToMore`](http://dev.apollodata.com/react/subscriptions.html#subscribe-to-more):
 
 ```js
 apolloClient.subscribe({
