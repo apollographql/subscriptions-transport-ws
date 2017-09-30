@@ -3,7 +3,7 @@ export default class MessageTypes {
   public static GQL_CONNECTION_ACK = 'connection_ack'; // Server -> Client
   public static GQL_CONNECTION_ERROR = 'connection_error'; // Server -> Client
 
-  // NOTE: This one here don't follow the standard due to connection optimization
+  // NOTE: These message types do not follow the standard due to connection optimizations
   public static GQL_CONNECTION_KEEP_ALIVE = 'ka'; // Server -> Client
   public static GQL_CONNECTION_TERMINATE = 'connection_terminate'; // Client -> Server
   public static GQL_START = 'start'; // Client -> Server
@@ -12,7 +12,7 @@ export default class MessageTypes {
   public static GQL_COMPLETE = 'complete'; // Server -> Client
   public static GQL_STOP = 'stop'; // Client -> Server
 
-  // NOTE: Those message types are deprecated and will be removed soon.
+  // NOTE: These message types are deprecated and will be removed soon.
   /**
    * @deprecated
    */
