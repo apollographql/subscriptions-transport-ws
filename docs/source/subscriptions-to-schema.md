@@ -1,6 +1,5 @@
 ---
 title: Adding Subscriptions To Schema
-order: 402
 ---
 
 Adding GraphQL subscriptions to your GraphQL schema is simple, since Subscription is just another GraphQL operation type like Query and Mutation.
@@ -29,7 +28,7 @@ schema {
 Create a resolver just like queries and mutations, but instead of function, pass an Object with `subscribe` field and a subscription resolver method.
 
 The subscription resolver method must return `AsyncIterator`, which you can get from using `asyncIterator` method of your `PubSub`:
- 
+
 ```js
 const rootResolver = {
     Query: () => { ... },
@@ -54,7 +53,7 @@ When using `subscribe` field, it's also possible to manipulate the event payload
 
 Add `resolve` method near your `subscribe` and change the payload as you wish:
 
- 
+
 ```js
 const rootResolver = {
     Subscription: {

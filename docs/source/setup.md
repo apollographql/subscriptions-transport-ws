@@ -1,6 +1,5 @@
 ---
 title: Setup
-order: 403
 ---
 
 <h2 id="setup">PubSub</h2>
@@ -54,7 +53,7 @@ First install the `subscriptions-transport-ws` package:
 npm install --save subscriptions-transport-ws
 ```
 
-`SubscriptionsServer` expect a `schema`, `execute` and `subscribe` (optional) and a http server. Here is complete setup code, supporting both queries and subscriptions. 
+`SubscriptionsServer` expect a `schema`, `execute` and `subscribe` (optional) and a http server. Here is complete setup code, supporting both queries and subscriptions.
 
 ```js
 import express from 'express';

@@ -1,11 +1,10 @@
 ---
 title: Using an external PubSub Engine (Redis/MQTT)
-order: 407
 ---
 
 `graphql` also supports any external Pub/Sub system that implements the `AsyncIterator` interface.
 
-By default `graphql-subscriptions` exports an in-memory (`EventEmitter`) event system to re-run subscriptions. 
+By default `graphql-subscriptions` exports an in-memory (`EventEmitter`) event system to re-run subscriptions.
 
 This is not suitable for running in a serious production app, because there is no way to share subscriptions and publishes across many running servers.
 

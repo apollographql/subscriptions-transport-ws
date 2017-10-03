@@ -1,6 +1,5 @@
 ---
 title: Authentication Over WebSocket
-order: 405
 ---
 
 You can use `SubscriptionServer` lifecycle hooks to create an authenticated transport by using `onConnect` to validate the connection.

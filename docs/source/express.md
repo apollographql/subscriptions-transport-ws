@@ -1,6 +1,5 @@
 ---
 title: Express
-order: 406
 ---
 
 If you already have an existing Express HTTP server (created with `createServer`), you can add subscriptions on a specific path.

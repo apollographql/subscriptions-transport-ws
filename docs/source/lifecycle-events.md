@@ -1,6 +1,5 @@
 ---
 title: Lifecycle Events
-order: 404
 ---
 
 `SubscriptionServer` exposes lifecycle hooks you can use to manage your subscription and clients:

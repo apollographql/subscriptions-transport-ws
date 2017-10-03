@@ -1,6 +1,5 @@
 ---
 title: Meteor
-order: 407
 ---
 
 Meteor exposes `httpServer` server through the `meteor/webapp` package, so you can use it the same way as any other http server:
