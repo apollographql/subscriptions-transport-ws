@@ -108,7 +108,7 @@ const schema = new GraphQLSchema({
         subscribe: withFilter(() => testPubsub.asyncIterator('userFiltered'),
           (user: any, args: { [key: string]: any }) => {
             return !args['id'] || user.id === parseInt(args['id'], 10);
-          }),
+          }) as any,
       },
       context: {
         type: GraphQLString,

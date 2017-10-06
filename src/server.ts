@@ -104,11 +104,11 @@ export class SubscriptionServer {
   private closeHandler: () => void;
   private specifiedRules: Array<(context: ValidationContext) => any>;
 
-  public static create(options: ServerOptions, socketOptions: WebSocket.IServerOptions) {
+  public static create(options: ServerOptions, socketOptions: WebSocket.ServerOptions) {
     return new SubscriptionServer(options, socketOptions);
   }
 
-  constructor(options: ServerOptions, socketOptions: WebSocket.IServerOptions) {
+  constructor(options: ServerOptions, socketOptions: WebSocket.ServerOptions) {
     const {
       onOperation, onOperationComplete, onConnect, onDisconnect, keepAlive,
     } = options;
