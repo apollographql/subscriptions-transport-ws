@@ -21,7 +21,7 @@ export interface OperationMessage {
 #### GQL_CONNECTION_INIT
 Client sends this message after plain websocket connection to start the communication with the server
 
-The server will response only with `GQL_CONNECTION_ACK` or `GQL_CONNECTION_ERROR` to this message.
+The server will response only with `GQL_CONNECTION_ACK` + `GQL_CONNECTION_KEEP_ALIVE` (if used) or `GQL_CONNECTION_ERROR` to this message.
 
 - `payload: Object` : optional parameters that the client specifies in `connectionParams`
 
@@ -74,9 +74,9 @@ Server sends this message to indicate that a GraphQL operation is done, and no m
 - `id: string` : operation ID of the operation that completed
 
 #### GQL_CONNECTION_KEEP_ALIVE
-Server message sent periodically to keep the client connection alive.
+Server message that should be sent right after each `GQL_CONNECTION_ACK` processed and then periodically to keep the client connection alive.
 
-The client starts to considerer the keep alive message only upon the first received keep alive message from the server.
+The client starts to consider the keep alive message only upon the first received keep alive message from the server.
 
 ### Messages Flow
 
@@ -86,10 +86,10 @@ This is a demonstration of client-server communication, in order to get a better
 
 The phase initializes the connection between the client and server, and usually will also build the server-side `context` for the execution.
 
-- Client connected immediatly, or stops and wait if using lazy mode (until first operation execution)
+- Client connected immediately, or stops and wait if using lazy mode (until first operation execution)
 - Client sends `GQL_CONNECTION_INIT` message to the server.
-- Server calls `onConnect` callback with the init arguments, waits for init to finish and returns it's return value with `GQL_CONNECTION_ACK`, or `GQL_CONNECTION_ERROR` in case of `false` or thrown exception from `onConnect` callback.
-- Client gets `GQL_CONNECTION_ACK` and waits for the client's app to create subscriptions.
+- Server calls `onConnect` callback with the init arguments, waits for init to finish and returns it's return value with `GQL_CONNECTION_ACK` + `GQL_CONNECTION_KEEP_ALIVE` (if used), or `GQL_CONNECTION_ERROR` in case of `false` or thrown exception from `onConnect` callback.
+- Client gets `GQL_CONNECTION_ACK` + `GQL_CONNECTION_KEEP_ALIVE` (if used) and waits for the client's app to create subscriptions.
 
 #### Connected Phase
 
