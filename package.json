@@ -53,7 +53,7 @@
     "rimraf": "^2.6.1",
     "sinon": "^2.3.6",
     "tslint": "^5.5.0",
-    "typescript": "^2.4.1",
+    "typescript": "^2.5.3",
     "webpack": "^3.1.0"
   },
   "typings": "dist/index.d.ts",
