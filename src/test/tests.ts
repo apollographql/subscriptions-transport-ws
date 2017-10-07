@@ -1684,15 +1684,23 @@ describe('Server', function () {
 
   });
 
-  it.only('should send a gql_data with errors message to client with invalid query', function (done) {
+  it('should send a gql_data with errors message to client with invalid query', function (done) {
     const client1 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+
     setTimeout(function () {
       client1.client.onmessage = (message: any) => {
         let messageData = JSON.parse(message.data);
-        assert.equal(messageData.type, MessageTypes.GQL_DATA);
+
+        assert.isTrue(
+          messageData.type === MessageTypes.GQL_DATA
+          || messageData.type === MessageTypes.GQL_COMPLETE);
+
+        if (messageData.type === MessageTypes.GQL_COMPLETE) {
+          done();
+        }
+
         const result = messageData.payload;
         assert.isAbove(result.errors.length, 0, 'Query should\'ve failed');
-        done();
       };
 
       client1.request({
