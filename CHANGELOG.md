@@ -1,7 +1,11 @@
 # Changelog
 
 ### vNEXT
+
+### 0.9.1
 - docs(KEEP_ALIVE): Updated protocol docs to explain the correct server implementation of `GQL_CONNECTION_INIT`, `GQL_CONNECTION_ACK` and `GQL_CONNECTION_KEEP_ALIVE` [PR #279](https://github.com/apollographql/subscriptions-transport-ws/pull/279)
+- docs(language-typos): Update documentation to remove some language typos [PR #282](https://github.com/apollographql/subscriptions-transport-ws/pull/282)
+- fix(typescript-2.5.x-typings): Fix a couple of typing changes required by latest typing files with TypeScript 2.5.X. [PR #285](https://github.com/apollographql/subscriptions-transport-ws/pull/285)
 
 ### 0.9.0
 - docs(README): Fix example for subscribe and subscribeToMore [PR #273](https://github.com/apollographql/subscriptions-transport-ws/pull/273)
