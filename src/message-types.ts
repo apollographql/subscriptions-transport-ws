@@ -5,7 +5,7 @@ export default class MessageTypes {
 
   // NOTE: The keep alive message type does not follow the standard due to connection optimizations
   public static GQL_CONNECTION_KEEP_ALIVE = 'ka'; // Server -> Client
-  
+
   public static GQL_CONNECTION_TERMINATE = 'connection_terminate'; // Client -> Server
   public static GQL_START = 'start'; // Client -> Server
   public static GQL_DATA = 'data'; // Server -> Client

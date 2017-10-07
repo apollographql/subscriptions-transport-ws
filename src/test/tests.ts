@@ -108,7 +108,7 @@ const schema = new GraphQLSchema({
         subscribe: withFilter(() => testPubsub.asyncIterator('userFiltered'),
           (user: any, args: { [key: string]: any }) => {
             return !args['id'] || user.id === parseInt(args['id'], 10);
-          }) as any,
+          }),
       },
       context: {
         type: GraphQLString,
@@ -1684,7 +1684,7 @@ describe('Server', function () {
 
   });
 
-  it('should send a gql_data with errors message to client with invalid query', function (done) {
+  it.only('should send a gql_data with errors message to client with invalid query', function (done) {
     const client1 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     setTimeout(function () {
       client1.client.onmessage = (message: any) => {
