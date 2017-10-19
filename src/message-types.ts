@@ -46,6 +46,10 @@ export default class MessageTypes {
    * @deprecated
    */
   public static INIT_FAIL = 'init_fail';
+  /**
+   * @deprecated
+   */
+  public static KEEP_ALIVE = 'keepalive';
 
   constructor() {
     throw new Error('Static Class');

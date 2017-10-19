@@ -1941,11 +1941,38 @@ describe('Server', function () {
       const parsedMessage = JSON.parse(message.data);
       if (parsedMessage.type === MessageTypes.GQL_CONNECTION_KEEP_ALIVE) {
         yieldCount += 1;
-        if (yieldCount > 1) {
+        if (yieldCount > 2) {
           client.close();
           done();
         }
       }
+    };
+    client.onopen = () => {
+      client.send(JSON.stringify({
+        id: 1,
+        type: MessageTypes.GQL_CONNECTION_INIT,
+      }));
+    };
+  });
+
+  it('sends legacy keep alive signal in the socket', function (done) {
+    let client = new WebSocket(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, GRAPHQL_SUBSCRIPTIONS);
+    let yieldCount = 0;
+    client.onmessage = (message: any) => {
+      const parsedMessage = JSON.parse(message.data);
+      if (parsedMessage.type === MessageTypes.KEEP_ALIVE) {
+        yieldCount += 1;
+        if (yieldCount > 2) {
+          client.close();
+          done();
+        }
+      }
+    };
+    client.onopen = () => {
+      client.send(JSON.stringify({
+        id: 1,
+        type: MessageTypes.INIT,
+      }));
     };
   });
 });
