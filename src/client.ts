@@ -416,9 +416,8 @@ export class SubscriptionClient {
     switch (this.status) {
       case this.wsImpl.OPEN:
         let serializedMessage: string = JSON.stringify(message);
-        let parsedMessage: any;
         try {
-          parsedMessage = JSON.parse(serializedMessage);
+          JSON.parse(serializedMessage);
         } catch (e) {
           throw new Error(`Message must be JSON-serializable. Got: ${message}`);
         }
