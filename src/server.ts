@@ -236,11 +236,10 @@ export class SubscriptionServer {
   }
 
   private onMessage(connectionContext: ConnectionContext) {
-    let onInitResolve: any = null, onInitReject: any = null;
+    let onInitResolve: any = null;
 
     connectionContext.initPromise = new Promise((resolve, reject) => {
       onInitResolve = resolve;
-      onInitReject = reject;
     });
 
     return (message: any) => {
