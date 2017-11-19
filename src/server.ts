@@ -19,6 +19,7 @@ import { createIterableFromPromise } from './utils/promise-to-iterable';
 import { isASubscriptionOperation } from './utils/is-subscriptions';
 import { parseLegacyProtocolMessage } from './legacy/parse-legacy-protocol';
 import { IncomingMessage } from 'http';
+import { isPromise } from './utils/is-promise';
 
 export type ExecutionIterator = AsyncIterator<ExecutionResult>;
 
@@ -370,7 +371,7 @@ export class SubscriptionServer {
                   params.variables,
                   params.operationName);
 
-                if (!isAsyncIterable(promiseOrIterable) && promiseOrIterable instanceof Promise) {
+                if (!isAsyncIterable(promiseOrIterable) && isPromise(promiseOrIterable)) {
                   executionIterable = promiseOrIterable;
                 } else if (isAsyncIterable(promiseOrIterable)) {
                   executionIterable = Promise.resolve(promiseOrIterable as any as AsyncIterator<ExecutionResult>);
