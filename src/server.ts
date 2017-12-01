@@ -441,10 +441,8 @@ export class SubscriptionServer {
           break;
 
         case MessageTypes.GQL_STOP:
-          connectionContext.initPromise.then(() => {
-            // Find subscription id. Call unsubscribe.
-            this.unsubscribe(connectionContext, opId);
-          });
+          // Find subscription id. Call unsubscribe.
+          this.unsubscribe(connectionContext, opId);
           break;
 
         default:
