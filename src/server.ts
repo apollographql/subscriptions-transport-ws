@@ -3,6 +3,7 @@ import * as WebSocket from 'ws';
 import MessageTypes from './message-types';
 import { GRAPHQL_WS, GRAPHQL_SUBSCRIPTIONS } from './protocol';
 import isObject = require('lodash.isobject');
+import isPromise = require('is-promise');
 import {
   parse,
   ExecutionResult,
@@ -224,11 +225,10 @@ export class SubscriptionServer {
   }
 
   private onMessage(connectionContext: ConnectionContext) {
-    let onInitResolve: any = null, onInitReject: any = null;
+    let onInitResolve: any = null;
 
     connectionContext.initPromise = new Promise((resolve, reject) => {
       onInitResolve = resolve;
-      onInitReject = reject;
     });
 
     return (message: any) => {
@@ -362,7 +362,7 @@ export class SubscriptionServer {
                   params.variables,
                   params.operationName);
 
-                if (!isAsyncIterable(promiseOrIterable) && promiseOrIterable instanceof Promise) {
+                if (!isAsyncIterable(promiseOrIterable) && isPromise(promiseOrIterable)) {
                   executionIterable = promiseOrIterable;
                 } else if (isAsyncIterable(promiseOrIterable)) {
                   executionIterable = Promise.resolve(promiseOrIterable as any as AsyncIterator<ExecutionResult>);
