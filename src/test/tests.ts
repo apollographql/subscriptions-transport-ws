@@ -198,8 +198,9 @@ const onConnectErrorOptions = {
   schema,
   subscribe,
   execute,
+  isLegacy: true,
   onConnect: (msg: any, connection: any, connectionContext: any) => {
-    connectionContext.isLegacy = true;
+    connectionContext.isLegacy = onConnectErrorOptions.isLegacy;
     throw new Error('Error');
   },
 };
@@ -1480,6 +1481,23 @@ describe('Server', function () {
   it('should trigger onConnect and return GQL_CONNECTION_ERROR with error', (done) => {
     const connectionCallbackSpy = sinon.spy();
 
+    onConnectErrorOptions.isLegacy = false;
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${ONCONNECT_ERROR_TEST_PORT}/`, {
+      connectionCallback: connectionCallbackSpy,
+    });
+
+    setTimeout(() => {
+      expect(connectionCallbackSpy.calledOnce).to.be.true;
+      expect(connectionCallbackSpy.getCall(0).args[0]).to.eql({ message: 'Error' });
+      subscriptionsClient.close();
+      done();
+    }, 200);
+  });
+
+  it('should trigger onConnect and return INIT_FAIL with error', (done) => {
+    const connectionCallbackSpy = sinon.spy();
+
+    onConnectErrorOptions.isLegacy = true;
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${ONCONNECT_ERROR_TEST_PORT}/`, {
       connectionCallback: connectionCallbackSpy,
     });
@@ -1487,18 +1505,21 @@ describe('Server', function () {
     const originalOnMessage = subscriptionsClient.client.onmessage;
     subscriptionsClient.client.onmessage = (dataReceived: any) => {
       let messageData = JSON.parse(dataReceived.data);
-
+      // Reformat message to avoid unknown message type
       if (messageData.type === MessageTypes.INIT_FAIL) {
         messageData.type = MessageTypes.GQL_CONNECTION_ERROR;
       }
-
       dataReceived.data = JSON.stringify(messageData);
       originalOnMessage(dataReceived);
     };
 
     setTimeout(() => {
       expect(connectionCallbackSpy.calledOnce).to.be.true;
-      expect(connectionCallbackSpy.getCall(0).args[0]).to.equal('Error');
+      // Old client used: connectionCallback(parsedMessage.payload.error)
+      // But new client uses: connectionCallback(parsedMessage.payload)
+      // So check complete payload
+      expect(connectionCallbackSpy.getCall(0).args[0]).to.eql({ error: 'Error' });
+      subscriptionsClient.close();
       done();
     }, 200);
   });
