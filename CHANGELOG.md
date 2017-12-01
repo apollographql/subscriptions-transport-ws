@@ -1,7 +1,10 @@
 # Changelog
 
 ### vNEXT
-- fix(isPromise): Made checks for promises in server.ts loose to allow for augmented and polyfilled promises.
+
+### 0.9.2
+- fix format of keep alive message sent to legacy clients. [PR #297](https://github.com/apollographql/subscriptions-transport-ws/pull/297)
+- fix(isPromise): Made checks for promises in server.ts loose to allow for augmented and polyfilled promises. [PR #304](https://github.com/apollographql/subscriptions-transport-ws/pull/304)
 
 ### 0.9.1
 - docs(KEEP_ALIVE): Updated protocol docs to explain the correct server implementation of `GQL_CONNECTION_INIT`, `GQL_CONNECTION_ACK` and `GQL_CONNECTION_KEEP_ALIVE` [PR #279](https://github.com/apollographql/subscriptions-transport-ws/pull/279)
