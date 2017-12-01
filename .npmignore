@@ -1,2 +1,12 @@
-dist/test
-src
+.github/
+.gitmodules
+.idea/
+.travis.yml
+.vscode/
+coverage/
+dist/test/
+docs/
+npm-debug.log.*
+package-lock.json
+src/
+yarn.lock
