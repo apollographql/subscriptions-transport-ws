@@ -20,7 +20,6 @@
     "ws": "^3.0.0"
   },
   "scripts": {
-    "precompile": "rimraf dist",
     "compile": "tsc",
     "pretest": "npm run compile",
     "test": "npm run testonly --",
@@ -31,8 +30,7 @@
     "coverage": "node ./node_modules/istanbul/lib/cli.js cover _mocha -- --full-trace ./dist/test/tests.js",
     "postcoverage": "remap-istanbul --input coverage/coverage.raw.json --type lcovonly --output coverage/lcov.info",
     "browser-compile": "webpack --config \"./unpkg-webpack.config.js\"",
-    "prepublishOnly": "npm run compile && npm run browser-compile",
-    "postinstall": "node scripts/post-install.js"
+    "prepublishOnly": "npm run compile && npm run browser-compile"
   },
   "peerDependencies": {
     "graphql": "^0.10.0 || ^0.11.0"
