@@ -146,17 +146,6 @@ export class SubscriptionServer {
       connectionContext.socket = socket;
       connectionContext.operations = {};
 
-      // Regular keep alive messages if keepAlive is set
-      if (this.keepAlive) {
-        const keepAliveTimer = setInterval(() => {
-          if (socket.readyState === WebSocket.OPEN) {
-            this.sendMessage(connectionContext, undefined, MessageTypes.GQL_CONNECTION_KEEP_ALIVE, undefined);
-          } else {
-            clearInterval(keepAliveTimer);
-          }
-        }, this.keepAlive);
-      }
-
       const connectionClosedHandler = (error: any) => {
         if (error) {
           this.sendError(
@@ -282,12 +271,15 @@ export class SubscriptionServer {
             );
 
             if (this.keepAlive) {
-              this.sendMessage(
-                connectionContext,
-                undefined,
-                MessageTypes.GQL_CONNECTION_KEEP_ALIVE,
-                undefined,
-              );
+              this.sendKeepAlive(connectionContext);
+              // Regular keep alive messages if keepAlive is set
+              const keepAliveTimer = setInterval(() => {
+                if (connectionContext.socket.readyState === WebSocket.OPEN) {
+                  this.sendKeepAlive(connectionContext);
+                } else {
+                  clearInterval(keepAliveTimer);
+                }
+              }, this.keepAlive);
             }
           }).catch((error: Error) => {
             this.sendError(
@@ -459,6 +451,14 @@ export class SubscriptionServer {
           this.sendError(connectionContext, opId, { message: 'Invalid message type!' });
       }
     };
+  }
+
+  private sendKeepAlive(connectionContext: ConnectionContext): void {
+    if (connectionContext.isLegacy) {
+      this.sendMessage(connectionContext, undefined, MessageTypes.KEEP_ALIVE, undefined);
+    } else {
+      this.sendMessage(connectionContext, undefined, MessageTypes.GQL_CONNECTION_KEEP_ALIVE, undefined);
+    }
   }
 
   private sendMessage(connectionContext: ConnectionContext, opId: string, type: string, payload: any): void {
