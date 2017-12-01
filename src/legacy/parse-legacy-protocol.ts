@@ -32,7 +32,7 @@ export const parseLegacyProtocolMessage = (connectionContext: ConnectionContext,
       if (connectionContext.isLegacy) {
         messageToReturn = {
           ...message, type: MessageTypes.INIT_FAIL,
-          payload: message.payload.message ? message.payload.message : message.payload,
+          payload: message.payload.message ? { error: message.payload.message } : message.payload,
         };
       }
       break;
