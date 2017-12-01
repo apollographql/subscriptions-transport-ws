@@ -11,6 +11,7 @@
   "dependencies": {
     "backo2": "^1.0.2",
     "eventemitter3": "^2.0.3",
+    "is-promise": "^2.1.0",
     "iterall": "^1.1.1",
     "lodash.assign": "^4.2.0",
     "lodash.isobject": "^3.0.2",
@@ -38,6 +39,7 @@
   "devDependencies": {
     "@types/chai": "^4.0.0",
     "@types/graphql": "^0.11.3",
+    "@types/is-promise": "^2.1.0",
     "@types/lodash": "^4.14.68",
     "@types/mocha": "^2.2.41",
     "@types/node": "^8.0.8",

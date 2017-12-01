@@ -3,6 +3,7 @@ import * as WebSocket from 'ws';
 import MessageTypes from './message-types';
 import { GRAPHQL_WS, GRAPHQL_SUBSCRIPTIONS } from './protocol';
 import isObject = require('lodash.isobject');
+import isPromise = require('is-promise');
 import {
   parse,
   ExecutionResult,
@@ -19,7 +20,6 @@ import { createIterableFromPromise } from './utils/promise-to-iterable';
 import { isASubscriptionOperation } from './utils/is-subscriptions';
 import { parseLegacyProtocolMessage } from './legacy/parse-legacy-protocol';
 import { IncomingMessage } from 'http';
-import { isPromise } from './utils/is-promise';
 
 export type ExecutionIterator = AsyncIterator<ExecutionResult>;
 
