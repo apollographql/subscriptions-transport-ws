@@ -142,6 +142,7 @@ export class SubscriptionServer {
       }
 
       const connectionContext: ConnectionContext = Object.create(null);
+      connectionContext.initPromise = Promise.resolve(true);
       connectionContext.isLegacy = false;
       connectionContext.socket = socket;
       connectionContext.operations = {};
@@ -225,12 +226,6 @@ export class SubscriptionServer {
   }
 
   private onMessage(connectionContext: ConnectionContext) {
-    let onInitResolve: any = null;
-
-    connectionContext.initPromise = new Promise((resolve, reject) => {
-      onInitResolve = resolve;
-    });
-
     return (message: any) => {
       let parsedMessage: OperationMessage;
       try {
@@ -243,9 +238,8 @@ export class SubscriptionServer {
       const opId = parsedMessage.id;
       switch (parsedMessage.type) {
         case MessageTypes.GQL_CONNECTION_INIT:
-          let onConnectPromise = Promise.resolve(true);
           if (this.onConnect) {
-            onConnectPromise = new Promise((resolve, reject) => {
+            connectionContext.initPromise = new Promise((resolve, reject) => {
               try {
                 // TODO - this should become a function call with just 2 arguments in the future
                 // when we release the breaking change api: parsedMessage.payload and connectionContext
@@ -255,8 +249,6 @@ export class SubscriptionServer {
               }
             });
           }
-
-          onInitResolve(onConnectPromise);
 
           connectionContext.initPromise.then((result) => {
             if (result === false) {
