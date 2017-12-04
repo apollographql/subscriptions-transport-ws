@@ -429,6 +429,10 @@ export class SubscriptionServer {
               this.unsubscribe(connectionContext, opId);
               return;
             });
+          }).catch((error) => {
+            // Handle initPromise rejected
+            this.sendError(connectionContext, opId, { message: error.message });
+            this.unsubscribe(connectionContext, opId);
           });
           break;
 
