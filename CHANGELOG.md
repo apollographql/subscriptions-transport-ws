@@ -2,6 +2,10 @@
 
 ### vNEXT
 
+### 0.9.3
+- fix unhandledRejection error in GQL_STOP handling if initPromise rejected [PR #309](https://github.com/apollographql/subscriptions-transport-ws/pull/309)
+- fix return of init error message to legacy clients [PR #309](https://github.com/apollographql/subscriptions-transport-ws/pull/309)
+
 ### 0.9.2
 - fix format of keep alive message sent to legacy clients. [PR #297](https://github.com/apollographql/subscriptions-transport-ws/pull/297)
 - fix(isPromise): Made checks for promises in server.ts loose to allow for augmented and polyfilled promises. [PR #304](https://github.com/apollographql/subscriptions-transport-ws/pull/304)
