@@ -2,6 +2,9 @@
 
 ### vNEXT
 
+### 0.9.4
+- fix unhandledRejection error in GQL_START handling if initPromise rejected [PR #310](https://github.com/apollographql/subscriptions-transport-ws/pull/310)
+
 ### 0.9.3
 - fix unhandledRejection error in GQL_STOP handling if initPromise rejected [PR #309](https://github.com/apollographql/subscriptions-transport-ws/pull/309)
 - fix return of init error message to legacy clients [PR #309](https://github.com/apollographql/subscriptions-transport-ws/pull/309)
