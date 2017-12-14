@@ -106,7 +106,7 @@ See [the tutorial on Medium for complete working sample code](https://dev-blog.a
 
 To connect the published event from our `PubSub` to GraphQL engine, we need to create `AsyncIterable` and use it in the GraphQL subscription resolver definition.
 
-You can see [an example for creating subscription resolver here](/tools/graphql-subscriptions/subscriptions-to-schema.html)
+You can see [an example for creating subscription resolver here](/docs/graphql-subscriptions/subscriptions-to-schema.html)
 
 
 
