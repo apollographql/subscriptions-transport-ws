@@ -30,7 +30,7 @@ import {
   GRAPHQL_SUBSCRIPTIONS,
 } from '../protocol';
 
-import { createServer, IncomingMessage, ServerResponse } from 'http';
+import { createServer, IncomingMessage, ServerResponse, Server } from 'http';
 import { SubscriptionServer, ExecutionParams } from '../server';
 import { SubscriptionClient } from '../client';
 import { OperationMessage } from '../server';
@@ -876,6 +876,9 @@ describe('Client', function () {
     let client: SubscriptionClient;
     let originalClient: any;
     wsServer.on('connection', (connection: WebSocket) => {
+      connection.on('error', (error) => {
+        // ignored for testing
+      });
       connections += 1;
       if (connections === 1) {
         originalClient.close();
@@ -1184,12 +1187,17 @@ describe('Client', function () {
 
 describe('Server', function () {
   let onOperationSpy: any;
+  let server: Server;
 
   beforeEach(() => {
     onOperationSpy = sinon.spy(handlers, 'onOperation');
   });
 
   afterEach(() => {
+    if (server) {
+      server.close();
+    }
+
     if (onOperationSpy) {
       onOperationSpy.restore();
     }
@@ -1227,7 +1235,7 @@ describe('Server', function () {
   });
 
   it('should accept execute method than returns a Promise (original execute)', (done) => {
-    const server = createServer(notFoundRequestListener);
+    server = createServer(notFoundRequestListener);
     server.listen(SERVER_EXECUTOR_TESTS_PORT);
     let msgCnt = 0;
 
@@ -1258,7 +1266,6 @@ describe('Server', function () {
         },
         complete: () => {
           expect(msgCnt).to.equals(1);
-          server.close();
           done();
         },
       });
@@ -1266,7 +1273,7 @@ describe('Server', function () {
   });
 
   it('server close should work', (done) => {
-    const server = createServer(notFoundRequestListener);
+    server = createServer(notFoundRequestListener);
     server.listen(SERVER_EXECUTOR_TESTS_PORT);
 
     const subServer = SubscriptionServer.create({
@@ -1279,7 +1286,6 @@ describe('Server', function () {
 
     const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
     client.onDisconnected(() => {
-      server.close();
       done();
     });
 
@@ -1301,7 +1307,7 @@ describe('Server', function () {
   });
 
   it('should have request interface (apollo client 2.0)', (done) => {
-    const server = createServer(notFoundRequestListener);
+    server = createServer(notFoundRequestListener);
     server.listen(SERVER_EXECUTOR_TESTS_PORT);
 
     SubscriptionServer.create({
@@ -1326,13 +1332,9 @@ describe('Server', function () {
           hasValue = true;
         },
         error: (err) => {
-          server.close();
-
           done(new Error('unexpected error from subscribe'));
         },
         complete: () => {
-          server.close();
-
           if ( false === hasValue ) {
             return done(new Error('No value recived from observable'));
           }
@@ -1342,36 +1344,8 @@ describe('Server', function () {
     });
   });
 
-  it('should return an error when invalid execute method provided', (done) => {
-    const server = createServer(notFoundRequestListener);
-    server.listen(SERVER_EXECUTOR_TESTS_PORT);
-
-    SubscriptionServer.create({
-      schema,
-      execute: (() => ({})) as any,
-    }, {
-      server,
-      path: '/',
-    });
-
-    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
-    client.onConnected(() => {
-      client.request({
-        query: `query { testString }`,
-        variables: {},
-      }).subscribe({
-        error: (err) => {
-          expect(err.message).to.equal('GraphQL execute engine is not available');
-          client.client.close();
-          server.close();
-          done();
-        },
-      });
-    });
-  });
-
   it('should accept execute method than returns an AsyncIterator', (done) => {
-    const server = createServer(notFoundRequestListener);
+    server = createServer(notFoundRequestListener);
     server.listen(SERVER_EXECUTOR_TESTS_PORT);
 
     const executeWithAsyncIterable = () => {
@@ -1419,8 +1393,6 @@ describe('Server', function () {
           } else {
             expect(res.data).to.deep.equal({ testString: 'value' });
           }
-
-          server.close();
           done();
         },
       });
@@ -2008,16 +1980,24 @@ describe('Message Types', function () {
 });
 
 describe('Client<->Server Flow', () => {
+  let server: Server;
+
+  afterEach(() => {
+    if (server) {
+      server.close();
+    }
+  });
+
   it('should reconnect after manually closing the connection and then resubscribing', (done) => {
-    const testServer = createServer(notFoundRequestListener);
-    testServer.listen(SERVER_EXECUTOR_TESTS_PORT);
+    server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
 
     SubscriptionServer.create({
       schema: subscriptionsSchema,
       execute,
       subscribe,
     }, {
-      server: testServer,
+      server,
       path: '/',
     });
 
@@ -2044,7 +2024,6 @@ describe('Client<->Server Flow', () => {
               expect(res.data.testString).to.eq('value');
 
               sub.unsubscribe();
-              testServer.close();
               done();
             },
           });
@@ -2054,8 +2033,8 @@ describe('Client<->Server Flow', () => {
   });
 
   it('validate requests against schema', (done) => {
-    const testServer = createServer(notFoundRequestListener);
-    testServer.listen(SERVER_EXECUTOR_TESTS_PORT);
+    server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
 
     SubscriptionServer.create({
       schema: subscriptionsSchema,
@@ -2063,7 +2042,7 @@ describe('Client<->Server Flow', () => {
       subscribe,
       validationRules: specifiedRules,
     }, {
-      server: testServer,
+      server,
       path: '/',
     });
 
@@ -2093,7 +2072,6 @@ describe('Client<->Server Flow', () => {
               );
 
               sub.unsubscribe();
-              testServer.close();
               done();
             },
           });
@@ -2106,15 +2084,15 @@ describe('Client<->Server Flow', () => {
     subscriptionAsyncIteratorSpy.reset();
     resolveAsyncIteratorSpy.reset();
 
-    const testServer = createServer(notFoundRequestListener);
-    testServer.listen(SERVER_EXECUTOR_TESTS_PORT);
+    server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
 
     SubscriptionServer.create({
       schema: subscriptionsSchema,
       execute,
       subscribe,
     }, {
-      server: testServer,
+      server,
       path: '/',
     });
 
@@ -2183,21 +2161,20 @@ describe('Client<->Server Flow', () => {
     // should be 0 because subscribe called only in the beginning
     expect(subscriptionAsyncIteratorSpy.callCount).to.eq(0);
     client2.unsubscribe();
-    testServer.close();
   });
 
   it('should close iteration over AsyncIterator when client disconnects', async () => {
     resolveAsyncIteratorSpy.reset();
 
-    const testServer = createServer(notFoundRequestListener);
-    testServer.listen(SERVER_EXECUTOR_TESTS_PORT);
+    server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
 
     SubscriptionServer.create({
       schema: subscriptionsSchema,
       execute,
       subscribe,
     }, {
-      server: testServer,
+      server,
       path: '/',
     });
 
@@ -2260,7 +2237,6 @@ describe('Client<->Server Flow', () => {
     expect(client2.spy.callCount).to.eq(1);
     // should be 1 because there is only one subscriber now (client2)
     expect(resolveAsyncIteratorSpy.callCount).to.eq(1);
-    testServer.close();
   });
 
   it('should handle correctly multiple subscriptions one after each other', (done) => {
@@ -2269,7 +2245,7 @@ describe('Client<->Server Flow', () => {
     // change quickly and we want to make sure that the subscriptions flow is correct
 
     // Create the server
-    const server = createServer(notFoundRequestListener);
+    server = createServer(notFoundRequestListener);
     server.listen(SERVER_EXECUTOR_TESTS_PORT);
 
     SubscriptionServer.create({
@@ -2323,12 +2299,11 @@ describe('Client<->Server Flow', () => {
                 }).subscribe({
                   next: (s2Res) => {
                     assert(s2Res.errors === undefined, 'unexpected error from 2nd subscription');
-                    assert(s2Res.data !== null, 'unexpected null from 2nd ubscription result');
+                    assert(s2Res.data !== null, 'unexpected null from 2nd subscription result');
                     expect(s2Res.data.user.id).to.eq('1');
                     expect(Object.keys(client['operations']).length).to.eq(1);
                     expect(firstSubscriptionSpy.callCount).to.eq(1);
 
-                    server.close();
                     done();
                   },
                 });

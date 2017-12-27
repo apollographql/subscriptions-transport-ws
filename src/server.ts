@@ -3,7 +3,6 @@ import * as WebSocket from 'ws';
 import MessageTypes from './message-types';
 import { GRAPHQL_WS, GRAPHQL_SUBSCRIPTIONS } from './protocol';
 import isObject = require('lodash.isobject');
-import isPromise = require('is-promise');
 import {
   parse,
   ExecutionResult,
@@ -354,18 +353,7 @@ export class SubscriptionServer {
                   params.variables,
                   params.operationName);
 
-                if (!isAsyncIterable(promiseOrIterable) && isPromise(promiseOrIterable)) {
-                  executionIterable = promiseOrIterable;
-                } else if (isAsyncIterable(promiseOrIterable)) {
-                  executionIterable = Promise.resolve(promiseOrIterable as any as AsyncIterator<ExecutionResult>);
-                } else {
-                  // Unexpected return value from execute - log it as error and trigger an error to client side
-                  console.error('Invalid `execute` return type! Only Promise or AsyncIterable are valid values!');
-
-                  this.sendError(connectionContext, opId, {
-                    message: 'GraphQL execute engine is not available',
-                  });
-                }
+                executionIterable = Promise.resolve(promiseOrIterable);
               }
 
               return executionIterable.then((ei) => ({
