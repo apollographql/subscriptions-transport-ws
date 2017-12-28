@@ -15,7 +15,6 @@ import {
 } from 'graphql';
 import { createEmptyIterable } from './utils/empty-iterable';
 import { createAsyncIterator, forAwaitEach, isAsyncIterable } from 'iterall';
-import { createIterableFromPromise } from './utils/promise-to-iterable';
 import { isASubscriptionOperation } from './utils/is-subscriptions';
 import { parseLegacyProtocolMessage } from './legacy/parse-legacy-protocol';
 import { IncomingMessage } from 'http';
@@ -333,37 +332,32 @@ export class SubscriptionServer {
               }
 
               const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
-              let executionIterable: Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
+              let executionPromise: Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
               const validationErrors: Error[] = validate(this.schema, document, this.specifiedRules);
 
               if ( validationErrors.length > 0 ) {
-                executionIterable = Promise.resolve(createIterableFromPromise<ExecutionResult>(
-                  Promise.resolve({ errors: validationErrors }),
-                ));
+                executionPromise = Promise.resolve({ errors: validationErrors });
               } else {
                 let executor: SubscribeFunction | ExecuteFunction = this.execute;
                 if (this.subscribe && isASubscriptionOperation(document, params.operationName)) {
                   executor = this.subscribe;
                 }
-
-                const promiseOrIterable = executor(this.schema,
+                executionPromise = Promise.resolve(executor(this.schema,
                   document,
                   this.rootValue,
                   params.context,
                   params.variables,
-                  params.operationName);
-
-                executionIterable = Promise.resolve(promiseOrIterable);
+                  params.operationName));
               }
 
-              return executionIterable.then((ei) => ({
-                executionIterable: isAsyncIterable(ei) ?
-                  ei : createAsyncIterator([ ei ]),
+              return executionPromise.then((executionResult) => ({
+                executionIterable: isAsyncIterable(executionResult) ?
+                  executionResult : createAsyncIterator([ executionResult ]),
                 params,
               }));
             }).then(({ executionIterable, params }) => {
               forAwaitEach(
-                createAsyncIterator(executionIterable) as any,
+                executionIterable as any,
                 (value: ExecutionResult) => {
                   let result = value;
 
