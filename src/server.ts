@@ -3,7 +3,6 @@ import * as WebSocket from 'ws';
 import MessageTypes from './message-types';
 import { GRAPHQL_WS, GRAPHQL_SUBSCRIPTIONS } from './protocol';
 import isObject = require('lodash.isobject');
-import isPromise = require('is-promise');
 import {
   parse,
   ExecutionResult,
@@ -16,7 +15,6 @@ import {
 } from 'graphql';
 import { createEmptyIterable } from './utils/empty-iterable';
 import { createAsyncIterator, forAwaitEach, isAsyncIterable } from 'iterall';
-import { createIterableFromPromise } from './utils/promise-to-iterable';
 import { isASubscriptionOperation } from './utils/is-subscriptions';
 import { parseLegacyProtocolMessage } from './legacy/parse-legacy-protocol';
 import { IncomingMessage } from 'http';
@@ -334,48 +332,32 @@ export class SubscriptionServer {
               }
 
               const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
-              let executionIterable: Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
+              let executionPromise: Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
               const validationErrors: Error[] = validate(this.schema, document, this.specifiedRules);
 
               if ( validationErrors.length > 0 ) {
-                executionIterable = Promise.resolve(createIterableFromPromise<ExecutionResult>(
-                  Promise.resolve({ errors: validationErrors }),
-                ));
+                executionPromise = Promise.resolve({ errors: validationErrors });
               } else {
                 let executor: SubscribeFunction | ExecuteFunction = this.execute;
                 if (this.subscribe && isASubscriptionOperation(document, params.operationName)) {
                   executor = this.subscribe;
                 }
-
-                const promiseOrIterable = executor(this.schema,
+                executionPromise = Promise.resolve(executor(this.schema,
                   document,
                   this.rootValue,
                   params.context,
                   params.variables,
-                  params.operationName);
-
-                if (!isAsyncIterable(promiseOrIterable) && isPromise(promiseOrIterable)) {
-                  executionIterable = promiseOrIterable;
-                } else if (isAsyncIterable(promiseOrIterable)) {
-                  executionIterable = Promise.resolve(promiseOrIterable as any as AsyncIterator<ExecutionResult>);
-                } else {
-                  // Unexpected return value from execute - log it as error and trigger an error to client side
-                  console.error('Invalid `execute` return type! Only Promise or AsyncIterable are valid values!');
-
-                  this.sendError(connectionContext, opId, {
-                    message: 'GraphQL execute engine is not available',
-                  });
-                }
+                  params.operationName));
               }
 
-              return executionIterable.then((ei) => ({
-                executionIterable: isAsyncIterable(ei) ?
-                  ei : createAsyncIterator([ ei ]),
+              return executionPromise.then((executionResult) => ({
+                executionIterable: isAsyncIterable(executionResult) ?
+                  executionResult : createAsyncIterator([ executionResult ]),
                 params,
               }));
             }).then(({ executionIterable, params }) => {
               forAwaitEach(
-                createAsyncIterator(executionIterable) as any,
+                executionIterable as any,
                 (value: ExecutionResult) => {
                   let result = value;
 
