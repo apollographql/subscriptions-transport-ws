@@ -1,6 +1,8 @@
 # Changelog
 
 ### vNEXT
+
+### 0.9.5
 - docs(setup): Fix dead link to subscriptions-to-schema
 - upgrade to support graphql 0.12.X
 
