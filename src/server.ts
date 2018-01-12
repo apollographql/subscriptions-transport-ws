@@ -411,6 +411,7 @@ export class SubscriptionServer {
               this.unsubscribe(connectionContext, opId);
               return;
             });
+            return promisedParams;
           }).catch((error) => {
             // Handle initPromise rejected
             this.sendError(connectionContext, opId, { message: error.message });
