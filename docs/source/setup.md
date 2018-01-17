@@ -41,9 +41,9 @@ pubsub.publish('commentAdded', payload);
 
 > At this point, nothing works yet because there is nothing to publish into
 
-<h2 id="subscription-server">SubscriptionsServer</h2>
+<h2 id="subscription-server">SubscriptionServer</h2>
 
-`SubscriptionsServer` will manage the WebSocket connection between the GraphQL engine and the clients.
+`SubscriptionServer` will manage the WebSocket connection between the GraphQL engine and the clients.
 
 We will use the server provided by the `subscriptions-transport-ws` transport package.
 
@@ -53,7 +53,7 @@ First install the `subscriptions-transport-ws` package:
 npm install --save subscriptions-transport-ws
 ```
 
-`SubscriptionsServer` expect a `schema`, `execute` and `subscribe` (optional) and a http server. Here is complete setup code, supporting both queries and subscriptions.
+`SubscriptionServer` expect a `schema`, `execute` and `subscribe` (optional) and a http server. Here is complete setup code, supporting both queries and subscriptions.
 
 ```js
 import express from 'express';
@@ -114,7 +114,7 @@ You can see [an example for creating subscription resolver here](/docs/graphql-s
 
 Sometimes a client will want filter out specific events based on context and arguments.
 
-To do so, we can use `withFilter` helper from this package, which wraps `AsyncItrator` with a filter function, and let you control each publication for each user.
+To do so, we can use `withFilter` helper from this package, which wraps `AsyncIterator` with a filter function, and let you control each publication for each user.
 
 Let's see an example - for the `commentAdded` server-side subscription, the client want to subscribe only to comments added to a specific repo:
 
