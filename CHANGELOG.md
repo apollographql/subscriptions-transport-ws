@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- fix shallow cloning on contexts which are classes
 
 ### 0.9.5
 - docs(setup): Fix dead link to subscriptions-to-schema

@@ -305,10 +305,7 @@ export class SubscriptionServer {
               query: parsedMessage.payload.query,
               variables: parsedMessage.payload.variables,
               operationName: parsedMessage.payload.operationName,
-              context: Object.assign(
-                {},
-                isObject(initResult) ? initResult : {},
-              ),
+              context: isObject(initResult) ? Object.assign(Object.create(Object.getPrototypeOf(initResult)), initResult) : {},
               formatResponse: <any>undefined,
               formatError: <any>undefined,
               callback: <any>undefined,
