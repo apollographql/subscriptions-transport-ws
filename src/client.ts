@@ -234,6 +234,10 @@ export class SubscriptionClient {
     return this.on('reconnecting', callback, context);
   }
 
+  public onError(callback: ListenerFn, context?: any): Function {
+    return this.on('error', callback, context);
+  }
+
   public unsubscribeAll() {
     Object.keys(this.operations).forEach( subId => {
       this.unsubscribe(subId);
@@ -514,9 +518,10 @@ export class SubscriptionClient {
       }
     };
 
-    this.client.onerror = () => {
+    this.client.onerror = (err: Error) => {
       // Capture and ignore errors to prevent unhandled exceptions, wait for
       // onclose to fire before attempting a reconnect.
+      this.eventEmitter.emit('error', err);
     };
 
     this.client.onmessage = ({ data }: {data: any}) => {
