@@ -263,12 +263,12 @@ ReactDOM.render(
 - => Returns an `off` method to cancel the event subscription.
 
 #### `onConnected(callback, thisContext) => Function` - shorthand for `.on('connected', ...)`
-- `callback: Function`: function to be called when websocket connects and initialized, after ACK message returned from the server
+- `callback: Function(payload)`: function to be called when websocket connects and initialized, after ACK message returned from the server. Includes payload from server, if any.
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
 
 #### `onReconnected(callback, thisContext) => Function` - shorthand for `.on('reconnected', ...)`
-- `callback: Function`: function to be called when websocket reconnects and initialized, after ACK message returned from the server
+- `callback: Function(payload)`: function to be called when websocket reconnects and initialized, after ACK message returned from the server. Includes payload from server, if any.
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
 

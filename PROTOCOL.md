@@ -51,6 +51,7 @@ It server also respond with this message in case of a parsing errors of the mess
 
 #### GQL_CONNECTION_ACK
 The server may responses with this message to the `GQL_CONNECTION_INIT` from client, indicates the server accepted the connection.
+May optionally include a payload.
 
 
 #### GQL_DATA

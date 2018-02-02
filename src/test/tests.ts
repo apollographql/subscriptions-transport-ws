@@ -732,6 +732,35 @@ describe('Client', function () {
     });
   });
 
+  it('should handle correctly GQL_CONNECTION_ACK payload for onConnected', (done) => {
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK, payload: {appVersion: '1.0.0'} }));
+      });
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    client.onConnected((payload) => {
+      expect(payload.appVersion).to.equal('1.0.0');
+      done();
+    });
+  });
+
+  it('should handle correctly GQL_CONNECTION_ACK payload for onReconnected', (done) => {
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK, payload: {appVersion: '1.0.0'} }));
+      });
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, { reconnect: true });
+    client.close(false, false);
+    client.onReconnected((payload) => {
+      expect(payload.appVersion).to.equal('1.0.0');
+      done();
+    });
+  });
+
   it('removes subscription when it unsubscribes from it', function () {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
