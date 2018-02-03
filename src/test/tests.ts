@@ -45,6 +45,8 @@ const ONCONNECT_ERROR_TEST_PORT = TEST_PORT + 6;
 const ERROR_TEST_PORT = TEST_PORT + 7;
 
 const SERVER_EXECUTOR_TESTS_PORT = ERROR_TEST_PORT + 8;
+const ACK_ONCONNECTED_TEST_PORT = TEST_PORT + 8;
+const ACK_ONRECONNECTED_TEST_PORT = TEST_PORT + 9;
 
 const data: { [key: string]: { [key: string]: string } } = {
   '1': {
@@ -733,13 +735,17 @@ describe('Client', function () {
   });
 
   it('should handle correctly GQL_CONNECTION_ACK payload for onConnected', (done) => {
-    wsServer.on('connection', (connection: any) => {
+    const server = createServer(notFoundRequestListener);
+    server.listen(ACK_ONCONNECTED_TEST_PORT);
+    const wss = new WebSocket.Server({server});
+    wss.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
         connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK, payload: {appVersion: '1.0.0'} }));
+        wss.close();
       });
     });
 
-    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${ACK_ONCONNECTED_TEST_PORT}/`);
     client.onConnected((payload) => {
       expect(payload.appVersion).to.equal('1.0.0');
       done();
@@ -747,13 +753,17 @@ describe('Client', function () {
   });
 
   it('should handle correctly GQL_CONNECTION_ACK payload for onReconnected', (done) => {
-    wsServer.on('connection', (connection: any) => {
+    const server = createServer(notFoundRequestListener);
+    server.listen(ACK_ONRECONNECTED_TEST_PORT);
+    const wss = new WebSocket.Server({server});
+    wss.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
         connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK, payload: {appVersion: '1.0.0'} }));
+        wss.close();
       });
     });
 
-    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, { reconnect: true });
+    const client = new SubscriptionClient(`ws://localhost:${ACK_ONRECONNECTED_TEST_PORT}/`, { reconnect: true });
     client.close(false, false);
     client.onReconnected((payload) => {
       expect(payload.appVersion).to.equal('1.0.0');
