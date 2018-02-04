@@ -501,11 +501,15 @@ export class SubscriptionClient {
       this.closedByUser = false;
       this.eventEmitter.emit(this.reconnecting ? 'reconnecting' : 'connecting');
 
-      const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
-
-      // Send CONNECTION_INIT message, no need to wait for connection to success (reduce roundtrips)
-      this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_INIT, payload);
-      this.flushUnsentMessagesQueue();
+      if (typeof this.connectionParams === 'function') {
+        Promise.resolve(this.connectionParams()).then((payload) => {
+          this.sendMessage(undefined, 'connection_init', payload);
+          this.flushUnsentMessagesQueue();
+        });
+      } else {
+        this.sendMessage(undefined, 'connection_init', this.connectionParams);
+        this.flushUnsentMessagesQueue();
+      }
     };
 
     this.client.onclose = () => {
