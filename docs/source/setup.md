@@ -6,7 +6,7 @@ title: Setup
 
 `PubSub` is a class that exposes a simple `publish` and `subscribe` API.
 
-It sits between your application's logic and the GraphQL subscriptions engine - it receives a publish command from your app logic and pushing it to your GraphQL execution engine.
+It sits between your application's logic and the GraphQL subscriptions engine - it receives a publish command from your app logic and pushes it to your GraphQL execution engine.
 
 `graphql-subscriptions` exposes a default `PubSub` class you can use for a simple usage of data publication.
 
