@@ -1,7 +1,11 @@
 # Changelog
 
 ### vNEXT
+
+### 0.9.6
 - fix shallow cloning on contexts which are classes
+- upgrade to support graphql 0.13.X
+- bump iterall version [PR #362](https://github.com/apollographql/subscriptions-transport-ws/pull/362)
 
 ### 0.9.5
 - docs(setup): Fix dead link to subscriptions-to-schema
