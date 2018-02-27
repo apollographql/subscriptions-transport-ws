@@ -85,6 +85,7 @@ export class SubscriptionClient {
   private closedByUser: boolean;
   private wsImpl: any;
   private wasKeepAliveReceived: boolean;
+  private lazyKeepAlive: boolean;
   private tryReconnectTimeoutId: any;
   private checkConnectionIntervalId: any;
   private maxConnectTimeoutId: any;
@@ -97,6 +98,7 @@ export class SubscriptionClient {
       connectionParams = {},
       timeout = WS_TIMEOUT,
       reconnect = false,
+      lazyKeepAlive = false,
       reconnectionAttempts = Infinity,
       lazy = false,
     } = (options || {});
@@ -117,6 +119,7 @@ export class SubscriptionClient {
     this.reconnect = reconnect;
     this.reconnecting = false;
     this.reconnectionAttempts = reconnectionAttempts;
+    this.lazyKeepAlive = !!lazyKeepAlive;
     this.lazy = !!lazy;
     this.closedByUser = false;
     this.backoff = new Backoff({ jitter: 0.5 });
@@ -578,7 +581,7 @@ export class SubscriptionClient {
         const parsedPayload = !parsedMessage.payload.errors ?
           parsedMessage.payload : {...parsedMessage.payload, errors: this.formatErrors(parsedMessage.payload.errors)};
         this.operations[opId].handler(null, parsedPayload);
-        break;
+        if (!lazyKeepAlive) break;
 
       case MessageTypes.GQL_CONNECTION_KEEP_ALIVE:
         const firstKA = typeof this.wasKeepAliveReceived === 'undefined';
