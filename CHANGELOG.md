@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- change default timeout from 10s to 30s(https://github.com/apollographql/subscriptions-transport-ws/issues/167)
 
 ### 0.9.6
 - fix shallow cloning on contexts which are classes
