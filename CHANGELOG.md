@@ -1,7 +1,7 @@
 # Changelog
 
 ### vNEXT
-- pass `request` (`upgradeReq`) to `ConnectionContext` [PR #]()
+- pass `request` (`upgradeReq`) to `ConnectionContext` [PR #369](https://github.com/apollographql/subscriptions-transport-ws/pull/369)
 
 ### 0.9.6
 - fix shallow cloning on contexts which are classes
