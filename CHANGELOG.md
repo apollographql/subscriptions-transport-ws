@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- pass `request` (`upgradeReq`) to `ConnectionContext` [PR #]()
 
 ### 0.9.6
 - fix shallow cloning on contexts which are classes
