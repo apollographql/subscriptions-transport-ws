@@ -1450,6 +1450,16 @@ describe('Server', function () {
     }, 200);
   });
 
+  it('should trigger onConnect with the request available in ConnectionContext', (done) => {
+    new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
+
+    setTimeout(() => {
+      assert(eventsOptions.onConnect.calledOnce);
+      expect(eventsOptions.onConnect.getCall(0).args[2].request).to.be.an.instanceof(IncomingMessage);
+      done();
+    }, 200);
+  });
+
   it('should trigger onConnect and return GQL_CONNECTION_ERROR with error', (done) => {
     const connectionCallbackSpy = sinon.spy();
 
