@@ -103,11 +103,11 @@ export class SubscriptionServer {
   private closeHandler: () => void;
   private specifiedRules: Array<(context: ValidationContext) => any>;
 
-  public static create(options: ServerOptions, socketOptions: WebSocket.ServerOptions) {
-    return new SubscriptionServer(options, socketOptions);
+  public static create(options: ServerOptions, socketOptions: WebSocket.ServerOptions, customServer?: any) {
+    return new SubscriptionServer(options, socketOptions, customServer);
   }
 
-  constructor(options: ServerOptions, socketOptions: WebSocket.ServerOptions) {
+  constructor(options: ServerOptions, socketOptions: WebSocket.ServerOptions, customServer?: any) {
     const {
       onOperation, onOperationComplete, onConnect, onDisconnect, keepAlive,
     } = options;
@@ -122,7 +122,11 @@ export class SubscriptionServer {
     this.keepAlive = keepAlive;
 
     // Init and connect websocket server to http
-    this.wsServer = new WebSocket.Server(socketOptions || {});
+    if (customServer) {
+      this.wsServer = customServer;
+    } else {
+      this.wsServer = new WebSocket.Server(socketOptions || {});
+    }
 
     const connectionHandler = ((socket: WebSocket, request: IncomingMessage) => {
       // Add `upgradeReq` to the socket object to support old API, without creating a memory leak
