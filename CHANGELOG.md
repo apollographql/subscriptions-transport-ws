@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- allow using custom WebSocket server implementation
 
 ### 0.9.6
 - fix shallow cloning on contexts which are classes
