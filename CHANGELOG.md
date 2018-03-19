@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- change default timeout from 10s to 30s [PR #368](https://github.com/apollographql/subscriptions-transport-ws/pull/368)
 - pass `request` (`upgradeReq`) to `ConnectionContext` [PR #369](https://github.com/apollographql/subscriptions-transport-ws/pull/369)
 - pass `ConnectionContext` to `onDisconnect()` as second argument [PR #369](https://github.com/apollographql/subscriptions-transport-ws/pull/369)
 
