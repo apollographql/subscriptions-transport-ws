@@ -1,6 +1,8 @@
 # Changelog
 
 ### vNEXT
+- pass `request` (`upgradeReq`) to `ConnectionContext` [PR #369](https://github.com/apollographql/subscriptions-transport-ws/pull/369)
+- pass `ConnectionContext` to `onDisconnect()` as second argument [PR #369](https://github.com/apollographql/subscriptions-transport-ws/pull/369)
 
 ### 0.9.6
 - fix shallow cloning on contexts which are classes
