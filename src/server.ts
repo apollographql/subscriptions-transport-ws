@@ -35,6 +35,7 @@ export type ConnectionContext = {
   initPromise?: Promise<any>,
   isLegacy: boolean,
   socket: WebSocket,
+  request: IncomingMessage,
   operations: {
     [opId: string]: ExecutionIterator,
   },
@@ -143,6 +144,7 @@ export class SubscriptionServer {
       connectionContext.initPromise = Promise.resolve(true);
       connectionContext.isLegacy = false;
       connectionContext.socket = socket;
+      connectionContext.request = request;
       connectionContext.operations = {};
 
       const connectionClosedHandler = (error: any) => {
@@ -162,7 +164,7 @@ export class SubscriptionServer {
         this.onClose(connectionContext);
 
         if (this.onDisconnect) {
-          this.onDisconnect(socket);
+          this.onDisconnect(socket, connectionContext);
         }
       };
 
@@ -466,3 +468,4 @@ export class SubscriptionServer {
     );
   }
 }
+
