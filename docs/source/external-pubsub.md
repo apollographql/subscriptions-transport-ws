@@ -1,5 +1,5 @@
 ---
-title: Using an external PubSub Engine (Redis/MQTT)
+title: Using an external PubSub Engine (Redis/MQTT/Google)
 ---
 
 `graphql` also supports any external Pub/Sub system that implements the `AsyncIterator` interface.
@@ -12,3 +12,4 @@ There are implementations for the following PubSub systems:
 
 * Redis PubSub using [`graphql-redis-subscriptions`](https://www.npmjs.com/package/graphql-redis-subscriptions)
 * MQTT using [`graphql-mqtt-subscriptions`](https://www.npmjs.com/package/graphql-mqtt-subscriptions)
+* Google PubSub using [`graphql-google-pubsub`](https://www.npmjs.com/package/@axelspringer/graphql-google-pubsub)
