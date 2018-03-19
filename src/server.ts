@@ -164,7 +164,7 @@ export class SubscriptionServer {
         this.onClose(connectionContext);
 
         if (this.onDisconnect) {
-          this.onDisconnect(socket);
+          this.onDisconnect(socket, connectionContext);
         }
       };
 
@@ -468,3 +468,4 @@ export class SubscriptionServer {
     );
   }
 }
+

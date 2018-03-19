@@ -1517,6 +1517,18 @@ describe('Server', function () {
     }, 200);
   });
 
+  it('should trigger onDisconnect with ConnectionContext as second argument', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    setTimeout(() => {
+      client.client.close();
+    }, 100);
+    setTimeout(() => {
+      assert(eventsOptions.onDisconnect.calledOnce);
+      expect(eventsOptions.onConnect.getCall(0).args[1]).to.not.be.undefined;
+      done();
+    }, 200);
+  });
+
   it('should call unsubscribe when client closes the connection', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
     const spy = sinon.spy(eventsServer as any, 'unsubscribe');
