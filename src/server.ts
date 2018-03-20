@@ -105,8 +105,8 @@ export class SubscriptionServer {
   private closeHandler: () => void;
   private specifiedRules: Array<(context: ValidationContext) => any>;
 
-  public static create(options: ServerOptions, socket: WebSocket.ServerOptions | WebSocket.Server) {
-    return new SubscriptionServer(options, socket);
+  public static create(options: ServerOptions, socketOptionsOrServer: WebSocket.ServerOptions | WebSocket.Server) {
+    return new SubscriptionServer(options, socketOptionsOrServer);
   }
 
   constructor(options: ServerOptions, socketOptionsOrServer: WebSocket.ServerOptions | WebSocket.Server) {
