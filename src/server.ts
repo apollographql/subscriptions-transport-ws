@@ -88,6 +88,8 @@ export interface ServerOptions {
   keepAlive?: number;
 }
 
+const isWebSocketServer = (socket: any) => socket.on;
+
 export class SubscriptionServer {
   private onOperation: Function;
   private onOperationComplete: Function;
@@ -103,11 +105,11 @@ export class SubscriptionServer {
   private closeHandler: () => void;
   private specifiedRules: Array<(context: ValidationContext) => any>;
 
-  public static create(options: ServerOptions, socketOptions: WebSocket.ServerOptions, customServer?: any) {
-    return new SubscriptionServer(options, socketOptions, customServer);
+  public static create(options: ServerOptions, socket: WebSocket.ServerOptions | WebSocket.Server) {
+    return new SubscriptionServer(options, socket);
   }
 
-  constructor(options: ServerOptions, socketOptions: WebSocket.ServerOptions, customServer?: any) {
+  constructor(options: ServerOptions, socketOptionsOrServer: WebSocket.ServerOptions | WebSocket.Server) {
     const {
       onOperation, onOperationComplete, onConnect, onDisconnect, keepAlive,
     } = options;
@@ -121,11 +123,11 @@ export class SubscriptionServer {
     this.onDisconnect = onDisconnect;
     this.keepAlive = keepAlive;
 
-    // Init and connect websocket server to http
-    if (customServer) {
-      this.wsServer = customServer;
+    if (isWebSocketServer(socketOptionsOrServer)) {
+      this.wsServer = <WebSocket.Server>socketOptionsOrServer;
     } else {
-      this.wsServer = new WebSocket.Server(socketOptions || {});
+      // Init and connect WebSocket server to http
+      this.wsServer = new WebSocket.Server(socketOptionsOrServer || {});
     }
 
     const connectionHandler = ((socket: WebSocket, request: IncomingMessage) => {

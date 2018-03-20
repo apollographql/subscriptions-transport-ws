@@ -2329,7 +2329,6 @@ describe('Client<->Server Flow', () => {
         execute,
         subscribe,
       },
-      {},
       customServer,
     );
 
