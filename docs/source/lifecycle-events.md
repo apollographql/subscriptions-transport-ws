@@ -13,21 +13,21 @@ title: Lifecycle Events
 const subscriptionsServer = new SubscriptionServer(
   {
     subscriptionManager: subscriptionManager,
-    onConnect: (connectionParams, webSocket) => {
-        // ...
+    onConnect: (connectionParams, webSocket, context) => {
+      // ...
     },
     onOperation: (message, params, webSocket) => {
-        // ...
+      // ...
     },
-    onOperationDone: (webSocket) => {
-        // ...
+    onOperationDone: webSocket => {
+      // ...
     },
-    onDisconnect: (webSocket) => {
-        // ...
-    }
+    onDisconnect: (webSocket, context) => {
+      // ...
+    },
   },
   {
-    server: websocketServer
-  }
+    server: websocketServer,
+  },
 );
 ```
