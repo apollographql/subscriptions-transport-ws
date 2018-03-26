@@ -2316,8 +2316,6 @@ describe('Client<->Server Flow', () => {
   });
 
   it('works with custom WebSocket implementation', (done) => {
-    // this is basically 'should set up the proper filters when subscribing' scenario that uses a custom client/server in-memory
-    // WebSocket implementation
     const MockServer = require('mock-socket-with-protocol').Server;
     const MockWebSocket = require('mock-socket-with-protocol').WebSocket;
 
@@ -2332,76 +2330,48 @@ describe('Client<->Server Flow', () => {
       customServer,
     );
 
-    const client3 = new SubscriptionClient(`ws://localhost:${CUSTOM_PORT}`, {},
-      MockWebSocket,
-    );
-
-    const client4 = new SubscriptionClient(`ws://localhost:${CUSTOM_PORT}`, {},
+    const client = new SubscriptionClient(`ws://localhost:${CUSTOM_PORT}`, {},
       MockWebSocket,
     );
 
     let numTriggers = 0;
     setTimeout(() => {
-      client3.request({
-        query: `subscription userInfoFilter1($id: String) {
-      userFiltered(id: $id) {
-        id
-        name
-      }
-      }`,
-        operationName: 'userInfoFilter1',
-        variables: {
-          id: 3,
-        },
-      }).subscribe({
-        next: (result: any) => {
-          if (result.errors) {
-            assert(false);
-          }
+        client.request({
+            query: `
+            subscription userInfoFilter1($id: String) {
+              userFiltered(id: $id) {
+                id
+                name
+              }
+            }`,
+            operationName: 'userInfoFilter1',
+            variables: {
+                id: 3,
+            },
+        }).subscribe({
+            next: (result: any) => {
+                if (result.errors) {
+                    assert(false);
+                }
 
-          if (result.data) {
-            numTriggers += 1;
-            assert.property(result.data, 'userFiltered');
-            assert.equal(result.data.userFiltered.id, '3');
-            assert.equal(result.data.userFiltered.name, 'Jessie');
-          }
-          // both null means it's a SUBSCRIPTION_SUCCESS message
-        },
-      });
-
-      client4.request({
-        query: `subscription userInfoFilter1($id: String) {
-      userFiltered(id: $id) {
-        id
-        name
-      }
-      }`,
-        operationName: 'userInfoFilter1',
-        variables: {
-          id: 1,
-        },
-      }).subscribe({
-        next: (result: any) => {
-          if (result.errors) {
-            assert(false);
-          }
-          if (result.data) {
-            numTriggers += 1;
-            assert.property(result.data, 'userFiltered');
-            assert.equal(result.data.userFiltered.id, '1');
-            assert.equal(result.data.userFiltered.name, 'Dan');
-          }
-          // both null means SUBSCRIPTION_SUCCESS
-        },
-      });
+                if (result.data) {
+                    numTriggers += 1;
+                    assert.property(result.data, 'userFiltered');
+                    assert.equal(result.data.userFiltered.id, '3');
+                    assert.equal(result.data.userFiltered.name, 'Jessie');
+                }
+            },
+        });
     }, 100);
+
     setTimeout(() => {
       testPubsub.publish('userFiltered', {id: 1});
       testPubsub.publish('userFiltered', {id: 2});
       testPubsub.publish('userFiltered', {id: 3});
     }, 200);
+
     setTimeout(() => {
-      assert.equal(numTriggers, 2);
+      expect(numTriggers).equal(1);
       done();
     }, 400);
   });
