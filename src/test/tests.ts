@@ -2357,7 +2357,7 @@ describe('Client<->Server Flow', () => {
     });
   });
 
-  it.only('works with custom WebSocket implementation', (done) => {
+  it('works with custom WebSocket implementation', (done) => {
     const MockServer = require('mock-socket-with-protocol').Server;
     const MockWebSocket = require('mock-socket-with-protocol').WebSocket;
 
