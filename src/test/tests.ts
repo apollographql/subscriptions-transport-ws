@@ -948,6 +948,26 @@ describe('Client', function () {
     }, 1000);
   });
 
+  it('should emit event when an websocket error occurs', function (done) {
+    const client = new SubscriptionClient(`ws://localhost:${ERROR_TEST_PORT}/`);
+
+    client.request({
+      query: `subscription useInfo{
+        invalid
+      }`,
+      variables: {},
+    }).subscribe({
+      next: () => {
+        assert(false);
+      },
+    });
+
+    client.onError((err: Error) => {
+      expect(err.message).to.be.equal(`connect ECONNREFUSED 127.0.0.1:${ERROR_TEST_PORT}`);
+      done();
+    });
+  });
+
   it('should stop trying to reconnect to the server', function (done) {
     wsServer.on('connection', (connection: WebSocket) => {
       connection.close();

@@ -2,6 +2,9 @@
 
 ### vNEXT
 - allow using custom WebSocket server implementation [PR #374](https://github.com/apollographql/subscriptions-transport-ws/pull/374)
+- added `error` event to handle connection errors and debug network troubles [PR #341](https://github.com/apollographql/subscriptions-transport-ws/pull/341).
+
+### v0.9.7
 - change default timeout from 10s to 30s [PR #368](https://github.com/apollographql/subscriptions-transport-ws/pull/368)
 - pass `request` (`upgradeReq`) to `ConnectionContext` [PR #369](https://github.com/apollographql/subscriptions-transport-ws/pull/369)
 - pass `ConnectionContext` to `onDisconnect()` as second argument [PR #369](https://github.com/apollographql/subscriptions-transport-ws/pull/369)

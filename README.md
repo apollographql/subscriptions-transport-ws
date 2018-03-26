@@ -255,7 +255,7 @@ ReactDOM.render(
 #### `unsubscribeAll() => void` - unsubscribes from all active subscriptions.
 
 #### `on(eventName, callback, thisContext) => Function`
-- `eventName: string`: the name of the event, available events are: `connecting`, `connected`, `reconnecting`, `reconnected` and `disconnected`
+- `eventName: string`: the name of the event, available events are: `connecting`, `connected`, `reconnecting`, `reconnected`, `disconnected` and `error`
 - `callback: Function`: function to be called when websocket connects and initialized.
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
@@ -282,6 +282,11 @@ ReactDOM.render(
 
 #### `onDisconnected(callback, thisContext) => Function` - shorthand for `.on('disconnected', ...)`
 - `callback: Function`: function to be called when websocket disconnected.
+- `thisContext: any`: `this` context to use when calling the callback function.
+- => Returns an `off` method to cancel the event subscription.
+
+#### `onError(callback, thisContext) => Function` - shorthand for `.on('error', ...)`
+- `callback: Function`: function to be called when an error occurs.
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
 
