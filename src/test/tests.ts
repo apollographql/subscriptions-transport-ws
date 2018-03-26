@@ -2357,7 +2357,7 @@ describe('Client<->Server Flow', () => {
     });
   });
 
-  it('works with custom WebSocket implementation', (done) => {
+  it.only('works with custom WebSocket implementation', (done) => {
     const MockServer = require('mock-socket-with-protocol').Server;
     const MockWebSocket = require('mock-socket-with-protocol').WebSocket;
 
@@ -2377,7 +2377,6 @@ describe('Client<->Server Flow', () => {
     );
 
     let numTriggers = 0;
-    setTimeout(() => {
         client.request({
             query: `
             subscription userInfoFilter1($id: String) {
@@ -2404,17 +2403,16 @@ describe('Client<->Server Flow', () => {
                 }
             },
         });
-    }, 100);
 
     setTimeout(() => {
       testPubsub.publish('userFiltered', {id: 1});
       testPubsub.publish('userFiltered', {id: 2});
       testPubsub.publish('userFiltered', {id: 3});
-    }, 200);
+    }, 50);
 
     setTimeout(() => {
       expect(numTriggers).equal(1);
       done();
-    }, 400);
+    }, 200);
   });
 });
