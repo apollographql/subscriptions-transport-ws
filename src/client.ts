@@ -65,11 +65,13 @@ export interface ClientOptions {
   reconnectionAttempts?: number;
   connectionCallback?: (error: Error[], result?: any) => void;
   lazy?: boolean;
+  inactivityTimeout?: number;
 }
 
 export class SubscriptionClient {
   public client: any;
   public operations: Operations;
+  public activeSubscriptions: number;
   private url: string;
   private nextOperationId: number;
   private connectionParams: ConnectionParamsOptions;
@@ -82,6 +84,8 @@ export class SubscriptionClient {
   private connectionCallback: any;
   private eventEmitter: EventEmitter;
   private lazy: boolean;
+  private inactivityTimeout: number;
+  private inactivityTimeoutId: any;
   private closedByUser: boolean;
   private wsImpl: any;
   private wasKeepAliveReceived: boolean;
@@ -99,6 +103,7 @@ export class SubscriptionClient {
       reconnect = false,
       reconnectionAttempts = Infinity,
       lazy = false,
+      inactivityTimeout = 0,
     } = (options || {});
 
     this.wsImpl = webSocketImpl || NativeWebSocket;
@@ -118,6 +123,8 @@ export class SubscriptionClient {
     this.reconnecting = false;
     this.reconnectionAttempts = reconnectionAttempts;
     this.lazy = !!lazy;
+    this.inactivityTimeout = inactivityTimeout;
+    this.activeSubscriptions = 0;
     this.closedByUser = false;
     this.backoff = new Backoff({ jitter: 0.5 });
     this.eventEmitter = new EventEmitter();
@@ -166,6 +173,9 @@ export class SubscriptionClient {
     const unsubscribe = this.unsubscribe.bind(this);
 
     let opId: string;
+
+    this.activeSubscriptions += 1;
+    this.clearInactivityTimeout();
 
     return {
       [$$observable]() {
@@ -349,6 +359,23 @@ export class SubscriptionClient {
     if (this.tryReconnectTimeoutId) {
       clearTimeout(this.tryReconnectTimeoutId);
       this.tryReconnectTimeoutId = null;
+    }
+  }
+
+  private clearInactivityTimeout() {
+    if (this.inactivityTimeoutId) {
+      clearTimeout(this.inactivityTimeoutId);
+      this.inactivityTimeoutId = null;
+    }
+  }
+
+  private setInactivityTimeout() {
+    if (this.inactivityTimeout > 0 && this.activeSubscriptions === 0) {
+      this.inactivityTimeoutId = setTimeout(() => {
+        if (this.activeSubscriptions === 0) {
+          this.close();
+        }
+      }, this.inactivityTimeout);
     }
   }
 
@@ -607,6 +634,8 @@ export class SubscriptionClient {
 
   private unsubscribe(opId: string) {
     if (this.operations[opId]) {
+      this.activeSubscriptions -= 1;
+      this.setInactivityTimeout();
       delete this.operations[opId];
       this.sendMessage(opId, MessageTypes.GQL_STOP, undefined);
     }

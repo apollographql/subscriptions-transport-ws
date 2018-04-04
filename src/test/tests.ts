@@ -1203,6 +1203,36 @@ describe('Client', function () {
       done();
     }, 500);
   });
+
+  it('should close the connection after inactivityTimeout and zero active subscriptions', function (done) {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      inactivityTimeout: 500,
+    });
+    const sub = subscriptionsClient.request({
+      query: `subscription useInfo($id: String) {
+        user(id: $id) {
+          id
+          name
+        }
+      }`,
+      operationName: 'useInfo',
+      variables: {
+        id: 3,
+      },
+    }).subscribe({});
+
+    setTimeout(() => {
+      expect(subscriptionsClient.activeSubscriptions).to.be.equal(1);
+      sub.unsubscribe();
+      setTimeout(() => {
+        expect(subscriptionsClient.activeSubscriptions).to.be.equal(0);
+        setTimeout(() => {
+          expect(subscriptionsClient.status).to.be.equal(WebSocket.CLOSED);
+          done();
+        }, 501);
+      }, 500);
+    }, 500);
+  });
 });
 
 describe('Server', function () {
