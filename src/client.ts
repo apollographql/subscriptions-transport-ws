@@ -71,7 +71,6 @@ export interface ClientOptions {
 export class SubscriptionClient {
   public client: any;
   public operations: Operations;
-  public activeSubscriptions: number;
   private url: string;
   private nextOperationId: number;
   private connectionParams: ConnectionParamsOptions;
@@ -124,7 +123,6 @@ export class SubscriptionClient {
     this.reconnectionAttempts = reconnectionAttempts;
     this.lazy = !!lazy;
     this.inactivityTimeout = inactivityTimeout;
-    this.activeSubscriptions = 0;
     this.closedByUser = false;
     this.backoff = new Backoff({ jitter: 0.5 });
     this.eventEmitter = new EventEmitter();
@@ -146,6 +144,7 @@ export class SubscriptionClient {
   }
 
   public close(isForced = true, closedByUser = true) {
+    this.clearInactivityTimeout();
     if (this.client !== null) {
       this.closedByUser = closedByUser;
 
@@ -174,7 +173,6 @@ export class SubscriptionClient {
 
     let opId: string;
 
-    this.activeSubscriptions += 1;
     this.clearInactivityTimeout();
 
     return {
@@ -370,9 +368,9 @@ export class SubscriptionClient {
   }
 
   private setInactivityTimeout() {
-    if (this.inactivityTimeout > 0 && this.activeSubscriptions === 0) {
+    if (this.inactivityTimeout > 0 && Object.keys(this.operations).length === 0) {
       this.inactivityTimeoutId = setTimeout(() => {
-        if (this.activeSubscriptions === 0) {
+        if (Object.keys(this.operations).length === 0) {
           this.close();
         }
       }, this.inactivityTimeout);
@@ -634,9 +632,8 @@ export class SubscriptionClient {
 
   private unsubscribe(opId: string) {
     if (this.operations[opId]) {
-      this.activeSubscriptions -= 1;
-      this.setInactivityTimeout();
       delete this.operations[opId];
+      this.setInactivityTimeout();
       this.sendMessage(opId, MessageTypes.GQL_STOP, undefined);
     }
   }
