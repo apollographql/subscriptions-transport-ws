@@ -12,7 +12,7 @@ It sits between your application's logic and the GraphQL subscriptions engine - 
 
 The `PubSub` implementation also includes a mechanism that converts a specific `PubSub` event into a stream of `AsyncIterator`, which you can use with `graphql` subscriptions resolver.
 
-> Check out how to change the `PubSub` mechanism to an external one [here](/docs/source/external-pubsub.md)
+> Check out how to change the `PubSub` mechanism to an external one [here](./external-pubsub.html)
 
 To get started, install `graphql-subscriptions` package:
 
