@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- fix `@types/graphql 0.13` error on execute function [PR #407](https://github.com/apollographql/subscriptions-transport-ws/pull/407)
 
 ### v0.9.8
 - added `error` event to handle connection errors and debug network troubles [PR #341](https://github.com/apollographql/subscriptions-transport-ws/pull/341).
