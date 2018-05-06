@@ -78,7 +78,7 @@ export type SubscribeFunction = (schema: GraphQLSchema,
 export interface ServerOptions {
   rootValue?: any;
   schema?: GraphQLSchema;
-  execute?: ExecuteFunction;
+  execute?: Promise<ExecuteFunction> | ExecuteFunction;
   subscribe?: SubscribeFunction;
   validationRules?: Array<(context: ValidationContext) => any>;
 
@@ -195,13 +195,18 @@ export class SubscriptionServer {
       throw new Error('Must provide `execute` for websocket server constructor.');
     }
 
+    Promise.resolve(execute).then(result => {
+      this.execute = result;
+    }).catch(() => {
+      throw new Error('Unresolvable `execute` passed for websocket server constructor.');
+    });
+
     if (!schema) {
       throw new Error('`schema` is missing');
     }
 
     this.schema = schema;
     this.rootValue = rootValue;
-    this.execute = execute;
     this.subscribe = subscribe;
   }
 
