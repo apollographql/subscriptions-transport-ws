@@ -1,6 +1,6 @@
 {
   "name": "subscriptions-transport-ws",
-  "version": "0.9.8",
+  "version": "0.9.9",
   "description": "A websocket transport for GraphQL subscriptions",
   "main": "dist/index.js",
   "browser": "dist/client.js",
@@ -37,7 +37,7 @@
   },
   "devDependencies": {
     "@types/chai": "^4.0.0",
-    "@types/graphql": "^0.11.3",
+    "@types/graphql": "^0.13.0",
     "@types/is-promise": "^2.1.0",
     "@types/lodash": "^4.14.68",
     "@types/mocha": "^2.2.41",
@@ -45,7 +45,7 @@
     "@types/sinon": "^2.3.0",
     "@types/ws": "^3.0.0",
     "chai": "^4.0.2",
-    "graphql": "^0.13.1",
+    "graphql": "^0.13.2",
     "graphql-subscriptions": "^0.5.7",
     "istanbul": "^1.0.0-alpha.2",
     "lodash": "^4.17.1",
@@ -53,8 +53,8 @@
     "remap-istanbul": "^0.9.5",
     "rimraf": "^2.6.1",
     "sinon": "^2.3.6",
-    "tslint": "^5.8.0",
-    "typescript": "^2.6.2",
+    "tslint": "^5.10.0",
+    "typescript": "^2.8.3",
     "webpack": "^3.1.0"
   },
   "typings": "dist/index.d.ts",

@@ -2,6 +2,9 @@
 
 ### vNEXT
 
+### v0.9.9
+- fix issue with @types/graphql@0.13
+
 ### v0.9.8
 - added `error` event to handle connection errors and debug network troubles [PR #341](https://github.com/apollographql/subscriptions-transport-ws/pull/341).
 - added feature inactivityTimeout [PR #390](https://github.com/apollographql/subscriptions-transport-ws/pull/390)
