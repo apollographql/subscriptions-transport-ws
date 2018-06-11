@@ -1,6 +1,6 @@
 {
   "name": "subscriptions-transport-ws",
-  "version": "0.9.9",
+  "version": "0.9.10",
   "description": "A websocket transport for GraphQL subscriptions",
   "main": "dist/index.js",
   "browser": "dist/client.js",
@@ -10,13 +10,13 @@
   },
   "dependencies": {
     "backo2": "^1.0.2",
-    "eventemitter3": "^2.0.3",
+    "eventemitter3": "^3.1.0",
     "iterall": "^1.2.1",
     "lodash.assign": "^4.2.0",
     "lodash.isobject": "^3.0.2",
     "lodash.isstring": "^4.0.1",
     "symbol-observable": "^1.0.4",
-    "ws": "^3.0.0"
+    "ws": "^5.2.0"
   },
   "scripts": {
     "clean": "rimraf browser dist coverage",
@@ -37,13 +37,13 @@
   },
   "devDependencies": {
     "@types/chai": "^4.0.0",
-    "@types/graphql": "^0.13.0",
+    "@types/graphql": "^0.13.1",
     "@types/is-promise": "^2.1.0",
-    "@types/lodash": "^4.14.68",
+    "@types/lodash": "^4.14.109",
     "@types/mocha": "^2.2.41",
     "@types/node": "^8.0.8",
     "@types/sinon": "^2.3.0",
-    "@types/ws": "^3.0.0",
+    "@types/ws": "^5.1.2",
     "chai": "^4.0.2",
     "graphql": "^0.13.2",
     "graphql-subscriptions": "^0.5.7",
@@ -54,7 +54,7 @@
     "rimraf": "^2.6.1",
     "sinon": "^2.3.6",
     "tslint": "^5.10.0",
-    "typescript": "^2.8.3",
+    "typescript": "^2.9.1",
     "webpack": "^3.1.0"
   },
   "typings": "dist/index.d.ts",
