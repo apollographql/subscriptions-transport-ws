@@ -508,8 +508,12 @@ export class SubscriptionClient {
         });
       } else {
         this.sendMessage(undefined, 'connection_init', this.connectionParams);
+      const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
+
+      Promise.resolve(payload).then((res) => {
+        this.sendMessage(undefined, 'connection_init', res);
         this.flushUnsentMessagesQueue();
-      }
+      });
     };
 
     this.client.onclose = () => {
