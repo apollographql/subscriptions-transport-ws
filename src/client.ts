@@ -500,20 +500,12 @@ export class SubscriptionClient {
       this.clearMaxConnectTimeout();
       this.closedByUser = false;
       this.eventEmitter.emit(this.reconnecting ? 'reconnecting' : 'connecting');
-
-      if (typeof this.connectionParams === 'function') {
-        Promise.resolve(this.connectionParams()).then((payload) => {
-          this.sendMessage(undefined, 'connection_init', payload);
-          this.flushUnsentMessagesQueue();
-        });
-      } else {
-        this.sendMessage(undefined, 'connection_init', this.connectionParams);
       const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
 
       Promise.resolve(payload).then((res) => {
         this.sendMessage(undefined, 'connection_init', res);
         this.flushUnsentMessagesQueue();
-      });
+      }).catch(console.error);
     };
 
     this.client.onclose = () => {
