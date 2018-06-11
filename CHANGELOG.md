@@ -1,6 +1,8 @@
 # Changelog
 
 ### vNEXT
+
+### v0.9.10
 - upgrade ws and eventemitter3
 
 ### v0.9.9
