@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- upgrade ws and eventemitter3
 
 ### v0.9.9
 - fix issue with @types/graphql@0.13

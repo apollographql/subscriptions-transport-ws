@@ -3,7 +3,7 @@ const _global = typeof global !== 'undefined' ? global : (typeof window !== 'und
 const NativeWebSocket = _global.WebSocket || _global.MozWebSocket;
 
 import * as Backoff from 'backo2';
-import { EventEmitter, ListenerFn } from 'eventemitter3';
+import { default as EventEmitterType, EventEmitter, ListenerFn } from 'eventemitter3';
 import isString = require('lodash.isstring');
 import isObject = require('lodash.isobject');
 import { ExecutionResult } from 'graphql/execution/execute';
@@ -81,7 +81,7 @@ export class SubscriptionClient {
   private reconnectionAttempts: number;
   private backoff: any;
   private connectionCallback: any;
-  private eventEmitter: EventEmitter;
+  private eventEmitter: EventEmitterType;
   private lazy: boolean;
   private inactivityTimeout: number;
   private inactivityTimeoutId: any;
