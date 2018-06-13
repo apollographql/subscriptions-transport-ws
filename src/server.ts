@@ -61,6 +61,7 @@ export type ExecuteFunction = (schema: GraphQLSchema,
                                variableValues?: { [key: string]: any },
                                operationName?: string,
                                fieldResolver?: GraphQLFieldResolver<any, any>) =>
+                               ExecutionResult |
                                Promise<ExecutionResult> |
                                AsyncIterator<ExecutionResult>;
 
@@ -338,7 +339,7 @@ export class SubscriptionServer {
 
               const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
               let executionPromise: Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
-              const validationErrors: Error[] = validate(this.schema, document, this.specifiedRules);
+              const validationErrors = validate(this.schema, document, this.specifiedRules);
 
               if ( validationErrors.length > 0 ) {
                 executionPromise = Promise.resolve({ errors: validationErrors });

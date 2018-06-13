@@ -1203,6 +1203,36 @@ describe('Client', function () {
       done();
     }, 500);
   });
+
+  it('should close the connection after inactivityTimeout and zero active subscriptions', function (done) {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      inactivityTimeout: 100,
+    });
+    const sub = subscriptionsClient.request({
+      query: `subscription useInfo($id: String) {
+        user(id: $id) {
+          id
+          name
+        }
+      }`,
+      operationName: 'useInfo',
+      variables: {
+        id: 3,
+      },
+    }).subscribe({});
+
+    setTimeout(() => {
+      expect(Object.keys(subscriptionsClient.operations).length).to.be.equal(1);
+      sub.unsubscribe();
+      setTimeout(() => {
+        expect(Object.keys(subscriptionsClient.operations).length).to.be.equal(0);
+        setTimeout(() => {
+          expect(subscriptionsClient.status).to.be.equal(WebSocket.CLOSED);
+          done();
+        }, 101);
+      }, 50);
+    }, 50);
+  });
 });
 
 describe('Server', function () {
@@ -2028,6 +2058,56 @@ describe('Client<->Server Flow', () => {
     if (server) {
       server.close();
     }
+  });
+
+  it('should reconnect after inactivityTimeout closing the connection and then resubscribing', (done) => {
+    server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    SubscriptionServer.create({
+      schema: subscriptionsSchema,
+      execute,
+      subscribe,
+    }, {
+      server,
+      path: '/',
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`, {
+      inactivityTimeout: 100,
+    });
+    let isFirstTime = true;
+
+    client.onConnected(async () => {
+      // Manually close the connection only in the first time, to avoid infinite loop
+      if (isFirstTime) {
+        isFirstTime = false;
+
+        setTimeout(() => {
+          const sub1 = client.request({
+            query: `query { testString }`,
+            variables: {},
+          }).subscribe({});
+          setTimeout(() => {
+            sub1.unsubscribe();
+            setTimeout(() => {
+              const sub2 = client.request({
+                query: `query { testString }`,
+                variables: {},
+              }).subscribe({
+                next: (res) => {
+                  expect(sub2).not.to.eq(null);
+                  expect(res.errors).to.equals(undefined);
+                  expect(res.data.testString).to.eq('value');
+                  sub2.unsubscribe();
+                  done();
+                },
+              });
+            }, 200);
+          }, 50);
+        }, 50);
+      }
+    });
   });
 
   it('should reconnect after manually closing the connection and then resubscribing', (done) => {
