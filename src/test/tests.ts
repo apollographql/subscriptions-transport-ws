@@ -2436,4 +2436,63 @@ describe('Client<->Server Flow', () => {
       });
     });
   });
+
+  it('works with custom WebSocket implementation', (done) => {
+    const MockServer = require('mock-socket-with-protocol').Server;
+    const MockWebSocket = require('mock-socket-with-protocol').WebSocket;
+
+    const CUSTOM_PORT = 234235;
+    const customServer = new MockServer(`ws://localhost:${CUSTOM_PORT}`);
+    SubscriptionServer.create(
+      {
+        schema,
+        execute,
+        subscribe,
+      },
+      customServer,
+    );
+
+    const client = new SubscriptionClient(`ws://localhost:${CUSTOM_PORT}`, {},
+      MockWebSocket,
+    );
+
+    let numTriggers = 0;
+        client.request({
+            query: `
+            subscription userInfoFilter1($id: String) {
+              userFiltered(id: $id) {
+                id
+                name
+              }
+            }`,
+            operationName: 'userInfoFilter1',
+            variables: {
+                id: 3,
+            },
+        }).subscribe({
+            next: (result: any) => {
+                if (result.errors) {
+                    assert(false);
+                }
+
+                if (result.data) {
+                    numTriggers += 1;
+                    assert.property(result.data, 'userFiltered');
+                    assert.equal(result.data.userFiltered.id, '3');
+                    assert.equal(result.data.userFiltered.name, 'Jessie');
+                }
+            },
+        });
+
+    setTimeout(() => {
+      testPubsub.publish('userFiltered', {id: 1});
+      testPubsub.publish('userFiltered', {id: 2});
+      testPubsub.publish('userFiltered', {id: 3});
+    }, 50);
+
+    setTimeout(() => {
+      expect(numTriggers).equal(1);
+      done();
+    }, 200);
+  });
 });

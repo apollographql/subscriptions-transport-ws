@@ -90,6 +90,8 @@ export interface ServerOptions {
   keepAlive?: number;
 }
 
+const isWebSocketServer = (socket: any) => socket.on;
+
 export class SubscriptionServer {
   private onOperation: Function;
   private onOperationComplete: Function;
@@ -105,11 +107,11 @@ export class SubscriptionServer {
   private closeHandler: () => void;
   private specifiedRules: Array<(context: ValidationContext) => any>;
 
-  public static create(options: ServerOptions, socketOptions: WebSocket.ServerOptions) {
-    return new SubscriptionServer(options, socketOptions);
+  public static create(options: ServerOptions, socketOptionsOrServer: WebSocket.ServerOptions | WebSocket.Server) {
+    return new SubscriptionServer(options, socketOptionsOrServer);
   }
 
-  constructor(options: ServerOptions, socketOptions: WebSocket.ServerOptions) {
+  constructor(options: ServerOptions, socketOptionsOrServer: WebSocket.ServerOptions | WebSocket.Server) {
     const {
       onOperation, onOperationComplete, onConnect, onDisconnect, keepAlive,
     } = options;
@@ -123,8 +125,12 @@ export class SubscriptionServer {
     this.onDisconnect = onDisconnect;
     this.keepAlive = keepAlive;
 
-    // Init and connect websocket server to http
-    this.wsServer = new WebSocket.Server(socketOptions || {});
+    if (isWebSocketServer(socketOptionsOrServer)) {
+      this.wsServer = <WebSocket.Server>socketOptionsOrServer;
+    } else {
+      // Init and connect WebSocket server to http
+      this.wsServer = new WebSocket.Server(socketOptionsOrServer || {});
+    }
 
     const connectionHandler = ((socket: WebSocket, request: IncomingMessage) => {
       // Add `upgradeReq` to the socket object to support old API, without creating a memory leak

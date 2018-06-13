@@ -300,7 +300,7 @@ ReactDOM.render(
 
 
 ## SubscriptionServer
-### `Constructor(options, socketOptions)`
+### `Constructor(options, socketOptions | socketServer)`
 - `options: {ServerOptions}`
   * `rootValue?: any` : Root value to use when executing GraphQL root operations
   * `schema?: GraphQLSchema` : GraphQL schema object
@@ -317,8 +317,9 @@ ReactDOM.render(
   * `host?: string` - server host
   * `port?: number` - server port
   * `path?: string` - endpoint path
-    
-    
+
+- `socketServer: {WebSocket.Server}` : a configured server if you need more control. Can be used for integration testing with in-memory WebSocket implementation.
+
 ## How it works?
 
 * For GraphQL WebSocket protocol docs, [click here](https://github.com/apollographql/subscriptions-transport-ws/blob/master/PROTOCOL.md)    
