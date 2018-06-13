@@ -1,6 +1,8 @@
 # Changelog
 
 ### vNEXT
+
+### v0.9.11
 - allow using custom WebSocket server implementation [PR #374](https://github.com/apollographql/subscriptions-transport-ws/pull/374)
 
 ### v0.9.10
