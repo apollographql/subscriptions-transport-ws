@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- use `lodash/isObject` and `lodash/isString` instead of `lodash.isobject` and `lodash.isstring`
 
 ### v0.9.11
 - allow using custom WebSocket server implementation [PR #374](https://github.com/apollographql/subscriptions-transport-ws/pull/374)

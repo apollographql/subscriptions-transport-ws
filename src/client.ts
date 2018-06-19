@@ -4,8 +4,8 @@ const NativeWebSocket = _global.WebSocket || _global.MozWebSocket;
 
 import * as Backoff from 'backo2';
 import { default as EventEmitterType, EventEmitter, ListenerFn } from 'eventemitter3';
-import isString = require('lodash.isstring');
-import isObject = require('lodash.isobject');
+import isString = require('lodash/isString');
+import isObject = require('lodash/isObject');
 import { ExecutionResult } from 'graphql/execution/execute';
 import { print } from 'graphql/language/printer';
 import { DocumentNode } from 'graphql/language/ast';
