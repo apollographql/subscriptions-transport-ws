@@ -12,7 +12,6 @@ title: Lifecycle Events
 ```js
 const subscriptionsServer = new SubscriptionServer(
   {
-    subscriptionManager: subscriptionManager,
     onConnect: (connectionParams, webSocket, context) => {
       // ...
     },
