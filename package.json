@@ -45,7 +45,7 @@
     "graphql": "^0.13.2",
     "graphql-subscriptions": "^0.5.7",
     "istanbul": "^1.0.0-alpha.2",
-    "lodash": "^4.17.10",
+    "lodash": "^4.17.1",
     "mocha": "^3.4.2",
     "mock-socket-with-protocol": "^7.1.0",
     "remap-istanbul": "^0.9.5",
