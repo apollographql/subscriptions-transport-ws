@@ -2,7 +2,7 @@ import * as WebSocket from 'ws';
 
 import MessageTypes from './message-types';
 import { GRAPHQL_WS, GRAPHQL_SUBSCRIPTIONS } from './protocol';
-import isObject = require('lodash.isobject');
+import isObject = require('lodash/isObject');
 import {
   parse,
   ExecutionResult,
@@ -475,4 +475,3 @@ export class SubscriptionServer {
     );
   }
 }
-

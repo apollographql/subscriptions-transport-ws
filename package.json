@@ -12,9 +12,7 @@
     "backo2": "^1.0.2",
     "eventemitter3": "^3.1.0",
     "iterall": "^1.2.1",
-    "lodash.assign": "^4.2.0",
-    "lodash.isobject": "^3.0.2",
-    "lodash.isstring": "^4.0.1",
+    "lodash": "^4.17.1",
     "symbol-observable": "^1.0.4",
     "ws": "^5.2.0"
   },
@@ -48,7 +46,6 @@
     "graphql": "^0.13.2",
     "graphql-subscriptions": "^0.5.7",
     "istanbul": "^1.0.0-alpha.2",
-    "lodash": "^4.17.1",
     "mocha": "^3.4.2",
     "mock-socket-with-protocol": "^7.1.0",
     "remap-istanbul": "^0.9.5",
