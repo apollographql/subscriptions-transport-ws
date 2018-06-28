@@ -519,6 +519,27 @@ describe('Client', function () {
     });
   });
 
+  it('should send connectionParams as which resolves from a promise along with init message', (done) => {
+    const connectionParams: any = {
+      test: true,
+    };
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        expect(JSON.stringify(parsedMessage.payload)).to.equal(JSON.stringify(connectionParams));
+        done();
+      });
+    });
+
+    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      connectionParams: () => new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(connectionParams);
+        }, 100);
+      }),
+    });
+  });
+
   it('should override OperationOptions with middleware', function (done) {
     const client3 = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     let asyncFunc = (next: any) => {

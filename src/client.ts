@@ -529,12 +529,12 @@ export class SubscriptionClient {
       this.clearMaxConnectTimeout();
       this.closedByUser = false;
       this.eventEmitter.emit(this.reconnecting ? 'reconnecting' : 'connecting');
-
       const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
 
-      // Send CONNECTION_INIT message, no need to wait for connection to success (reduce roundtrips)
-      this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_INIT, payload);
-      this.flushUnsentMessagesQueue();
+      Promise.resolve(payload).then((res) => {
+        this.sendMessage(undefined, 'connection_init', res);
+        this.flushUnsentMessagesQueue();
+      }).catch(console.error);
     };
 
     this.client.onclose = () => {
