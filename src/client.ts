@@ -4,8 +4,6 @@ const NativeWebSocket = _global.WebSocket || _global.MozWebSocket;
 
 import * as Backoff from 'backo2';
 import { default as EventEmitterType, EventEmitter, ListenerFn } from 'eventemitter3';
-import isString = require('lodash.isstring');
-import isObject = require('lodash.isobject');
 import { ExecutionResult } from 'graphql/execution/execute';
 import { print } from 'graphql/language/printer';
 import { DocumentNode } from 'graphql/language/ast';
@@ -389,9 +387,9 @@ export class SubscriptionClient {
     }
 
     if (
-      ( !isString(query) && !getOperationAST(query, operationName)) ||
-      ( operationName && !isString(operationName)) ||
-      ( variables && !isObject(variables))
+      ( typeof query !== 'string' && !getOperationAST(query, operationName)) ||
+      ( operationName && typeof operationName !== 'string') ||
+      ( variables && typeof variables !== 'object')
     ) {
       throw new Error('Incorrect option types. query must be a string or a document,' +
         '`operationName` must be a string, and `variables` must be an object.');
