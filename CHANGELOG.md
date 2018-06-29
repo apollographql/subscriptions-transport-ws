@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- applies fix suggested by @pandemosth regarding "No subscription is made on reconnect" and "Duplicate subscription made on reconnect" described in [Issue #295](https://github.com/apollographql/subscriptions-transport-ws/issues/295#issuecomment-398184429)
 
 ### v0.9.11
 - allow using custom WebSocket server implementation [PR #374](https://github.com/apollographql/subscriptions-transport-ws/pull/374)

@@ -241,6 +241,14 @@ new SubscriptionServer(Object.assign({}, options, {
 const httpServerRaw = createServer(notFoundRequestListener);
 httpServerRaw.listen(RAW_TEST_PORT);
 
+function sleep(time: number) {
+  const stop = new Date().getTime();
+
+  while (new Date().getTime() < stop + time) {
+    // nothing
+  }
+}
+
 describe('Client', function () {
 
   let wsServer: WebSocket.Server;
@@ -267,6 +275,47 @@ describe('Client', function () {
     });
 
     new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+  });
+
+  it('should subscribe once after reconnect', (done) => {
+    let isClientReconnected = false;
+    let subscriptionsCount = 0;
+
+    wsServer.on('headers', () => {
+      if (!isClientReconnected) {
+        isClientReconnected = true;
+        sleep(1100);
+      }
+    });
+
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+
+        if (parsedMessage.type === MessageTypes.GQL_START) {
+          subscriptionsCount++;
+        }
+      });
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      reconnect: true,
+      reconnectionAttempts: 1,
+    });
+
+    client.request({
+      query: `subscription useInfo {
+        user(id: 3) {
+          id
+          name
+        }
+      }`,
+    }).subscribe({});
+
+    setTimeout(() => {
+      expect(subscriptionsCount).to.be.equal(1);
+      done();
+    }, 1500);
   });
 
   it('should send GQL_CONNECTION_INIT message first, then the GQL_START message', (done) => {

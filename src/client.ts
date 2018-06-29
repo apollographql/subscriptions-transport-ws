@@ -515,6 +515,7 @@ export class SubscriptionClient {
     // Max timeout trying to connect
     this.maxConnectTimeoutId = setTimeout(() => {
       if (this.status !== this.wsImpl.OPEN) {
+        this.reconnecting = true;
         this.close(false, true);
       }
     }, this.maxConnectTimeGenerator.duration());
@@ -526,15 +527,17 @@ export class SubscriptionClient {
     this.checkMaxConnectTimeout();
 
     this.client.onopen = () => {
-      this.clearMaxConnectTimeout();
-      this.closedByUser = false;
-      this.eventEmitter.emit(this.reconnecting ? 'reconnecting' : 'connecting');
+      if (this.status === this.wsImpl.OPEN) {
+        this.clearMaxConnectTimeout();
+        this.closedByUser = false;
+        this.eventEmitter.emit(this.reconnecting ? 'reconnecting' : 'connecting');
 
-      const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
+        const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
 
-      // Send CONNECTION_INIT message, no need to wait for connection to success (reduce roundtrips)
-      this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_INIT, payload);
-      this.flushUnsentMessagesQueue();
+        // Send CONNECTION_INIT message, no need to wait for connection to success (reduce roundtrips)
+        this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_INIT, payload);
+        this.flushUnsentMessagesQueue();
+      }
     };
 
     this.client.onclose = () => {
