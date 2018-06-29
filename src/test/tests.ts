@@ -241,14 +241,6 @@ new SubscriptionServer(Object.assign({}, options, {
 const httpServerRaw = createServer(notFoundRequestListener);
 httpServerRaw.listen(RAW_TEST_PORT);
 
-function sleep(time: number) {
-  const stop = new Date().getTime();
-
-  while (new Date().getTime() < stop + time) {
-    // nothing
-  }
-}
-
 describe('Client', function () {
 
   let wsServer: WebSocket.Server;
@@ -284,7 +276,10 @@ describe('Client', function () {
     wsServer.on('headers', () => {
       if (!isClientReconnected) {
         isClientReconnected = true;
-        sleep(1100);
+        const stop = Date.now() + 1100;
+        while (Date.now() < stop) {
+          // busy wait
+        }
       }
     });
 
