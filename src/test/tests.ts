@@ -563,7 +563,7 @@ describe('Client', function () {
     });
   });
 
-  it('should send connectionParams as which resolves from a promise along with init message', (done) => {
+  it('should send connectionParams which resolves from a promise along with init message', (done) => {
     const connectionParams: any = {
       test: true,
     };
@@ -576,9 +576,50 @@ describe('Client', function () {
     });
 
     new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
-      connectionParams: () => new Promise((resolve) => {
+      connectionParams: new Promise((resolve) => {
         setTimeout(() => {
           resolve(connectionParams);
+        }, 100);
+      }),
+    });
+  });
+
+  it('should send connectionParams as a function which returns a promise along with init message', (done) => {
+    const connectionParams: any = {
+      test: true,
+    };
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        expect(JSON.stringify(parsedMessage.payload)).to.equal(JSON.stringify(connectionParams));
+        done();
+      });
+    });
+
+    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      connectionParams: new Promise((resolve) => {
+        setTimeout(() => {
+          resolve(connectionParams);
+        }, 100);
+      }),
+    });
+  });
+
+  it('should catch errors in connectionParams which came from a promise', (done) => {
+    const error = 'foo';
+
+    wsServer.on('connection', (connection: any) => {
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        expect(parsedMessage.payload).to.equal(error);
+        done();
+      });
+    });
+
+    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      connectionParams: new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(error);
         }, 100);
       }),
     });

@@ -56,7 +56,7 @@ export type ConnectionParams = {
   [paramName: string]: any,
 };
 
-export type ConnectionParamsOptions = ConnectionParams | Function;
+export type ConnectionParamsOptions = ConnectionParams | Function | Promise<ConnectionParams>;
 
 export interface ClientOptions {
   connectionParams?: ConnectionParamsOptions;
@@ -73,7 +73,7 @@ export class SubscriptionClient {
   public operations: Operations;
   private url: string;
   private nextOperationId: number;
-  private connectionParams: ConnectionParamsOptions;
+  private connectionParams: Function;
   private wsTimeout: number;
   private unsentMessagesQueue: Array<any>; // queued messages while websocket is opening.
   private reconnect: boolean;
@@ -111,7 +111,6 @@ export class SubscriptionClient {
       throw new Error('Unable to find native implementation, or alternative implementation for WebSocket!');
     }
 
-    this.connectionParams = connectionParams;
     this.connectionCallback = connectionCallback;
     this.url = url;
     this.operations = {};
@@ -129,6 +128,7 @@ export class SubscriptionClient {
     this.middlewares = [];
     this.client = null;
     this.maxConnectTimeGenerator = this.createMaxConnectTimeGenerator();
+    this.connectionParams = this.getConnectionParams(connectionParams);
 
     if (!this.lazy) {
       this.connect();
@@ -286,6 +286,20 @@ export class SubscriptionClient {
     });
 
     return this;
+  }
+
+  private getConnectionParams(connectionParams: ConnectionParamsOptions): Function {
+    return (): Promise<ConnectionParams> => new Promise((resolve, reject) => {
+      if (typeof connectionParams === 'function') {
+        try {
+          return resolve(connectionParams.call(null));
+        } catch (error) {
+          return reject(error);
+        }
+      }
+
+      resolve(connectionParams);
+    });
   }
 
   private executeOperation(options: OperationOptions, handler: (error: Error[], result?: any) => void): string {
@@ -526,22 +540,27 @@ export class SubscriptionClient {
 
     this.checkMaxConnectTimeout();
 
-    this.client.onopen = () => {
+    this.client.onopen = async () => {
       if (this.status === this.wsImpl.OPEN) {
         this.clearMaxConnectTimeout();
         this.closedByUser = false;
         this.eventEmitter.emit(this.reconnecting ? 'reconnecting' : 'connecting');
 
-        const payload: ConnectionParams = typeof this.connectionParams === 'function' ? this.connectionParams() : this.connectionParams;
+        try {
+          const connectionParams: ConnectionParams = await this.connectionParams();
 
-        // Send CONNECTION_INIT message, no need to wait for connection to success (reduce roundtrips)
-        this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_INIT, payload);
-        this.flushUnsentMessagesQueue();
+          // Send CONNECTION_INIT message, no need to wait for connection to success (reduce roundtrips)
+          this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_INIT, connectionParams);
+          this.flushUnsentMessagesQueue();
+        } catch (error) {
+          this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_ERROR, error);
+          this.flushUnsentMessagesQueue();
+        }
       }
     };
 
     this.client.onclose = () => {
-      if ( !this.closedByUser ) {
+      if (!this.closedByUser) {
         this.close(false, false);
       }
     };
