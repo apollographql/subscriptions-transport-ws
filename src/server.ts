@@ -78,7 +78,7 @@ export type SubscribeFunction = (schema: GraphQLSchema,
 
 export interface ServerOptions {
   rootValue?: any;
-  schema?: GraphQLSchema;
+  schema?: GraphQLSchema | ((contextValue: any) => Promise<GraphQLSchema>);
   execute?: ExecuteFunction;
   subscribe?: SubscribeFunction;
   validationRules?: Array<(context: ValidationContext) => any>;
@@ -101,7 +101,7 @@ export class SubscriptionServer {
   private wsServer: WebSocket.Server;
   private execute: ExecuteFunction;
   private subscribe: SubscribeFunction;
-  private schema: GraphQLSchema;
+  private getSchema: (contextValue: any) => Promise<GraphQLSchema>;
   private rootValue: any;
   private keepAlive: number;
   private closeHandler: () => void;
@@ -206,7 +206,12 @@ export class SubscriptionServer {
       throw new Error('`schema` is missing');
     }
 
-    this.schema = schema;
+    if (typeof schema === 'function') {
+      this.getSchema = schema;
+    } else {
+      this.getSchema = _ => Promise.resolve(schema);
+    }
+
     this.rootValue = rootValue;
     this.execute = execute;
     this.subscribe = subscribe;
@@ -337,30 +342,34 @@ export class SubscriptionServer {
                 throw new Error(error);
               }
 
-              const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
-              let executionPromise: Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
-              const validationErrors = validate(this.schema, document, this.specifiedRules);
+              return this.getSchema(params.context)
+                .then(schema => {
+                  const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
+                  let executionPromise: Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
 
-              if ( validationErrors.length > 0 ) {
-                executionPromise = Promise.resolve({ errors: validationErrors });
-              } else {
-                let executor: SubscribeFunction | ExecuteFunction = this.execute;
-                if (this.subscribe && isASubscriptionOperation(document, params.operationName)) {
-                  executor = this.subscribe;
-                }
-                executionPromise = Promise.resolve(executor(this.schema,
-                  document,
-                  this.rootValue,
-                  params.context,
-                  params.variables,
-                  params.operationName));
-              }
+                  const validationErrors = validate(schema, document, this.specifiedRules);
 
-              return executionPromise.then((executionResult) => ({
-                executionIterable: isAsyncIterable(executionResult) ?
-                  executionResult : createAsyncIterator([ executionResult ]),
-                params,
-              }));
+                  if ( validationErrors.length > 0 ) {
+                    executionPromise = Promise.resolve({ errors: validationErrors });
+                  } else {
+                    let executor: SubscribeFunction | ExecuteFunction = this.execute;
+                    if (this.subscribe && isASubscriptionOperation(document, params.operationName)) {
+                      executor = this.subscribe;
+                    }
+                    executionPromise = Promise.resolve(executor(schema,
+                      document,
+                      this.rootValue,
+                      params.context,
+                      params.variables,
+                      params.operationName));
+                  }
+
+                  return executionPromise.then((executionResult) => ({
+                    executionIterable: isAsyncIterable(executionResult) ?
+                      executionResult : createAsyncIterator([ executionResult ]),
+                    params,
+                  }));
+                });
             }).then(({ executionIterable, params }) => {
               forAwaitEach(
                 executionIterable as any,
