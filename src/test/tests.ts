@@ -1789,7 +1789,7 @@ describe('Server', function () {
       client1.unsubscribeAll();
       expect(numResults1).to.equals(1);
       done();
-    }, 300);
+    }, 400);
 
   });
 
