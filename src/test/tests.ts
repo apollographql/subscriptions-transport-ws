@@ -1078,21 +1078,26 @@ describe('Client', function () {
     wsServer.on('connection', (connection: WebSocket) => {
       connection.close();
     });
-
+    let errorCount = 0;
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       timeout: 500,
       reconnect: true,
       reconnectionAttempts: 2,
     });
+    subscriptionsClient.onError((error) => {
+      expect(error.message).to.contain('A message was not sent');
+      errorCount += 1;
+    });
     const connectSpy = sinon.spy(subscriptionsClient as any, 'connect');
 
     setTimeout(() => {
       expect(connectSpy.callCount).to.be.equal(2);
+      expect(errorCount).to.be.equal(1);
       done();
     }, 1500);
   });
 
-  it('should stop trying to reconnect to the server if it not receives the ack', function (done) {
+  it('should stop trying to reconnect to the server if it does not receives the ack', function (done) {
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
       timeout: 500,
       reconnect: true,

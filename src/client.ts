@@ -462,7 +462,7 @@ export class SubscriptionClient {
         try {
           JSON.parse(serializedMessage);
         } catch (e) {
-          throw new Error(`Message must be JSON-serializable. Got: ${message}`);
+          this.eventEmitter.emit('error', new Error(`Message must be JSON-serializable. Got: ${message}`));
         }
 
         this.client.send(serializedMessage);
@@ -473,8 +473,8 @@ export class SubscriptionClient {
         break;
       default:
         if (!this.reconnecting) {
-          throw new Error('A message was not sent because socket is not connected, is closing or ' +
-            'is already closed. Message was: ' + JSON.stringify(message));
+          this.eventEmitter.emit('error', new Error('A message was not sent because socket is not connected, is closing or ' +
+            'is already closed. Message was: ' + JSON.stringify(message)));
         }
     }
   }
