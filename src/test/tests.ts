@@ -1364,7 +1364,7 @@ describe('Server', function () {
       execute,
       onOperation: () => {
         return {
-          schema
+          schema,
         };
       },
     }, {
