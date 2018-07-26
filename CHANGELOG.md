@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Allow dynamically specifying/overriding the schema in the object returned from `onOperation` [PR #447](https://github.com/apollographql/subscriptions-transport-ws/pull/447)
 
 ### v0.9.12
 - use lightweight lodash alternatives [Issue #430](https://github.com/apollographql/subscriptions-transport-ws/issues/430)
