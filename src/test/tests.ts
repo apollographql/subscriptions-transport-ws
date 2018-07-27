@@ -1389,10 +1389,81 @@ describe('Server', function () {
     }).to.throw();
   });
 
-  it('should throw an exception when using execute but schema is missing', () => {
-    expect(() => {
-      new SubscriptionServer({ execute: {} as any }, { server: httpServer });
-    }).to.throw();
+  it('should throw an exception when schema is not provided', (done) => {
+    server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    SubscriptionServer.create({
+      execute,
+    }, {
+      server,
+      path: '/',
+    });
+
+    let errorMessage: string;
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    client.onConnected(() => {
+      client.request({
+        query: `query { testString }`,
+        variables: {},
+      }).subscribe({
+        next: (res) => {
+          assert(false, 'expected error to be thrown');
+        },
+        error: (err) => {
+          errorMessage = err.message;
+          expect(errorMessage).to.contain('Missing schema information');
+          done();
+        },
+        complete: () => {
+          assert(false, 'expected error to be thrown');
+        },
+      });
+    });
+  });
+
+  it('should use schema provided in onOperation', (done) => {
+    server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    SubscriptionServer.create({
+      execute,
+      onOperation: () => {
+        return {
+          schema,
+        };
+      },
+    }, {
+      server,
+      path: '/',
+    });
+
+    let msgCnt = 0;
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    client.onConnected(() => {
+      client.request({
+        query: `query { testString }`,
+        variables: {},
+      }).subscribe({
+        next: (res) => {
+          if ( res.errors ) {
+            assert(false, 'unexpected error from request');
+          }
+
+          expect(res.data).to.deep.equal({ testString: 'value' });
+          msgCnt ++;
+        },
+        error: (err) => {
+          assert(false, 'unexpected error from request');
+        },
+        complete: () => {
+          expect(msgCnt).to.equals(1);
+          done();
+        },
+      });
+    });
   });
 
   it('should accept execute method than returns a Promise (original execute)', (done) => {
@@ -1856,7 +1927,7 @@ describe('Server', function () {
       client1.unsubscribeAll();
       expect(numResults1).to.equals(1);
       done();
-    }, 300);
+    }, 400);
 
   });
 

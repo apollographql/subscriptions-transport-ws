@@ -29,6 +29,7 @@ export interface ExecutionParams<TContext = any> {
   formatResponse?: Function;
   formatError?: Function;
   callback?: Function;
+  schema?: GraphQLSchema;
 }
 
 export type ConnectionContext = {
@@ -202,10 +203,6 @@ export class SubscriptionServer {
       throw new Error('Must provide `execute` for websocket server constructor.');
     }
 
-    if (!schema) {
-      throw new Error('`schema` is missing');
-    }
-
     this.schema = schema;
     this.rootValue = rootValue;
     this.execute = execute;
@@ -318,6 +315,7 @@ export class SubscriptionServer {
               formatResponse: <any>undefined,
               formatError: <any>undefined,
               callback: <any>undefined,
+              schema: this.schema,
             };
             let promisedParams = Promise.resolve(baseParams);
 
@@ -329,7 +327,7 @@ export class SubscriptionServer {
               promisedParams = Promise.resolve(this.onOperation(messageForCallback, baseParams, connectionContext.socket));
             }
 
-            promisedParams.then((params: any) => {
+            promisedParams.then((params) => {
               if (typeof params !== 'object') {
                 const error = `Invalid params returned from onOperation! return values must be an object!`;
                 this.sendError(connectionContext, opId, { message: error });
@@ -337,9 +335,17 @@ export class SubscriptionServer {
                 throw new Error(error);
               }
 
+              if (!params.schema) {
+                const error = 'Missing schema information. The GraphQL schema should be provided either statically in' +
+                  ' the `SubscriptionServer` constructor or as a property on the object returned from onOperation!';
+                this.sendError(connectionContext, opId, { message: error });
+
+                throw new Error(error);
+              }
+
               const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
               let executionPromise: Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
-              const validationErrors = validate(this.schema, document, this.specifiedRules);
+              const validationErrors = validate(params.schema, document, this.specifiedRules);
 
               if ( validationErrors.length > 0 ) {
                 executionPromise = Promise.resolve({ errors: validationErrors });
@@ -348,7 +354,7 @@ export class SubscriptionServer {
                 if (this.subscribe && isASubscriptionOperation(document, params.operationName)) {
                   executor = this.subscribe;
                 }
-                executionPromise = Promise.resolve(executor(this.schema,
+                executionPromise = Promise.resolve(executor(params.schema,
                   document,
                   this.rootValue,
                   params.context,
