@@ -25,6 +25,7 @@ export interface ExecutionParams<TContext = any> {
   query: string | DocumentNode;
   variables: { [key: string]: any };
   operationName: string;
+  operationContext: { [key: string]: any };
   context: TContext;
   formatResponse?: Function;
   formatError?: Function;
@@ -314,6 +315,7 @@ export class SubscriptionServer {
               query: parsedMessage.payload.query,
               variables: parsedMessage.payload.variables,
               operationName: parsedMessage.payload.operationName,
+                operationContext: parsedMessage.payload.operationContext,
               context: isObject(initResult) ? Object.assign(Object.create(Object.getPrototypeOf(initResult)), initResult) : {},
               formatResponse: <any>undefined,
               formatError: <any>undefined,
