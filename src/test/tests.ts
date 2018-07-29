@@ -808,6 +808,7 @@ describe('Client', function () {
           if (result.errors.length) {
             client.unsubscribeAll();
             done();
+            return;
           }
 
           if (result) {
@@ -1029,29 +1030,6 @@ describe('Client', function () {
         assert(false);
       },
     });
-  });
-
-  it('should throw an exception when trying to request when socket is closed', function (done) {
-    let client: SubscriptionClient = null;
-
-    client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`, { reconnect: true });
-
-    setTimeout(() => {
-      client.client.close();
-    }, 500);
-
-    setTimeout(() => {
-      expect(() => {
-        client.request({
-          query: `subscription useInfo{
-            invalid
-          }`,
-          variables: {},
-        }).subscribe({});
-
-        done();
-      }).to.throw();
-    }, 1000);
   });
 
   it('should emit event when an websocket error occurs', function (done) {
@@ -1364,10 +1342,10 @@ describe('Server', function () {
     }
 
     if (eventsOptions) {
-      eventsOptions.onConnect.reset();
-      eventsOptions.onDisconnect.reset();
-      eventsOptions.onOperation.reset();
-      eventsOptions.onOperationComplete.reset();
+      eventsOptions.onConnect.resetHistory();
+      eventsOptions.onDisconnect.resetHistory();
+      eventsOptions.onOperation.resetHistory();
+      eventsOptions.onOperationComplete.resetHistory();
     }
   });
 
@@ -1389,10 +1367,81 @@ describe('Server', function () {
     }).to.throw();
   });
 
-  it('should throw an exception when using execute but schema is missing', () => {
-    expect(() => {
-      new SubscriptionServer({ execute: {} as any }, { server: httpServer });
-    }).to.throw();
+  it('should throw an exception when schema is not provided', (done) => {
+    server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    SubscriptionServer.create({
+      execute,
+    }, {
+      server,
+      path: '/',
+    });
+
+    let errorMessage: string;
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    client.onConnected(() => {
+      client.request({
+        query: `query { testString }`,
+        variables: {},
+      }).subscribe({
+        next: (res) => {
+          assert(false, 'expected error to be thrown');
+        },
+        error: (err) => {
+          errorMessage = err.message;
+          expect(errorMessage).to.contain('Missing schema information');
+          done();
+        },
+        complete: () => {
+          assert(false, 'expected error to be thrown');
+        },
+      });
+    });
+  });
+
+  it('should use schema provided in onOperation', (done) => {
+    server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    SubscriptionServer.create({
+      execute,
+      onOperation: () => {
+        return {
+          schema,
+        };
+      },
+    }, {
+      server,
+      path: '/',
+    });
+
+    let msgCnt = 0;
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    client.onConnected(() => {
+      client.request({
+        query: `query { testString }`,
+        variables: {},
+      }).subscribe({
+        next: (res) => {
+          if ( res.errors ) {
+            assert(false, 'unexpected error from request');
+          }
+
+          expect(res.data).to.deep.equal({ testString: 'value' });
+          msgCnt ++;
+        },
+        error: (err) => {
+          assert(false, 'unexpected error from request');
+        },
+        complete: () => {
+          expect(msgCnt).to.equals(1);
+          done();
+        },
+      });
+    });
   });
 
   it('should accept execute method than returns a Promise (original execute)', (done) => {
@@ -1856,7 +1905,7 @@ describe('Server', function () {
       client1.unsubscribeAll();
       expect(numResults1).to.equals(1);
       done();
-    }, 300);
+    }, 400);
 
   });
 
@@ -1873,6 +1922,7 @@ describe('Server', function () {
 
         if (messageData.type === MessageTypes.GQL_COMPLETE) {
           done();
+          return;
         }
 
         const result = messageData.payload;
@@ -2314,8 +2364,8 @@ describe('Client<->Server Flow', () => {
   });
 
   it('should close iteration over AsyncIterator when client unsubscribes', async () => {
-    subscriptionAsyncIteratorSpy.reset();
-    resolveAsyncIteratorSpy.reset();
+    subscriptionAsyncIteratorSpy.resetHistory();
+    resolveAsyncIteratorSpy.resetHistory();
 
     server = createServer(notFoundRequestListener);
     server.listen(SERVER_EXECUTOR_TESTS_PORT);
@@ -2374,10 +2424,10 @@ describe('Client<->Server Flow', () => {
     expect(subscriptionAsyncIteratorSpy.callCount).to.eq(2);
     expect(resolveAsyncIteratorSpy.callCount).to.eq(2);
     // Clear spies before publishing again
-    subscriptionAsyncIteratorSpy.reset();
-    resolveAsyncIteratorSpy.reset();
-    client1.spy.reset();
-    client2.spy.reset();
+    subscriptionAsyncIteratorSpy.resetHistory();
+    resolveAsyncIteratorSpy.resetHistory();
+    client1.spy.resetHistory();
+    client2.spy.resetHistory();
 
     // Unsubscribe client 1
     client1.unsubscribe();
@@ -2397,7 +2447,7 @@ describe('Client<->Server Flow', () => {
   });
 
   it('should close iteration over AsyncIterator when client disconnects', async () => {
-    resolveAsyncIteratorSpy.reset();
+    resolveAsyncIteratorSpy.resetHistory();
 
     server = createServer(notFoundRequestListener);
     server.listen(SERVER_EXECUTOR_TESTS_PORT);
@@ -2454,9 +2504,9 @@ describe('Client<->Server Flow', () => {
     // But the async iterator subscription should call twice, one for each subscription
     expect(resolveAsyncIteratorSpy.callCount).to.eq(2);
     // Clear spies before publishing again
-    resolveAsyncIteratorSpy.reset();
-    client1.spy.reset();
-    client2.spy.reset();
+    resolveAsyncIteratorSpy.resetHistory();
+    client1.spy.resetHistory();
+    client2.spy.resetHistory();
 
     // Close client 1
     client1.close();
