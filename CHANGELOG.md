@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- Attach the request context to operation params - allow to pass context from gateway to stitched service(https://github.com/apollographql/graphql-tools/issues/864) 
 
 ### v0.9.14
 - Allow dynamically specifying/overriding the schema in the object returned from `onOperation` [PR #447](https://github.com/apollographql/subscriptions-transport-ws/pull/447)
