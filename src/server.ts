@@ -377,7 +377,7 @@ export class SubscriptionServer {
                     try {
                       result = params.formatResponse(value, params);
                     } catch (err) {
-                      console.error('Error in formatError function:', err);
+                      console.error('Error in formatResponse function:', err);
                     }
                   }
 
