@@ -1,5 +1,7 @@
 const WS_TIMEOUT = 30000;
+const WS_MIN_TIMEOUT = 1000;
 
 export {
+  WS_MIN_TIMEOUT,
   WS_TIMEOUT,
 };
