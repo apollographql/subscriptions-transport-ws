@@ -1,7 +1,7 @@
 # Changelog
 
 ### vNEXT
-- Allow passing of minimum connection timeout for connect/reconnect
+- Allow passing of a minimum connection timeout for connect/reconnect
 
 ### v0.9.14
 - Allow dynamically specifying/overriding the schema in the object returned from `onOperation` [PR #447](https://github.com/apollographql/subscriptions-transport-ws/pull/447)
