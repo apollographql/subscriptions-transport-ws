@@ -1,7 +1,12 @@
 import { $$asyncIterator } from 'iterall';
 
-export const createEmptyIterable = (): AsyncIterator<any> => {
+interface MockAsyncIterator<T> extends AsyncIterator<T> {
+  isMock: boolean;
+}
+
+export const createEmptyIterable = (): MockAsyncIterator<any> => {
   return {
+    isMock: true,
     next() {
       return Promise.resolve({ value: undefined, done: true });
     },

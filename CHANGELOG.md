@@ -1,6 +1,7 @@
 # Changelog
 
 ### vNEXT
+- return from iterator in duplicate subscriptions [Issue #433](https://github.com/apollographql/subscriptions-transport-ws/issues/433)
 
 ### v0.9.14
 - Allow dynamically specifying/overriding the schema in the object returned from `onOperation` [PR #447](https://github.com/apollographql/subscriptions-transport-ws/pull/447)

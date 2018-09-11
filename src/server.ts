@@ -407,7 +407,11 @@ export class SubscriptionServer {
 
               return executionIterable;
             }).then((subscription: ExecutionIterator) => {
-              connectionContext.operations[opId] = subscription;
+              if (connectionContext.operations[opId].hasOwnProperty('isMock') === false) {
+                subscription.return();
+              } else {
+                connectionContext.operations[opId] = subscription;
+              }
             }).then(() => {
               // NOTE: This is a temporary code to support the legacy protocol.
               // As soon as the old protocol has been removed, this coode should also be removed.

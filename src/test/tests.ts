@@ -27,7 +27,7 @@ import { PubSub, withFilter } from 'graphql-subscriptions';
 import MessageTypes  from '../message-types';
 
 import {
-  GRAPHQL_SUBSCRIPTIONS,
+  GRAPHQL_SUBSCRIPTIONS, GRAPHQL_WS,
 } from '../protocol';
 
 import { createServer, IncomingMessage, ServerResponse, Server } from 'http';
@@ -1514,6 +1514,66 @@ describe('Server', function () {
         complete: () => subServer.close(),
       });
     });
+  });
+
+  it('should return from iterator in duplicate subscriptions', (done) => {
+    server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    let iteratorsCreated = 0;
+    let returnCallCount = 0;
+
+    const executeWithAsyncIterable = () => {
+      iteratorsCreated++;
+      let called = false;
+
+      return {
+        next() {
+          if (called === true) {
+            return Promise.resolve({value: undefined, done: true});
+          }
+
+          called = true;
+
+          return Promise.resolve({value: {data: {testString: 'value'}}, done: false});
+        },
+        return() {
+          returnCallCount++;
+          return Promise.resolve({value: undefined, done: true});
+        },
+        throw(e: Error) {
+          return Promise.reject(e);
+        },
+        [$$asyncIterator]() {
+          return this;
+        },
+      };
+    };
+
+    SubscriptionServer.create({
+      schema,
+      execute: executeWithAsyncIterable,
+    }, {
+      server,
+      path: '/',
+    });
+
+    const wsClient = new WebSocket(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`, GRAPHQL_WS);
+
+    wsClient.on('open', () => {
+      wsClient.send('{"type":"connection_init","payload":{}}', () => {
+        wsClient.send('{"id":"1","type":"start","payload":{"query":"query { testString }","variables":null}}');
+        wsClient.send('{"id":"1","type":"start","payload":{"query":"query { testString }","variables":null}}', () => {
+          wsClient.close();
+        });
+      });
+    });
+
+    setTimeout(() => {
+      expect(iteratorsCreated).to.eq(2);
+      expect(returnCallCount).to.eq(2);
+      done();
+    }, 200);
   });
 
   it('should have request interface (apollo client 2.0)', (done) => {
