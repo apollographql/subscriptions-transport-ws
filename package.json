@@ -1,6 +1,6 @@
 {
   "name": "subscriptions-transport-ws",
-  "version": "0.9.14",
+  "version": "0.9.15",
   "description": "A websocket transport for GraphQL subscriptions",
   "main": "dist/index.js",
   "browser": "dist/client.js",
@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@types/chai": "^4.0.0",
-    "@types/graphql": "^0.13.1",
+    "@types/graphql": "^14.0.0",
     "@types/is-promise": "^2.1.0",
     "@types/lodash": "^4.14.109",
     "@types/mocha": "^5.2.5",
@@ -42,7 +42,7 @@
     "@types/sinon": "^5.0.1",
     "@types/ws": "^5.1.2",
     "chai": "^4.0.2",
-    "graphql": "^0.13.2",
+    "graphql": "^14.0.2",
     "graphql-subscriptions": "^0.5.7",
     "istanbul": "^1.0.0-alpha.2",
     "lodash": "^4.17.1",
