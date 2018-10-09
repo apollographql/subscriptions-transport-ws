@@ -107,14 +107,17 @@ The phase initializes the connection between the client and server, and usually 
 This phase called per each operation the client request to execute:
 
 - App creates a subscription using `subscribe` or `query` client's API, and the `GQL_START` message sent to the server.
-- Server calls `onOperation` callback, and responds with `GQL_DATA` in case of zero errors, or `GQL_ERROR` if there is a problem with the operation (is might also return `GQL_ERROR` with `errors` array, in case of resolvers errors).
-- Client get `GQL_DATA` and handles it.
+- Server calls `onOperation` callback, and responds with:
+    - if there are zero errors: `GQL_DATA`
+    - if there are resolver errors: `GQL_DATA` with `errors` array
+    - if there is a problem with the operation: `GQL_ERROR`
+- Client receives `GQL_DATA` or `GQL_ERROR` and handles it.
 - Server calls `onOperationDone` if the operation is a query or mutation (for subscriptions, this called when unsubscribing)
 - Server sends `GQL_COMPLETE` if the operation is a query or mutation (for subscriptions, this sent when unsubscribing)
 
 For subscriptions:
 - App triggers `PubSub`'s publication method, and the server publishes the event, passing it through the `subscribe` executor to create GraphQL execution result
 - Client receives `GQL_DATA` with the data, and handles it.
-- When client unsubscribe, the server triggers `onOperationDone` and sends `GQL_COMPLETE` message to the client.
+- When client unsubscribe (by sending a `GQL_STOP` message), the server triggers `onOperationDone` and sends `GQL_COMPLETE` message to the client.
 
 When client done with executing GraphQL, it should close the connection and terminate the session using `GQL_CONNECTION_TERMINATE` message.
