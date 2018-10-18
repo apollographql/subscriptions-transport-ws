@@ -87,6 +87,7 @@ export class SubscriptionClient {
   private inactivityTimeoutId: any;
   private closedByUser: boolean;
   private wsImpl: any;
+  private wsProtocols: string | string[];
   private wasKeepAliveReceived: boolean;
   private tryReconnectTimeoutId: any;
   private checkConnectionIntervalId: any;
@@ -94,7 +95,12 @@ export class SubscriptionClient {
   private middlewares: Middleware[];
   private maxConnectTimeGenerator: any;
 
-  constructor(url: string, options?: ClientOptions, webSocketImpl?: any) {
+  constructor(
+    url: string,
+    options?: ClientOptions,
+    webSocketImpl?: any,
+    webSocketProtocols?: string | string[],
+  ) {
     const {
       connectionCallback = undefined,
       connectionParams = {},
@@ -106,11 +112,11 @@ export class SubscriptionClient {
     } = (options || {});
 
     this.wsImpl = webSocketImpl || NativeWebSocket;
-
     if (!this.wsImpl) {
       throw new Error('Unable to find native implementation, or alternative implementation for WebSocket!');
     }
 
+    this.wsProtocols = webSocketProtocols || GRAPHQL_WS;
     this.connectionCallback = connectionCallback;
     this.url = url;
     this.operations = {};
@@ -536,7 +542,7 @@ export class SubscriptionClient {
   }
 
   private connect() {
-    this.client = new this.wsImpl(this.url, GRAPHQL_WS);
+    this.client = new this.wsImpl(this.url, this.wsProtocols);
 
     this.checkMaxConnectTimeout();
 
