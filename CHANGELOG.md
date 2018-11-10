@@ -1,5 +1,8 @@
 # Changelog
 
+### v0.9.16
+- Update README.md instructions on how to use the library with GraphiQL
+
 ### v0.9.15
 
 - Add support for `graphql` and `@types/graphql` 14.  <br/>

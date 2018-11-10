@@ -197,8 +197,8 @@ app.use('/graphiql', graphiqlExpress({
 If you are using older version, or another GraphQL server, start by modifying GraphiQL static HTML, and add this package and it's fetcher from CDN:
 
 ```html
-    <script src="//unpkg.com/subscriptions-transport-ws@0.5.4/browser/client.js"></script>
-    <script src="//unpkg.com/graphiql-subscriptions-fetcher@0.0.2/browser/client.js"></script>
+    <script src="//unpkg.com/subscriptions-transport-ws@0.9.14/browser/client.js"></script>
+    <script src="//unpkg.com/graphiql-subscriptions-fetcher@0.0.3/browser/client.js"></script>
 ```
 
 Then, create `SubscriptionClient` and define the fetcher:
