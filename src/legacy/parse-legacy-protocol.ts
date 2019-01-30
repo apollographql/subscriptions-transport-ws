@@ -30,9 +30,10 @@ export const parseLegacyProtocolMessage = (connectionContext: ConnectionContext,
       break;
     case MessageTypes.GQL_CONNECTION_ERROR:
       if (connectionContext.isLegacy) {
+        const { message: error, name, data } = message.payload;
         messageToReturn = {
           ...message, type: MessageTypes.INIT_FAIL,
-          payload: message.payload.message ? { error: message.payload.message } : message.payload,
+          payload: message.payload.message ? { error, name, data } : message.payload,
         };
       }
       break;

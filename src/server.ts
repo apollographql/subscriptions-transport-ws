@@ -56,26 +56,26 @@ export interface OperationMessage {
 }
 
 export type ExecuteFunction = (schema: GraphQLSchema,
-                               document: DocumentNode,
-                               rootValue?: any,
-                               contextValue?: any,
-                               variableValues?: { [key: string]: any },
-                               operationName?: string,
-                               fieldResolver?: GraphQLFieldResolver<any, any>) =>
-                               ExecutionResult |
-                               Promise<ExecutionResult> |
-                               AsyncIterator<ExecutionResult>;
+  document: DocumentNode,
+  rootValue?: any,
+  contextValue?: any,
+  variableValues?: { [key: string]: any },
+  operationName?: string,
+  fieldResolver?: GraphQLFieldResolver<any, any>) =>
+  ExecutionResult |
+  Promise<ExecutionResult> |
+  AsyncIterator<ExecutionResult>;
 
 export type SubscribeFunction = (schema: GraphQLSchema,
-                                 document: DocumentNode,
-                                 rootValue?: any,
-                                 contextValue?: any,
-                                 variableValues?: { [key: string]: any },
-                                 operationName?: string,
-                                 fieldResolver?: GraphQLFieldResolver<any, any>,
-                                 subscribeFieldResolver?: GraphQLFieldResolver<any, any>) =>
-                                 AsyncIterator<ExecutionResult> |
-                                 Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
+  document: DocumentNode,
+  rootValue?: any,
+  contextValue?: any,
+  variableValues?: { [key: string]: any },
+  operationName?: string,
+  fieldResolver?: GraphQLFieldResolver<any, any>,
+  subscribeFieldResolver?: GraphQLFieldResolver<any, any>) =>
+  AsyncIterator<ExecutionResult> |
+  Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
 
 export interface ServerOptions {
   rootValue?: any;
@@ -83,7 +83,7 @@ export interface ServerOptions {
   execute?: ExecuteFunction;
   subscribe?: SubscribeFunction;
   validationRules?:
-    Array<(context: ValidationContext) => any> | ReadonlyArray<any>;
+  Array<(context: ValidationContext) => any> | ReadonlyArray<any>;
   onOperation?: Function;
   onOperationComplete?: Function;
   onConnect?: Function;
@@ -232,12 +232,13 @@ export class SubscriptionServer {
   }
 
   private onMessage(connectionContext: ConnectionContext) {
-    return (message: any) => {
+    return (originalMessage: any) => {
       let parsedMessage: OperationMessage;
       try {
-        parsedMessage = parseLegacyProtocolMessage(connectionContext, JSON.parse(message));
+        parsedMessage = parseLegacyProtocolMessage(connectionContext, JSON.parse(originalMessage));
       } catch (e) {
-        this.sendError(connectionContext, null, { message: e.message }, MessageTypes.GQL_CONNECTION_ERROR);
+        const { name, message, data } = e;
+        this.sendError(connectionContext, null, { name, message, data }, MessageTypes.GQL_CONNECTION_ERROR);
         return;
       }
 
@@ -279,11 +280,12 @@ export class SubscriptionServer {
                 }
               }, this.keepAlive);
             }
-          }).catch((error: Error) => {
+          }).catch((error: Error & { data: any }) => {
+            const { name, message, data } = error;
             this.sendError(
               connectionContext,
               opId,
-              { message: error.message },
+              { name, message, data },
               MessageTypes.GQL_CONNECTION_ERROR,
             );
 
@@ -349,7 +351,7 @@ export class SubscriptionServer {
               let executionPromise: Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
               const validationErrors = validate(params.schema, document, this.specifiedRules);
 
-              if ( validationErrors.length > 0 ) {
+              if (validationErrors.length > 0) {
                 executionPromise = Promise.resolve({ errors: validationErrors });
               } else {
                 let executor: SubscribeFunction | ExecuteFunction = this.execute;
@@ -366,7 +368,7 @@ export class SubscriptionServer {
 
               return executionPromise.then((executionResult) => ({
                 executionIterable: isAsyncIterable(executionResult) ?
-                  executionResult : createAsyncIterator([ executionResult ]),
+                  executionResult : createAsyncIterator([executionResult]),
                 params,
               }));
             }).then(({ executionIterable, params }) => {
@@ -388,9 +390,9 @@ export class SubscriptionServer {
                 .then(() => {
                   this.sendMessage(connectionContext, opId, MessageTypes.GQL_COMPLETE, null);
                 })
-                .catch((e: Error) => {
+                .catch((e: Error & { data: any }) => {
                   let error = e;
-
+                  const { name, message, data } = error;
                   if (params.formatError) {
                     try {
                       error = params.formatError(e, params);
@@ -401,7 +403,7 @@ export class SubscriptionServer {
 
                   // plain Error object cannot be JSON stringified.
                   if (Object.keys(e).length === 0) {
-                    error = { name: e.name, message: e.message };
+                    error = { name, message, data };
                   }
 
                   this.sendError(connectionContext, opId, error);
@@ -418,7 +420,8 @@ export class SubscriptionServer {
               if (e.errors) {
                 this.sendMessage(connectionContext, opId, MessageTypes.GQL_DATA, { errors: e.errors });
               } else {
-                this.sendError(connectionContext, opId, { message: e.message });
+                const { name, message, data } = e;
+                this.sendError(connectionContext, opId, { name, message, data });
               }
 
               // Remove the operation on the server side as it will be removed also in the client
@@ -427,8 +430,9 @@ export class SubscriptionServer {
             });
             return promisedParams;
           }).catch((error) => {
+            const { name, message, data } = error;
             // Handle initPromise rejected
-            this.sendError(connectionContext, opId, { message: error.message });
+            this.sendError(connectionContext, opId, { name, message, data });
             this.unsubscribe(connectionContext, opId);
           });
           break;
@@ -465,12 +469,12 @@ export class SubscriptionServer {
   }
 
   private sendError(connectionContext: ConnectionContext, opId: string, errorPayload: any,
-                    overrideDefaultErrorType?: string): void {
+    overrideDefaultErrorType?: string): void {
     const sanitizedOverrideDefaultErrorType = overrideDefaultErrorType || MessageTypes.GQL_ERROR;
     if ([
-        MessageTypes.GQL_CONNECTION_ERROR,
-        MessageTypes.GQL_ERROR,
-      ].indexOf(sanitizedOverrideDefaultErrorType) === -1) {
+      MessageTypes.GQL_CONNECTION_ERROR,
+      MessageTypes.GQL_ERROR,
+    ].indexOf(sanitizedOverrideDefaultErrorType) === -1) {
       throw new Error('overrideDefaultErrorType should be one of the allowed error messages' +
         ' GQL_CONNECTION_ERROR or GQL_ERROR');
     }
@@ -483,4 +487,3 @@ export class SubscriptionServer {
     );
   }
 }
-
