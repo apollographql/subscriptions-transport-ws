@@ -4,6 +4,7 @@
     "module": "commonjs",
     "moduleResolution": "node",
     "sourceMap": true,
+    "inlineSources": true,
     "noImplicitAny": true,
     "rootDir": "./src",
     "outDir": "./dist",
