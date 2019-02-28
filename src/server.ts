@@ -329,7 +329,7 @@ export class SubscriptionServer {
               promisedParams = Promise.resolve(this.onOperation(messageForCallback, baseParams, connectionContext.socket));
             }
 
-            promisedParams.then((params) => {
+            return promisedParams.then((params) => {
               if (typeof params !== 'object') {
                 const error = `Invalid params returned from onOperation! return values must be an object!`;
                 this.sendError(connectionContext, opId, { message: error });
@@ -425,7 +425,6 @@ export class SubscriptionServer {
               this.unsubscribe(connectionContext, opId);
               return;
             });
-            return promisedParams;
           }).catch((error) => {
             // Handle initPromise rejected
             this.sendError(connectionContext, opId, { message: error.message });
