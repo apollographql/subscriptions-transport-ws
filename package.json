@@ -9,6 +9,9 @@
     "url": "git+https://github.com/apollostack/subscriptions-transport-ws.git"
   },
   "dependencies": {
+    "@types/graphql": "^14.0.0",
+    "@types/node": "^8.0.8",
+    "@types/ws": "^5.1.2",
     "backo2": "^1.0.2",
     "eventemitter3": "^3.1.0",
     "iterall": "^1.2.1",
@@ -34,13 +37,10 @@
   },
   "devDependencies": {
     "@types/chai": "^4.0.0",
-    "@types/graphql": "^14.0.0",
     "@types/is-promise": "^2.1.0",
     "@types/lodash": "^4.14.109",
     "@types/mocha": "^5.2.5",
-    "@types/node": "^8.0.8",
     "@types/sinon": "^5.0.1",
-    "@types/ws": "^5.1.2",
     "chai": "^4.0.2",
     "graphql": "^14.0.2",
     "graphql-subscriptions": "^1.0.0",
