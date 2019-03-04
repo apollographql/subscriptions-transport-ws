@@ -277,12 +277,15 @@ ReactDOM.render(
 - => Returns an `off` method to cancel the event subscription.
 
 #### `onReconnecting(callback, thisContext) => Function` - shorthand for `.on('reconnecting', ...)`
-- `callback: Function`: function to be called when websocket starts it's reconnection 
+- `callback: Function`: function to be called when websocket starts it's reconnection
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
 
 #### `onDisconnected(callback, thisContext) => Function` - shorthand for `.on('disconnected', ...)`
 - `callback: Function`: function to be called when websocket disconnected.
+  it will be called with an object with `{willTryReconnectAt?: number}` with the
+  timestamp at which it will next try to reconnect (or `null` if it will not try
+  to reconnect again).
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
 
@@ -292,6 +295,8 @@ ReactDOM.render(
 - => Returns an `off` method to cancel the event subscription.
 
 ### `close() => void` - closes the WebSocket connection manually, and ignores `reconnect` logic if it was set to `true`.
+
+### `tryReconnect() => void` - tries to reconnect if the client isn't already connected.
 
 ### `use(middlewares: MiddlewareInterface[]) => SubscriptionClient` - adds middleware to modify `OperationOptions` per each request
 - `middlewares: MiddlewareInterface[]` - Array contains list of middlewares (implemented `applyMiddleware` method) implementation, the `SubscriptionClient` will use the middlewares to modify `OperationOptions` for every operation
