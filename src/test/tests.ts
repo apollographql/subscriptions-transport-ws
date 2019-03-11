@@ -1322,6 +1322,17 @@ describe('Client', function () {
       }, 50);
     }, 50);
   });
+
+  it('should allow passing custom WebSocket protocols', () => {
+    const testCases = ['custom-protocol', ['custom', 'protocols']];
+
+    for (const testCase of testCases) {
+      const mockWebSocket = sinon.spy();
+      new SubscriptionClient(`ws://localhost:${TEST_PORT}`, {}, mockWebSocket, testCase);
+      expect(mockWebSocket.calledOnce).to.be.true;
+      expect(mockWebSocket.firstCall.args[1]).to.equal(testCase);
+    }
+  });
 });
 
 describe('Server', function () {
