@@ -8,3 +8,4 @@ public/*
 .deploy*/
 docs.json
 _multiconfig.yml
+!package-lock.json
