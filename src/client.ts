@@ -553,7 +553,7 @@ export class SubscriptionClient {
         this.eventEmitter.emit(this.reconnecting ? 'reconnecting' : 'connecting');
 
         try {
-          const connectionParams: ConnectionParams = await this.connectionParams();
+          const connectionParams: ConnectionParams = await this.getConnectionParams(this.connectionParams);
 
           // Send CONNECTION_INIT message, no need to wait for connection to success (reduce roundtrips)
           this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_INIT, connectionParams);
