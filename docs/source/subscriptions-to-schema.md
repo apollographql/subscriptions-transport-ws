@@ -10,8 +10,8 @@ You need to create a root schema definition and a root resolver for your `Subscr
 
 ```graphql
 type Comment {
-    id: String
-    content: String
+  id: String
+  content: String
 }
 
 type Subscription {
