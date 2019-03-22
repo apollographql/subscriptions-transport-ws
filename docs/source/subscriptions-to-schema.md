@@ -8,7 +8,7 @@ You specify operation type, then the operation name and you can customize the pu
 
 You need to create a root schema definition and a root resolver for your `Subscription` root, just like with Query and Mutation:
 
-```
+```graphql
 type Comment {
     id: String
     content: String

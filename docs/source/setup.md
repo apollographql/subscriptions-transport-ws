@@ -118,7 +118,7 @@ To do so, we can use `withFilter` helper from this package, which wraps `AsyncIt
 
 Let's see an example - for the `commentAdded` server-side subscription, the client want to subscribe only to comments added to a specific repo:
 
-```
+```graphql
 subscription($repoName: String!){
   commentAdded(repoFullName: $repoName) {
     id
