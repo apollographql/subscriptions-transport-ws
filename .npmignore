@@ -8,5 +8,4 @@ dist/test/
 docs/
 npm-debug.log.*
 package-lock.json
-src/
 yarn.lock
