@@ -67,6 +67,7 @@ export interface ClientOptions {
   connectionCallback?: (error: Error[], result?: any) => void;
   lazy?: boolean;
   inactivityTimeout?: number;
+  wsOptionArguments?: any[];
 }
 
 export class SubscriptionClient {
@@ -96,6 +97,7 @@ export class SubscriptionClient {
   private maxConnectTimeoutId: any;
   private middlewares: Middleware[];
   private maxConnectTimeGenerator: any;
+  private wsOptionArguments: any[];
 
   constructor(
     url: string,
@@ -112,6 +114,7 @@ export class SubscriptionClient {
       reconnectionAttempts = Infinity,
       lazy = false,
       inactivityTimeout = 0,
+      wsOptionArguments = [],
     } = (options || {});
 
     this.wsImpl = webSocketImpl || NativeWebSocket;
@@ -139,6 +142,7 @@ export class SubscriptionClient {
     this.client = null;
     this.maxConnectTimeGenerator = this.createMaxConnectTimeGenerator();
     this.connectionParams = this.getConnectionParams(connectionParams);
+    this.wsOptionArguments = wsOptionArguments;
 
     if (!this.lazy) {
       this.connect();
@@ -550,7 +554,7 @@ export class SubscriptionClient {
   }
 
   private connect() {
-    this.client = new this.wsImpl(this.url, this.wsProtocols);
+    this.client = new this.wsImpl(this.url, this.wsProtocols, ...this.wsOptionArguments);
 
     this.checkMaxConnectTimeout();
 

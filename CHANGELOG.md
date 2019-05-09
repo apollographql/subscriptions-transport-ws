@@ -15,6 +15,8 @@
 
 - Add `minTimeout` option for client.  <br/>
   [@jedwards1211](https://github.com/jedwards1211) in [#675](https://github.com/apollographql/subscriptions-transport-ws/pull/675)
+- Accept extra WebSocket client arguments.  <br/>
+  [@GingerBear](https://github.com/GingerBear) in [#561](https://github.com/apollographql/subscriptions-transport-ws/pull/561)
 
 ## v0.9.17
 
