@@ -47,7 +47,7 @@ Then, later in your code, you can publish data to your topic by using `pubsub.pu
 pubsub.publish('commentAdded', { commentAdded: { id: 1, content: 'Hello!' }})
 ```
 
-<h2 id="subscription-server">Payload Transformation</h2>
+## Payload Transformation
 
 When using `subscribe` field, it's also possible to manipulate the event payload before running it through the GraphQL execution engine.
 

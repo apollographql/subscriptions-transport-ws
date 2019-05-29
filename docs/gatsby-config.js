@@ -1,4 +1,5 @@
 module.exports = {
+  pathPrefix: '/docs/graphql-subscriptions',
   __experimentalThemes: [
     {
       resolve: 'gatsby-theme-apollo-docs',
@@ -6,8 +7,6 @@ module.exports = {
         root: __dirname,
         subtitle: 'GraphQL Subscriptions Guide',
         description: 'A guide to using GraphQL Subscriptions',
-        basePath: '/docs/graphql-subscriptions',
-        contentDir: 'docs/source',
         githubRepo: 'apollographql/subscriptions-transport-ws',
         sidebarCategories: {
           null: [
