@@ -12,7 +12,7 @@ It sits between your application's logic and the GraphQL subscriptions engine - 
 
 The `PubSub` implementation also includes a mechanism that converts a specific `PubSub` event into a stream of `AsyncIterator`, which you can use with `graphql` subscriptions resolver.
 
-> Check out how to change the `PubSub` mechanism to an external one [here](./external-pubsub.html)
+> Check out how to change the `PubSub` mechanism to an external one [here](/external-pubsub/)
 
 To get started, install `graphql-subscriptions` package:
 
@@ -106,7 +106,7 @@ See [the tutorial on Medium for complete working sample code](https://blog.apoll
 
 To connect the published event from our `PubSub` to GraphQL engine, we need to create `AsyncIterable` and use it in the GraphQL subscription resolver definition.
 
-You can see [an example for creating subscription resolver here](/docs/graphql-subscriptions/subscriptions-to-schema.html)
+You can see [an example for creating subscription resolver here](/subscriptions-to-schema/)
 
 ## Filter Subscriptions
 
