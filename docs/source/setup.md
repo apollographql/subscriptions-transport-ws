@@ -2,7 +2,7 @@
 title: Setup
 ---
 
-<h2 id="setup">PubSub</h2>
+## PubSub
 
 `PubSub` is a class that exposes a simple `publish` and `subscribe` API.
 
@@ -41,7 +41,7 @@ pubsub.publish('commentAdded', payload);
 
 > At this point, nothing works yet because there is nothing to publish into
 
-<h2 id="subscription-server">SubscriptionServer</h2>
+## SubscriptionServer
 
 `SubscriptionServer` will manage the WebSocket connection between the GraphQL engine and the clients.
 
@@ -102,15 +102,13 @@ ws.listen(PORT, () => {
 
 See [the tutorial on Medium for complete working sample code](https://blog.apollographql.com/tutorial-graphql-subscriptions-server-side-e51c32dc2951).
 
-<h2 id="subscription-resolver">Subscription Resolver</h2>
+## Subscription Resolver
 
 To connect the published event from our `PubSub` to GraphQL engine, we need to create `AsyncIterable` and use it in the GraphQL subscription resolver definition.
 
 You can see [an example for creating subscription resolver here](/docs/graphql-subscriptions/subscriptions-to-schema.html)
 
-
-
-<h2 id="filter-subscriptions">Filter Subscriptions</h2>
+## Filter Subscriptions
 
 Sometimes a client will want filter out specific events based on context and arguments.
 
