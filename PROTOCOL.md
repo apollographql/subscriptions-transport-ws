@@ -2,7 +2,8 @@
 
 ## Client-server communication
 
-Each message has a `type` field, which defined in the protocol of this package, as well as associated fields inside `payload` field, depending on the message type, and `id` field so the client can identify each response from the server.
+Each message has a `type` field, the value of which is defined in the [message-types.ts](https://github.com/apollographql/subscriptions-transport-ws/blob/master/src/message-types.ts) source file of this package. 
+Depending on the message type, it also has the associated fields inside the `payload` field, and an `id` field so the client can identify each response from the server.
 
 Each WebSocket message is represented in JSON structure, and being stringified before sending it over the network.
 
