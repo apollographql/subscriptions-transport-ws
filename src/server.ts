@@ -400,8 +400,8 @@ export class SubscriptionServer {
                   }
 
                   // plain Error object cannot be JSON stringified.
-                  if (Object.keys(e).length === 0) {
-                    error = { name: e.name, message: e.message };
+                  if (Object.keys(error).length === 0) {
+                    error = { name: error.name, message: error.message };
                   }
 
                   this.sendError(connectionContext, opId, error);
