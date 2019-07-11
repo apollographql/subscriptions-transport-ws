@@ -293,7 +293,9 @@ describe('Client', function () {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
 
-        if (parsedMessage.type === MessageTypes.GQL_START) {
+        if (parsedMessage.type === MessageTypes.GQL_CONNECTION_INIT) {
+          connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK, payload: {} }));
+        } else if (parsedMessage.type === MessageTypes.GQL_START) {
           subscriptionsCount++;
         }
       });
@@ -924,7 +926,9 @@ describe('Client', function () {
     wsServer.on('connection', (connection: WebSocket) => {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
-        if (parsedMessage.type === MessageTypes.GQL_START) {
+        if (parsedMessage.type === MessageTypes.GQL_CONNECTION_INIT) {
+          connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK, payload: {} }));
+        } else if (parsedMessage.type === MessageTypes.GQL_START) {
           connection.send(JSON.stringify({
             type: MessageTypes.GQL_ERROR,
             id: parsedMessage.id,
@@ -1089,7 +1093,9 @@ describe('Client', function () {
       connections += 1;
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
-        if (parsedMessage.type === MessageTypes.GQL_START) {
+        if (parsedMessage.type === MessageTypes.GQL_CONNECTION_INIT) {
+          connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK, payload: {} }));
+        } else if (parsedMessage.type === MessageTypes.GQL_START) {
           if (connections === 1) {
             client.client.close();
           } else {

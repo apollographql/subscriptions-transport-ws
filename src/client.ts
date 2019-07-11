@@ -557,7 +557,6 @@ export class SubscriptionClient {
 
           // Send CONNECTION_INIT message, no need to wait for connection to success (reduce roundtrips)
           this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_INIT, connectionParams);
-          this.flushUnsentMessagesQueue();
         } catch (error) {
           this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_ERROR, error);
           this.flushUnsentMessagesQueue();
@@ -620,6 +619,7 @@ export class SubscriptionClient {
         if (this.connectionCallback) {
           this.connectionCallback();
         }
+        this.flushUnsentMessagesQueue();
         break;
 
       case MessageTypes.GQL_COMPLETE:
