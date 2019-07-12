@@ -646,6 +646,46 @@ describe('Client', function () {
     }).subscribe({});
   });
 
+  it('waits for acks for messages queued between reconnects', (done) => {
+    let connections = 0;
+    wsServer.on('connection', (connection: WebSocket) => {
+      connections += 1;
+      const connectionId = connections;
+      let acked = false;
+      connection.on('message', (message: any) => {
+        const parsedMessage = JSON.parse(message);
+        if (parsedMessage.type === MessageTypes.GQL_CONNECTION_INIT) {
+          setTimeout(() => {
+            connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK, payload: {} }));
+            acked = true;
+          }, 100);
+        } else if (parsedMessage.type === MessageTypes.GQL_START) {
+          expect(acked).to.be.true;
+          if (connectionId === 1) {
+            connection.close();
+          } else {
+            done();
+          }
+        }
+      });
+    });
+
+    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+      reconnect: true,
+    });
+
+    setTimeout(() => {
+      client.request({
+        query: `subscription useInfo {
+          user(id: 3) {
+            id
+            name
+          }
+        }`,
+      }).subscribe({});
+    }, 50);
+  });
+
   it('should send connectionParams as a function which returns a promise along with init message', (done) => {
     const connectionParams: any = {
       test: true,
