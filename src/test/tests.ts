@@ -632,7 +632,7 @@ describe('Client', function () {
       });
     });
 
-    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       reconnect: true,
     });
 
@@ -670,7 +670,7 @@ describe('Client', function () {
       });
     });
 
-    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       reconnect: true,
     });
 
@@ -877,33 +877,6 @@ describe('Client', function () {
 
       setTimeout(() => {
         testPubsub.publish('user', {});
-      }, 100);
-    });
-  });
-
-  it('queues messages while websocket is still connecting', function (done) {
-    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
-
-    let sub = client.request({
-        query: `subscription useInfo($id: String) {
-        user(id: $id) {
-          id
-          name
-        }
-      }`,
-        operationName: 'useInfo',
-        variables: {
-          id: 3,
-        },
-      }).subscribe({});
-
-    client.onConnecting(() => {
-      expect((client as any).unsentMessagesQueue.length).to.equals(1);
-      sub.unsubscribe();
-
-      setTimeout(() => {
-        expect((client as any).unsentMessagesQueue.length).to.equals(0);
-        done();
       }, 100);
     });
   });
@@ -1335,6 +1308,8 @@ describe('Client', function () {
   it('should delete operation when receive a GQL_COMPLETE', (done) => {
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${rawTestPort}/`);
     subscriptionsClient.operations['1'] = {
+      processed: true,
+      started: true,
       options: {
         query: 'invalid',
       },
