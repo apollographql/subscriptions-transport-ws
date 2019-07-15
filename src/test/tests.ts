@@ -39,7 +39,6 @@ import { $$asyncIterator } from 'iterall';
 const TEST_PORT = 4953;
 const KEEP_ALIVE_TEST_PORT = TEST_PORT + 1;
 const DELAYED_TEST_PORT = TEST_PORT + 2;
-const RAW_TEST_PORT = TEST_PORT + 4;
 const EVENTS_TEST_PORT = TEST_PORT + 5;
 const ONCONNECT_ERROR_TEST_PORT = TEST_PORT + 6;
 const ERROR_TEST_PORT = TEST_PORT + 7;
@@ -238,14 +237,16 @@ new SubscriptionServer(Object.assign({}, options, {
   },
 }), { server: httpServerWithDelay });
 
-const httpServerRaw = createServer(notFoundRequestListener);
-httpServerRaw.listen(RAW_TEST_PORT);
-
 describe('Client', function () {
 
+  let httpServerRaw: Server;
   let wsServer: WebSocket.Server;
+  let rawTestPort: number;
 
   beforeEach(() => {
+    httpServerRaw = createServer(notFoundRequestListener);
+    httpServerRaw.listen();
+    rawTestPort = httpServerRaw.address().port;
     wsServer = new WebSocket.Server({
       server: httpServerRaw,
     });
@@ -254,6 +255,9 @@ describe('Client', function () {
   afterEach(() => {
     if (wsServer) {
       wsServer.close();
+    }
+    if (httpServerRaw) {
+      httpServerRaw.close();
     }
   });
 
@@ -266,7 +270,7 @@ describe('Client', function () {
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    new SubscriptionClient(`ws://localhost:${rawTestPort}/`);
   });
 
   it('should subscribe once after reconnect', (done) => {
@@ -293,7 +297,7 @@ describe('Client', function () {
       });
     });
 
-    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       reconnect: true,
       reconnectionAttempts: 1,
     });
@@ -317,7 +321,7 @@ describe('Client', function () {
     let initReceived = false;
 
     let sub: any;
-    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`);
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
@@ -523,7 +527,7 @@ describe('Client', function () {
       });
     });
 
-    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`);
 
     client.request(
       {
@@ -558,7 +562,7 @@ describe('Client', function () {
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       connectionParams: connectionParams,
     });
   });
@@ -575,7 +579,7 @@ describe('Client', function () {
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       connectionParams: new Promise((resolve) => {
         setTimeout(() => {
           resolve(connectionParams);
@@ -596,7 +600,7 @@ describe('Client', function () {
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       connectionParams: new Promise((resolve) => {
         setTimeout(() => {
           resolve(connectionParams);
@@ -616,7 +620,7 @@ describe('Client', function () {
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       connectionParams: new Promise((_, reject) => {
         setTimeout(() => {
           reject(error);
@@ -687,7 +691,7 @@ describe('Client', function () {
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       connectionCallback: (error: any) => {
         expect(error.message).to.equals('test error');
         done();
@@ -714,7 +718,7 @@ describe('Client', function () {
       });
     });
 
-    client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`);
   });
 
   it('should handle correctly GQL_CONNECTION_ACK message', (done) => {
@@ -724,7 +728,7 @@ describe('Client', function () {
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       connectionCallback: (error: any) => {
         expect(error).to.equals(undefined);
         done();
@@ -860,7 +864,7 @@ describe('Client', function () {
       });
     });
 
-    const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`);
     client.request({
       query: `
         subscription useInfo{
@@ -878,7 +882,7 @@ describe('Client', function () {
   }
 
   it('should not connect until subscribe is called if lazy mode', (done) => {
-    const client: SubscriptionClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const client: SubscriptionClient = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       lazy: true,
     });
     expect(client.client).to.be.null;
@@ -921,7 +925,7 @@ describe('Client', function () {
       foo: 'bar',
     }));
 
-    const client: SubscriptionClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const client: SubscriptionClient = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       lazy: true,
       connectionParams,
     });
@@ -994,7 +998,7 @@ describe('Client', function () {
         done();
       }
     });
-    client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, { reconnect: true });
+    client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, { reconnect: true });
     originalClient = client.client;
   });
 
@@ -1016,7 +1020,7 @@ describe('Client', function () {
         }
       });
     });
-    client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, { reconnect: true });
+    client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, { reconnect: true });
 
     sub = client.request({
       query: `
@@ -1057,7 +1061,7 @@ describe('Client', function () {
       connection.close();
     });
     let errorCount = 0;
-    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       timeout: 500,
       reconnect: true,
       reconnectionAttempts: 2,
@@ -1076,7 +1080,7 @@ describe('Client', function () {
   });
 
   it('should stop trying to reconnect to the server if it does not receives the ack', function (done) {
-    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       timeout: 500,
       reconnect: true,
       reconnectionAttempts: 2,
@@ -1099,7 +1103,7 @@ describe('Client', function () {
   });
 
   it('should keep trying to reconnect if receives the ack from the server', function (done) {
-    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       timeout: 500,
       reconnect: true,
       reconnectionAttempts: 2,
@@ -1170,7 +1174,7 @@ describe('Client', function () {
   });
 
   it('should take care of invalid message received', (done) => {
-    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${rawTestPort}/`);
     const originalOnMessage = subscriptionsClient.client.onmessage;
     const dataToSend = {
       data: JSON.stringify({ type: 'invalid' }),
@@ -1183,7 +1187,7 @@ describe('Client', function () {
   });
 
   it('should throw if received data is not JSON-parseable', (done) => {
-    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${rawTestPort}/`);
     const originalOnMessage = subscriptionsClient.client.onmessage;
     const dataToSend = {
       data: 'invalid',
@@ -1196,7 +1200,7 @@ describe('Client', function () {
   });
 
   it('should delete operation when receive a GQL_COMPLETE', (done) => {
-    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${rawTestPort}/`);
     subscriptionsClient.operations['1'] = {
       options: {
         query: 'invalid',
@@ -1218,7 +1222,7 @@ describe('Client', function () {
   });
 
   it('should force close the connection without tryReconnect', function (done) {
-    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       reconnect: true,
       reconnectionAttempts: 1,
     });
@@ -1256,7 +1260,7 @@ describe('Client', function () {
   });
 
   it('should close the connection without sent connection terminate and reconnect', function (done) {
-    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       reconnect: true,
       reconnectionAttempts: 1,
     });
@@ -1294,7 +1298,7 @@ describe('Client', function () {
   });
 
   it('should close the connection after inactivityTimeout and zero active subscriptions', function (done) {
-    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       inactivityTimeout: 100,
     });
     const sub = subscriptionsClient.request({
