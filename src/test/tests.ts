@@ -262,15 +262,17 @@ describe('Client', function () {
   });
 
   it('should send GQL_CONNECTION_INIT message when creating the connection', (done) => {
+    let client: SubscriptionClient;
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
         expect(parsedMessage.type).to.equals(MessageTypes.GQL_CONNECTION_INIT);
+        client.close();
         done();
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${rawTestPort}/`);
+    client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`);
   });
 
   it('should subscribe once after reconnect', (done) => {
@@ -313,6 +315,7 @@ describe('Client', function () {
 
     setTimeout(() => {
       expect(subscriptionsCount).to.be.equal(1);
+      client.close();
       done();
     }, 1500);
   });
@@ -338,6 +341,7 @@ describe('Client', function () {
           } else {
             done(new Error('did not get subscription'));
           }
+          client.close();
         }
       });
     });
@@ -357,6 +361,7 @@ describe('Client', function () {
 
     const unregister = client.onConnected(() => {
       unregister();
+      client.close();
       done();
     });
   });
@@ -370,6 +375,7 @@ describe('Client', function () {
 
     const unregister = client.onDisconnected(() => {
       unregister();
+      client.close();
       done();
     });
   });
@@ -398,6 +404,7 @@ describe('Client', function () {
       unregisterOnConnecting();
       unregister();
       expect(onConnectingSpy.called).to.equal(true);
+      client.close();
       done();
     });
   });
@@ -410,6 +417,7 @@ describe('Client', function () {
       unregisterOnConnecting();
       unregisterOnConnected();
       expect(onConnectedSpy.called).to.equal(false);
+      subscriptionsClient.close();
       done();
     });
   });
@@ -423,6 +431,7 @@ describe('Client', function () {
 
     const unregister = client.onDisconnected(() => {
       unregister();
+      client.close();
       done();
     });
   });
@@ -460,6 +469,7 @@ describe('Client', function () {
       unregisterOnReconnecting();
       unregisterOnReconnected();
       expect(onReconnectedSpy.called).to.equal(false);
+      subscriptionsClient.close();
       done();
     });
   });
@@ -478,6 +488,7 @@ describe('Client', function () {
         error: (error) => {
           client.close();
           expect(error.message).to.be.equal('Must provide a query.');
+          client.close();
           done();
         },
       });
@@ -545,6 +556,7 @@ describe('Client', function () {
         next: (result) => {
           expect(result.data).to.have.property('some');
           expect(result.errors).to.be.lengthOf(1);
+          client.close();
           done();
         },
       });
@@ -554,15 +566,17 @@ describe('Client', function () {
     const connectionParams: any = {
       test: true,
     };
+    let client: SubscriptionClient;
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
         expect(JSON.stringify(parsedMessage.payload)).to.equal(JSON.stringify(connectionParams));
+        client.close();
         done();
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
+    client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       connectionParams: connectionParams,
     });
   });
@@ -571,15 +585,17 @@ describe('Client', function () {
     const connectionParams: any = {
       test: true,
     };
+    let client: SubscriptionClient;
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
         expect(JSON.stringify(parsedMessage.payload)).to.equal(JSON.stringify(connectionParams));
+        client.close();
         done();
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
+    client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       connectionParams: new Promise((resolve) => {
         setTimeout(() => {
           resolve(connectionParams);
@@ -592,15 +608,17 @@ describe('Client', function () {
     const connectionParams: any = {
       test: true,
     };
+    let client: SubscriptionClient;
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
         expect(JSON.stringify(parsedMessage.payload)).to.equal(JSON.stringify(connectionParams));
+        client.close();
         done();
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
+    client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       connectionParams: new Promise((resolve) => {
         setTimeout(() => {
           resolve(connectionParams);
@@ -611,16 +629,18 @@ describe('Client', function () {
 
   it('should catch errors in connectionParams which came from a promise', (done) => {
     const error = 'foo';
+    let client: SubscriptionClient;
 
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
         const parsedMessage = JSON.parse(message);
         expect(parsedMessage.payload).to.equal(error);
+        client.close();
         done();
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
+    client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       connectionParams: new Promise((_, reject) => {
         setTimeout(() => {
           reject(error);
@@ -668,12 +688,17 @@ describe('Client', function () {
               assert.equal(spyApplyMiddlewareFunction.called, true);
               assert.equal(spyApplyMiddlewareAsyncContents.called, true);
             }
+            client3.close();
             done();
           } catch (e) {
+            client3.close();
             done(e);
           }
         },
-        error: (e) => done(e),
+        error: (e) => {
+          client3.close();
+          done(e);
+        },
       });
 
     setTimeout(() => {
@@ -691,9 +716,10 @@ describe('Client', function () {
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
+    const client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       connectionCallback: (error: any) => {
         expect(error.message).to.equals('test error');
+        client.close();
         done();
       },
     });
@@ -712,6 +738,7 @@ describe('Client', function () {
 
           setTimeout(() => {
             expect(client.status).to.equals(WebSocket.CLOSED);
+            client.close();
             done();
           }, 500);
         });
@@ -728,9 +755,10 @@ describe('Client', function () {
       });
     });
 
-    new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
+    const client = new SubscriptionClient(`ws://localhost:${rawTestPort}/`, {
       connectionCallback: (error: any) => {
         expect(error).to.equals(undefined);
+        client.close();
         done();
       },
     });
@@ -811,6 +839,7 @@ describe('Client', function () {
         next: (result: any) => {
           if (result.errors.length) {
             client.unsubscribeAll();
+            client.close();
             done();
             return;
           }
@@ -841,6 +870,7 @@ describe('Client', function () {
         next: (result: any) => {
           if (result.errors.length) {
             expect(result.errors[0].message).to.equals('Cannot query field "invalid" on type "Subscription".');
+            client.close();
             done();
           } else {
             assert(false);
@@ -876,6 +906,7 @@ describe('Client', function () {
       next: () => assert(false),
       error: (error) => {
         expect(error.message).to.equals(errorMessage);
+        client.close();
         done();
       },
     });
@@ -899,7 +930,10 @@ describe('Client', function () {
           id: 3,
         },
       }).subscribe({
-        error: (e) => done(e),
+        error: (e) => {
+          client.close();
+          done(e);
+        },
       });
 
     let isDone = false;
@@ -911,8 +945,10 @@ describe('Client', function () {
           try {
             expect(client.client).to.not.be.null;
             sub.unsubscribe();
+            client.close();
             done();
           } catch (e) {
+            client.close();
             done(e);
           }
         }
@@ -945,8 +981,10 @@ describe('Client', function () {
             expect(parsedMessage.payload).to.eql({
               foo: 'bar',
             });
+            client.close();
             done();
           } catch (e) {
+            client.close();
             done(e);
           }
         }
@@ -995,6 +1033,7 @@ describe('Client', function () {
         originalClient.close();
       } else {
         expect(client.client).to.not.be.equal(originalClient);
+        client.close();
         done();
       }
     });
@@ -1015,6 +1054,7 @@ describe('Client', function () {
             client.client.close();
           } else {
             sub.unsubscribe();
+            client.close();
             done();
           }
         }
@@ -1075,6 +1115,7 @@ describe('Client', function () {
     setTimeout(() => {
       expect(connectSpy.callCount).to.be.equal(2);
       expect(errorCount).to.be.equal(1);
+      subscriptionsClient.close();
       done();
     }, 1500);
   });
@@ -1098,6 +1139,7 @@ describe('Client', function () {
 
     setTimeout(() => {
       expect(connectSpy.callCount).to.be.equal(2);
+      subscriptionsClient.close();
       done();
     }, 1500);
   });
@@ -1126,6 +1168,7 @@ describe('Client', function () {
       expect(connections).to.be.greaterThan(3);
       expect(connectSpy.callCount).to.be.greaterThan(2);
       wsServer.close();
+      subscriptionsClient.close();
       done();
     }, 1900);
   });
@@ -1148,6 +1191,7 @@ describe('Client', function () {
     setTimeout(() => {
       expect(wasKAReceived).to.equal(true);
       expect(subscriptionsClient.status).to.equal(WebSocket.CLOSED);
+      subscriptionsClient.close();
       done();
     }, 1200);
   });
@@ -1169,6 +1213,7 @@ describe('Client', function () {
     setTimeout(() => {
       expect(checkConnectionSpy.callCount).to.be.equal(receivedKeepAlive);
       expect(subscriptionsClient.status).to.be.equal(subscriptionsClient.client.OPEN);
+      subscriptionsClient.close();
       done();
     }, 1300);
   });
@@ -1183,6 +1228,7 @@ describe('Client', function () {
     expect(() => {
       originalOnMessage.call(subscriptionsClient, dataToSend)();
     }).to.throw('Invalid message type!');
+    subscriptionsClient.close();
     done();
   });
 
@@ -1196,6 +1242,7 @@ describe('Client', function () {
     expect(() => {
       originalOnMessage.call(subscriptionsClient, dataToSend)();
     }).to.throw('Message must be JSON-parseable. Got: invalid');
+    subscriptionsClient.close();
     done();
   });
 
@@ -1218,6 +1265,7 @@ describe('Client', function () {
     expect(subscriptionsClient.operations).to.have.property('1');
     originalOnMessage(dataToSend);
     expect(subscriptionsClient.operations).to.not.have.property('1');
+    subscriptionsClient.close();
     done();
   });
 
@@ -1255,6 +1303,7 @@ describe('Client', function () {
       expect(receivedConnecitonTerminate).to.be.equal(true);
       expect(tryReconnectSpy.callCount).to.be.equal(0);
       expect(subscriptionsClient.status).to.be.equal(WebSocket.CLOSED);
+      subscriptionsClient.close();
       done();
     }, 500);
   });
@@ -1293,6 +1342,7 @@ describe('Client', function () {
       expect(tryReconnectSpy.callCount).to.be.equal(1);
       expect(subscriptionsClient.status).to.be.equal(WebSocket.OPEN);
       expect(receivedConnecitonTerminate).to.be.equal(false);
+      subscriptionsClient.close();
       done();
     }, 500);
   });
@@ -1321,6 +1371,7 @@ describe('Client', function () {
         expect(Object.keys(subscriptionsClient.operations).length).to.be.equal(0);
         setTimeout(() => {
           expect(subscriptionsClient.status).to.be.equal(WebSocket.CLOSED);
+          subscriptionsClient.close();
           done();
         }, 101);
       }, 50);
@@ -1407,6 +1458,7 @@ describe('Server', function () {
         error: (err) => {
           errorMessage = err.message;
           expect(errorMessage).to.contain('Missing schema information');
+          client.close();
           done();
         },
         complete: () => {
@@ -1453,6 +1505,7 @@ describe('Server', function () {
         },
         complete: () => {
           expect(msgCnt).to.equals(1);
+          client.close();
           done();
         },
       });
@@ -1491,6 +1544,7 @@ describe('Server', function () {
         },
         complete: () => {
           expect(msgCnt).to.equals(1);
+          client.close();
           done();
         },
       });
@@ -1511,6 +1565,7 @@ describe('Server', function () {
 
     const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
     client.onDisconnected(() => {
+      client.close();
       done();
     });
 
@@ -1557,12 +1612,14 @@ describe('Server', function () {
           hasValue = true;
         },
         error: (err) => {
+          client.close();
           done(new Error('unexpected error from subscribe'));
         },
         complete: () => {
           if ( false === hasValue ) {
             return done(new Error('No value recived from observable'));
           }
+          client.close();
           done();
         },
       });
@@ -1618,6 +1675,7 @@ describe('Server', function () {
           } else {
             expect(res.data).to.deep.equal({ testString: 'value' });
           }
+          client.close();
           done();
         },
       });
@@ -1630,6 +1688,7 @@ describe('Server', function () {
     const httpServerForError = createServer(notFoundRequestListener);
     httpServerForError.listen(ERROR_TEST_PORT);
 
+    let client: SubscriptionClient;
     new SubscriptionServer({
       schema,
       execute,
@@ -1640,21 +1699,23 @@ describe('Server', function () {
           setTimeout(() => {
             assert(spy.calledOnce);
             httpServerForError.close();
+            client.close();
             done();
           }, 500);
         }, 100);
       },
     }, { server: httpServerForError });
 
-    const client = new SubscriptionClient(`ws://localhost:${ERROR_TEST_PORT}/`);
+    client = new SubscriptionClient(`ws://localhost:${ERROR_TEST_PORT}/`);
     client.onDisconnected(spy);
   });
 
   it('should trigger onConnect when client connects and validated', (done) => {
-    new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
 
     setTimeout(() => {
       assert(eventsOptions.onConnect.calledOnce);
+      client.close();
       done();
     }, 200);
   });
@@ -1664,23 +1725,25 @@ describe('Server', function () {
       test: true,
     };
 
-    new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`, {
+    const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`, {
       connectionParams: connectionParams,
     });
 
     setTimeout(() => {
       assert(eventsOptions.onConnect.calledOnce);
       expect(JSON.stringify(eventsOptions.onConnect.getCall(0).args[0])).to.equal(JSON.stringify(connectionParams));
+      client.close();
       done();
     }, 200);
   });
 
   it('should trigger onConnect with the request available in ConnectionContext', (done) => {
-    new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
 
     setTimeout(() => {
       assert(eventsOptions.onConnect.calledOnce);
       expect(eventsOptions.onConnect.getCall(0).args[2].request).to.be.an.instanceof(IncomingMessage);
+      client.close();
       done();
     }, 200);
   });
@@ -1738,6 +1801,7 @@ describe('Server', function () {
     }, 100);
     setTimeout(() => {
       assert(eventsOptions.onDisconnect.calledOnce);
+      client.close();
       done();
     }, 200);
   });
@@ -1750,6 +1814,7 @@ describe('Server', function () {
     setTimeout(() => {
       assert(eventsOptions.onDisconnect.calledOnce);
       expect(eventsOptions.onConnect.getCall(0).args[1]).to.not.be.undefined;
+      client.close();
       done();
     }, 200);
   });
@@ -1777,6 +1842,7 @@ describe('Server', function () {
 
     setTimeout(() => {
       assert(spy.calledOnce);
+      client.close();
       done();
     }, 1000);
   });
@@ -1804,6 +1870,7 @@ describe('Server', function () {
 
     setTimeout(() => {
       assert(eventsOptions.onOperation.calledOnce);
+      client.close();
       done();
     }, 200);
   });
@@ -1825,6 +1892,7 @@ describe('Server', function () {
       next: (result: any) => {
         if (result.errors) {
           sub.unsubscribe();
+          client.close();
           assert(false);
           done();
         }
@@ -1833,6 +1901,7 @@ describe('Server', function () {
           sub.unsubscribe();
           setTimeout(() => {
             assert(eventsOptions.onOperationComplete.calledOnce);
+            client.close();
             done();
           }, 200);
         }
@@ -1919,6 +1988,7 @@ describe('Server', function () {
       expect(numResults).to.equals(1);
       client1.unsubscribeAll();
       expect(numResults1).to.equals(1);
+      client.close();
       done();
     }, 400);
 
@@ -1936,6 +2006,7 @@ describe('Server', function () {
           || messageData.type === MessageTypes.GQL_COMPLETE);
 
         if (messageData.type === MessageTypes.GQL_COMPLETE) {
+          client1.close();
           done();
           return;
         }
@@ -2025,6 +2096,7 @@ describe('Server', function () {
     }, 200);
     setTimeout(() => {
       assert.equal(numTriggers, 2);
+      client3.close();
       done();
     }, 300);
   });
@@ -2048,6 +2120,7 @@ describe('Server', function () {
           assert.property(result.data, 'context');
           assert.equal(result.data.context, CTX);
         }
+        client3.close();
         done();
       },
     });
@@ -2072,6 +2145,7 @@ describe('Server', function () {
       client.close();
       assert(onOperationSpy.calledOnce);
       expect(onOperationSpy.getCall(0).args[2]).to.not.be.undefined;
+      client.close();
       done();
     }, 100);
   });
@@ -2170,6 +2244,7 @@ describe('Server', function () {
       next: () => assert(false),
       error: () => {
         client.unsubscribeAll();
+        client.close();
         done();
       },
     });
@@ -2276,6 +2351,7 @@ describe('Client<->Server Flow', () => {
                   expect(res.errors).to.equals(undefined);
                   expect(res.data.testString).to.eq('value');
                   sub2.unsubscribe();
+                  client.close();
                   done();
                 },
               });
@@ -2322,6 +2398,7 @@ describe('Client<->Server Flow', () => {
               expect(res.data.testString).to.eq('value');
 
               sub.unsubscribe();
+              client.close();
               done();
             },
           });
@@ -2370,6 +2447,7 @@ describe('Client<->Server Flow', () => {
               );
 
               sub.unsubscribe();
+              client.close();
               done();
             },
           });
@@ -2602,6 +2680,7 @@ describe('Client<->Server Flow', () => {
                     expect(Object.keys(client['operations']).length).to.eq(1);
                     expect(firstSubscriptionSpy.callCount).to.eq(1);
 
+                    client.close();
                     done();
                   },
                 });
@@ -2668,6 +2747,7 @@ describe('Client<->Server Flow', () => {
 
     setTimeout(() => {
       expect(numTriggers).equal(1);
+      client.close();
       done();
     }, 200);
   });
