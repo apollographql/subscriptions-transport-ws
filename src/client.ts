@@ -35,7 +35,7 @@ export interface OperationOptions {
   [key: string]: any;
 }
 
-export type FormatedError = Error & {
+export type FormattedError = Error & {
   originalError?: any;
 };
 
@@ -434,7 +434,7 @@ export class SubscriptionClient {
   }
 
   // ensure we have an array of errors
-  private formatErrors(errors: any): FormatedError[] {
+  private formatErrors(errors: any): FormattedError[] {
     if (Array.isArray(errors)) {
       return errors;
     }
@@ -450,7 +450,7 @@ export class SubscriptionClient {
     }
 
     return [{
-      name: 'FormatedError',
+      name: 'FormattedError',
       message: 'Unknown error',
       originalError: errors,
     }];
