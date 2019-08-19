@@ -82,60 +82,67 @@ When using this package for client side, you can choose either use HTTP request 
 
 To start with a full WebSocket transport, that handles all types of GraphQL operations, import and create an instance of `SubscriptionClient`.
 
-Then, create your `ApolloClient` instance and use the `SubscriptionsClient` instance as network interface:
+Then, create your `WebSocketLink` instance.
 
 ```js
-import { SubscriptionClient } from 'subscriptions-transport-ws';
-import ApolloClient from 'apollo-client';
+import { WebSocketLink } from "apollo-link-ws";
+import { SubscriptionClient } from "subscriptions-transport-ws";
 
-const GRAPHQL_ENDPOINT = 'ws://localhost:3000/graphql';
+const GRAPHQL_ENDPOINT = "ws://localhost:3000/graphql";
 
 const client = new SubscriptionClient(GRAPHQL_ENDPOINT, {
-  reconnect: true,
+  reconnect: true
 });
 
-const apolloClient = new ApolloClient({
-    networkInterface: client,
-});
+const link = new WebSocketLink(client);
+
 
 ```
 
 ### Hybrid WebSocket Transport
 
-To start with a hybrid WebSocket transport, that handles only `subscription`s over WebSocket, create your `SubscriptionClient` and a regular HTTP network interface, then extend your network interface to use the WebSocket client for GraphQL subscriptions:
-
 ```js
-import {SubscriptionClient, addGraphQLSubscriptions} from 'subscriptions-transport-ws';
-import ApolloClient, {createNetworkInterface} from 'apollo-client';
+import { split } from 'apollo-link';
+import { HttpLink } from 'apollo-link-http';
+import { WebSocketLink } from 'apollo-link-ws';
+import { getMainDefinition } from 'apollo-utilities';
 
-// Create regular NetworkInterface by using apollo-client's API:
-const networkInterface = createNetworkInterface({
- uri: 'http://localhost:3000' // Your GraphQL endpoint
+// Create an http link:
+const httpLink = new HttpLink({
+  uri: 'http://localhost:3000/graphql'
 });
 
-// Create WebSocket client
-const wsClient = new SubscriptionClient(`ws://localhost:5000/`, {
-    reconnect: true,
-    connectionParams: {
-        // Pass any arguments you want for initialization
-    }
+// Create a WebSocket link:
+const wsLink = new WebSocketLink({
+  uri: `ws://localhost:5000/`,
+  options: {
+    reconnect: true
+  }
 });
 
-// Extend the network interface with the WebSocket
-const networkInterfaceWithSubscriptions = addGraphQLSubscriptions(
-    networkInterface,
-    wsClient
+// using the ability to split links, you can send data to each link
+// depending on what kind of operation is being sent
+const link = split(
+  // split based on operation type
+  ({ query }) => {
+    const definition = getMainDefinition(query);
+    return (
+      definition.kind === 'OperationDefinition' &&
+      definition.operation === 'subscription'
+    );
+  },
+  wsLink,
+  httpLink,
 );
-
-// Finally, create your ApolloClient instance with the modified network interface
-const apolloClient = new ApolloClient({
-    networkInterface: networkInterfaceWithSubscriptions
-});
 ```
 
-Now, when you want to use subscriptions in client side, use your `ApolloClient` instance, with [`subscribe`](https://www.apollographql.com/docs/react/api/apollo-client#ApolloClient.subscribe) or `query` [`subscribeToMore`](https://www.apollographql.com/docs/react/api/apollo-client#ObservableQuery.subscribeToMore):
+Now, when you want to use subscriptions in client side, use your `ApolloClient` instance, with [`subscribe`](https://www.apollographql.com/docs/react/api/apollo-client#ApolloClient.subscribe):
 
 ```js
+const apolloClient = new ApolloClient({
+  cache,
+  link
+});
 apolloClient.subscribe({
   query: gql`
     subscription onNewItem {
@@ -147,26 +154,8 @@ apolloClient.subscribe({
 }).subscribe({
   next (data) {
     // Notify your application with the new arrived data
-  }
-});
-```
-
-```js
-apolloClient.query({
-  query: ITEM_LIST_QUERY,
-  variables: {}
-}).subscribeToMore({
-  document: gql`
-    subscription onNewItem {
-        newItemCreated {
-            id
-        }
-    }`,
-  variables: {},
-  updateQuery: (prev, { subscriptionData, variables }) => {
-    // Perform updates on previousResult with subscriptionData
-    return updatedResult;
-  }
+  },
+  error(err) { console.error('err', err); },
 });
 ```
 
