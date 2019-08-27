@@ -63,6 +63,7 @@ export interface ClientOptions {
   timeout?: number;
   reconnect?: boolean;
   reconnectionAttempts?: number;
+  reconnectionOperationNotifier?: (operation: Operation) => Operation;
   connectionCallback?: (error: Error[], result?: any) => void;
   lazy?: boolean;
   inactivityTimeout?: number;
@@ -79,6 +80,7 @@ export class SubscriptionClient {
   private reconnect: boolean;
   private reconnecting: boolean;
   private reconnectionAttempts: number;
+  private reconnectionOperationNotifier?: (options: Operation) => Operation;
   private backoff: any;
   private connectionCallback: any;
   private eventEmitter: EventEmitterType;
@@ -107,6 +109,7 @@ export class SubscriptionClient {
       timeout = WS_TIMEOUT,
       reconnect = false,
       reconnectionAttempts = Infinity,
+      reconnectionOperationNotifier = undefined,
       lazy = false,
       inactivityTimeout = 0,
     } = (options || {});
@@ -126,6 +129,7 @@ export class SubscriptionClient {
     this.reconnect = reconnect;
     this.reconnecting = false;
     this.reconnectionAttempts = reconnectionAttempts;
+    this.reconnectionOperationNotifier = reconnectionOperationNotifier;
     this.lazy = !!lazy;
     this.inactivityTimeout = inactivityTimeout;
     this.closedByUser = false;
@@ -496,6 +500,10 @@ export class SubscriptionClient {
 
     if (!this.reconnecting) {
       Object.keys(this.operations).forEach((key) => {
+        if (this.reconnectionOperationNotifier) {
+          this.operations[key] = this.reconnectionOperationNotifier(this.operations[key]);
+        }
+
         this.unsentMessagesQueue.push(
           this.buildMessage(key, MessageTypes.GQL_START, this.operations[key].options),
         );
