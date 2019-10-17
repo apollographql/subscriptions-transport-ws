@@ -1,9 +1,11 @@
 # Changelog
 
-### v0.9.18 (not yet release)
+### v0.9.18 (not yet released)
 
 - Do not send GQL_STOP when unsubscribing after GQL_COMPLETE is received.  <br/>
   [@onhate](https://github.com/onhate) in [#775](https://github.com/apollographql/subscriptions-transport-ws/pull/775)
+- Add `minTimeout` option for client.  <br/>
+  [@jedwards1211](https://github.com/jedwards1211) in [#675](https://github.com/apollographql/subscriptions-transport-ws/pull/675)
 
 ### v0.9.17
 
