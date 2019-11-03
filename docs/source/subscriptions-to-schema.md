@@ -8,10 +8,10 @@ You specify operation type, then the operation name and you can customize the pu
 
 You need to create a root schema definition and a root resolver for your `Subscription` root, just like with Query and Mutation:
 
-```
+```graphql
 type Comment {
-    id: String
-    content: String
+  id: String
+  content: String
 }
 
 type Subscription {
@@ -47,7 +47,7 @@ Then, later in your code, you can publish data to your topic by using `pubsub.pu
 pubsub.publish('commentAdded', { commentAdded: { id: 1, content: 'Hello!' }})
 ```
 
-<h2 id="subscription-server">Payload Transformation</h2>
+## Payload Transformation
 
 When using `subscribe` field, it's also possible to manipulate the event payload before running it through the GraphQL execution engine.
 
