@@ -312,10 +312,6 @@ export class SubscriptionClient {
 
     this.applyMiddlewares(options)
       .then(processedOptions => {
-        if (typeof processedOptions.getContext === 'function') {
-          const { headers, credentials } = processedOptions.getContext();
-          processedOptions.operationContext = {headers, credentials};
-        }
         this.checkOperationOptions(processedOptions, handler);
         if (this.operations[opId]) {
           this.operations[opId] = { options: processedOptions, handler };
