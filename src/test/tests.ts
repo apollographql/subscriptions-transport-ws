@@ -1447,6 +1447,7 @@ describe('Server', function () {
     it('should accept execute method than returns a Promise (original execute)', (done) => {
         server = createServer(notFoundRequestListener);
         server.listen(SERVER_EXECUTOR_TESTS_PORT);
+        let onOperationSpy = sinon.spy();
         let msgCnt = 0;
 
         SubscriptionServer.create({
@@ -2723,7 +2724,7 @@ describe('Client<->Server Flow', () => {
                 authToken: 'abcdefghijklmnpqrstuvwxyz',
             },
             credentials: {
-                userName: 'some-user',
+                userName: 'tsahi',
                 password: 123456,
             },
         };
@@ -2761,5 +2762,5 @@ describe('Client<->Server Flow', () => {
                 },
             );
         });
-    });
+    })
 });
