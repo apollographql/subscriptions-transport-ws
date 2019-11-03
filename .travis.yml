@@ -3,6 +3,7 @@ node_js:
   - "10"
   - "8"
   - "6"
+  - "4"
 
 install:
   - rm -rf node_modules
