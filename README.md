@@ -303,10 +303,10 @@ ReactDOM.render(
 ### `Constructor(options, socketOptions | socketServer)`
 - `options: {ServerOptions}`
   * `rootValue?: any` : Root value to use when executing GraphQL root operations
-  * `schema?: GraphQLSchema` : GraphQL schema object. If not provided, you have to return the schema as a property on the object returned from `onOperation`.
+  * `schema?: GraphQLSchema` : GraphQL schema object
   * `execute?: (schema, document, rootValue, contextValue, variableValues, operationName) => Promise<ExecutionResult> | AsyncIterator<ExecutionResult>` : GraphQL `execute` function, provide the default one from `graphql` package. Return value of `AsyncItrator` is also valid since this package also support reactive `execute` methods.
   * `subscribe?: (schema, document, rootValue, contextValue, variableValues, operationName) => Promise<ExecutionResult | AsyncIterator<ExecutionResult>>` : GraphQL `subscribe` function, provide the default one from `graphql` package.
-  * `onOperation?: (message: SubscribeMessage, params: SubscriptionOptions, webSocket: WebSocket)` : optional method to create custom params that will be used when resolving this operation. It can also be used to dynamically resolve the schema that will be used for the particular operation.
+  * `onOperation?: (message: SubscribeMessage, params: SubscriptionOptions, webSocket: WebSocket)` : optional method to create custom params that will be used when resolving this operation
   * `onOperationComplete?: (webSocket: WebSocket, opId: string)` : optional method that called when a GraphQL operation is done (for query and mutation it's immediately, and for subscriptions when unsubscribing)
   * `onConnect?: (connectionParams: Object, webSocket: WebSocket, context: ConnectionContext)` : optional method that called when a client connects to the socket, called with the `connectionParams` from the client, if the return value is an object, its elements will be added to the context. return `false` or throw an exception to reject the connection. May return a Promise.
   * `onDisconnect?: (webSocket: WebSocket, context: ConnectionContext)` : optional method that called when a client disconnects
