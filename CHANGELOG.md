@@ -1,5 +1,9 @@
 # Changelog
 
+### v0.9.17
+- Pass optional `onResult` callback to `request` method. [PR #687](https://github.com/apollographql/subscriptions-transport-ws/pull/687) <br/>
+  [@yelnar](https://github.com/yelnar)
+
 ### v0.9.16
 - Add ability to set custom WebSocket protocols for client. <br/>
   [@pkosiec](https://github.com/pkosiec) in [#477](https://github.com/apollographql/subscriptions-transport-ws/pull/477)
