@@ -203,9 +203,10 @@ export class SubscriptionClient {
             }
           } else {
             if ( observer.next ) {
-              observer.next(result);
               if (onResult) {
                 onResult(result);
+              } else {
+                observer.next(result);
               }
             }
           }
