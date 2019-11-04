@@ -172,7 +172,7 @@ export class SubscriptionClient {
     }
   }
 
-  public request(request: OperationOptions): Observable<ExecutionResult> {
+  public request(request: OperationOptions, onResult?: (result: any) => any): Observable<ExecutionResult> {
     const getObserver = this.getObserver.bind(this);
     const executeOperation = this.executeOperation.bind(this);
     const unsubscribe = this.unsubscribe.bind(this);
@@ -204,6 +204,9 @@ export class SubscriptionClient {
           } else {
             if ( observer.next ) {
               observer.next(result);
+              if (onResult) {
+                onResult(result);
+              }
             }
           }
         });
