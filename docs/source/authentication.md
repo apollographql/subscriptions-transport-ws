@@ -4,7 +4,7 @@ title: Authentication Over WebSocket
 
 You can use `SubscriptionServer` lifecycle hooks to create an authenticated transport by using `onConnect` to validate the connection.
 
-`SubscriptionsClient` supports `connectionParams` ([example available here](https://www.apollographql.com/react/advanced/subscriptions/#authentication)) that will be sent with the first WebSocket message. All GraphQL subscriptions are delayed until the connection has been fully authenticated and your `onConnect` callback returns a truthy value.
+`SubscriptionsClient` supports `connectionParams` ([example available here](https://www.apollographql.com/docs/react/data/subscriptions/#authentication-over-websocket)) that will be sent with the first WebSocket message. All GraphQL subscriptions are delayed until the connection has been fully authenticated and your `onConnect` callback returns a truthy value.
 
 You can use these `connectionParams` in your `onConnect` callback and validate the user credentials. You can also
  extend the GraphQL context of the current user's subscription with the authenticated user data.
