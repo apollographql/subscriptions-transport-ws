@@ -11,6 +11,9 @@ export const createEmptyIterable = (): AsyncIterator<any> => {
     throw(e: Error) {
       return Promise.reject(e);
     },
+    // Supress error TS2322
+    // @see https://github.com/microsoft/TypeScript/issues/27525
+    // @ts-ignore
     [$$asyncIterator]() {
       return this;
     },
