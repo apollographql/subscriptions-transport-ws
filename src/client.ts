@@ -486,7 +486,11 @@ export class SubscriptionClient {
   }
 
   private generateOperationId(): string {
-    return String(++this.nextOperationId);
+     while(this.operations[this.nextOperationId]){
+        ++this.nextOperationId;
+        if(this.nextOperationId === Infinity) this.nextOperationId = 0;
+    };
+    return String(this.nextOperationId);
   }
 
   private tryReconnect() {
