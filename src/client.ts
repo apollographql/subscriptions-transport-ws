@@ -149,7 +149,7 @@ export class SubscriptionClient {
     return this.client.readyState;
   }
 
-  public close(isForced = true, closedByUser = true) {
+  public close(isForced = true, closedByUser = true, closeEvent?: CloseEvent) {
     this.clearInactivityTimeout();
     if (this.client !== null) {
       this.closedByUser = closedByUser;
@@ -164,7 +164,7 @@ export class SubscriptionClient {
 
       this.client.close();
       this.client = null;
-      this.eventEmitter.emit('disconnected');
+      this.eventEmitter.emit('disconnected', closeEvent);
 
       if (!isForced) {
         this.tryReconnect();
@@ -565,9 +565,9 @@ export class SubscriptionClient {
       }
     };
 
-    this.client.onclose = () => {
+    this.client.onclose = (event?: CloseEvent) => {
       if (!this.closedByUser) {
-        this.close(false, false);
+        this.close(false, false, event);
       }
     };
 

@@ -370,6 +370,20 @@ describe('Client', function () {
     });
   });
 
+  it('should get websocket close event as argument on disconnect', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`, {
+      connectionCallback: () => {
+        client.client.close();
+      },
+    });
+
+    const unregister = client.onDisconnected((event) => {
+      unregister();
+      expect(event).to.exist;
+      done();
+    });
+  });
+
   it('should emit reconnect event for client side when socket closed', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`, {
       reconnect: true,
