@@ -650,7 +650,7 @@ describe('Client', function () {
           }`,
         operationName: 'useInfo',
         variables: {
-          id: 3,
+          id: '3',
         },
       }).subscribe({
         next: (result: any) => {
@@ -1322,6 +1322,17 @@ describe('Client', function () {
       }, 50);
     }, 50);
   });
+
+  it('should allow passing custom WebSocket protocols', () => {
+    const testCases = ['custom-protocol', ['custom', 'protocols']];
+
+    for (const testCase of testCases) {
+      const mockWebSocket = sinon.spy();
+      new SubscriptionClient(`ws://localhost:${TEST_PORT}`, {}, mockWebSocket, testCase);
+      expect(mockWebSocket.calledOnce).to.be.true;
+      expect(mockWebSocket.firstCall.args[1]).to.equal(testCase);
+    }
+  });
 });
 
 describe('Server', function () {
@@ -1752,7 +1763,7 @@ describe('Server', function () {
       }`,
         operationName: 'useInfo',
         variables: {
-          id: 3,
+          id: '3',
         },
       }).subscribe({});
 
@@ -1777,7 +1788,7 @@ describe('Server', function () {
         }`,
       operationName: 'useInfo',
       variables: {
-        id: 3,
+        id: '3',
       },
     }).subscribe({
       next: (result: any) => {
@@ -1804,7 +1815,7 @@ describe('Server', function () {
         }`,
       operationName: 'useInfo',
       variables: {
-        id: 3,
+        id: '3',
       },
     }).subscribe({
       next: (result: any) => {
@@ -1844,7 +1855,7 @@ describe('Server', function () {
         }`,
         operationName: 'useInfo',
         variables: {
-          id: 3,
+          id: '3',
         },
 
       }).subscribe({
@@ -1876,7 +1887,7 @@ describe('Server', function () {
         }`,
         operationName: 'useInfo',
         variables: {
-          id: 2,
+          id: '2',
         },
 
       }).subscribe({
@@ -1938,7 +1949,7 @@ describe('Server', function () {
         }`,
         operationName: 'useInfo',
         variables: {
-          id: 3,
+          id: '3',
         },
       }).subscribe({});
     }, 100);
@@ -1959,7 +1970,7 @@ describe('Server', function () {
           }`,
           operationName: 'userInfoFilter1',
           variables: {
-            id: 3,
+            id: '3',
           },
         }).subscribe({
           next: (result: any) => {
@@ -1986,7 +1997,7 @@ describe('Server', function () {
           }`,
           operationName: 'userInfoFilter1',
           variables: {
-            id: 1,
+            id: '1',
           },
         }).subscribe({
           next: (result: any) => {
@@ -2089,7 +2100,7 @@ describe('Server', function () {
     }`,
       operationName: 'useInfo',
       variables: {
-        id: 3,
+        id: '3',
       },
     }).subscribe({});
   });
@@ -2628,7 +2639,7 @@ describe('Client<->Server Flow', () => {
             }`,
             operationName: 'userInfoFilter1',
             variables: {
-                id: 3,
+                id: '3',
             },
         }).subscribe({
             next: (result: any) => {

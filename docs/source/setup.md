@@ -2,7 +2,7 @@
 title: Setup
 ---
 
-<h2 id="setup">PubSub</h2>
+## PubSub
 
 `PubSub` is a class that exposes a simple `publish` and `subscribe` API.
 
@@ -12,7 +12,7 @@ It sits between your application's logic and the GraphQL subscriptions engine - 
 
 The `PubSub` implementation also includes a mechanism that converts a specific `PubSub` event into a stream of `AsyncIterator`, which you can use with `graphql` subscriptions resolver.
 
-> Check out how to change the `PubSub` mechanism to an external one [here](./external-pubsub.html)
+> Check out how to change the `PubSub` mechanism to an external one [here](/external-pubsub/)
 
 To get started, install `graphql-subscriptions` package:
 
@@ -41,7 +41,7 @@ pubsub.publish('commentAdded', payload);
 
 > At this point, nothing works yet because there is nothing to publish into
 
-<h2 id="subscription-server">SubscriptionServer</h2>
+## SubscriptionServer
 
 `SubscriptionServer` will manage the WebSocket connection between the GraphQL engine and the clients.
 
@@ -102,15 +102,13 @@ ws.listen(PORT, () => {
 
 See [the tutorial on Medium for complete working sample code](https://blog.apollographql.com/tutorial-graphql-subscriptions-server-side-e51c32dc2951).
 
-<h2 id="subscription-resolver">Subscription Resolver</h2>
+## Subscription Resolver
 
 To connect the published event from our `PubSub` to GraphQL engine, we need to create `AsyncIterable` and use it in the GraphQL subscription resolver definition.
 
-You can see [an example for creating subscription resolver here](/docs/graphql-subscriptions/subscriptions-to-schema.html)
+You can see [an example for creating subscription resolver here](/subscriptions-to-schema/)
 
-
-
-<h2 id="filter-subscriptions">Filter Subscriptions</h2>
+## Filter Subscriptions
 
 Sometimes a client will want filter out specific events based on context and arguments.
 
@@ -118,7 +116,7 @@ To do so, we can use `withFilter` helper from this package, which wraps `AsyncIt
 
 Let's see an example - for the `commentAdded` server-side subscription, the client want to subscribe only to comments added to a specific repo:
 
-```
+```graphql
 subscription($repoName: String!){
   commentAdded(repoFullName: $repoName) {
     id

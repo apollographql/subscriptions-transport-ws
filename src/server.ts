@@ -82,8 +82,8 @@ export interface ServerOptions {
   schema?: GraphQLSchema;
   execute?: ExecuteFunction;
   subscribe?: SubscribeFunction;
-  validationRules?: Array<(context: ValidationContext) => any>;
-
+  validationRules?:
+    Array<(context: ValidationContext) => any> | ReadonlyArray<any>;
   onOperation?: Function;
   onOperationComplete?: Function;
   onConnect?: Function;
@@ -106,7 +106,9 @@ export class SubscriptionServer {
   private rootValue: any;
   private keepAlive: number;
   private closeHandler: () => void;
-  private specifiedRules: Array<(context: ValidationContext) => any>;
+  private specifiedRules:
+    Array<(context: ValidationContext) => any> |
+    ReadonlyArray<any>;
 
   public static create(options: ServerOptions, socketOptionsOrServer: WebSocket.ServerOptions | WebSocket.Server) {
     return new SubscriptionServer(options, socketOptionsOrServer);
