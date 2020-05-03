@@ -167,6 +167,14 @@ const subscriptionsSchema = new GraphQLSchema({
 // indirect call to support spying
 const handlers = {
   onOperation: (msg: OperationMessage, params: ExecutionParams<any>, webSocketRequest: WebSocket) => {
+    if (msg.payload.extensions && msg.payload.extensions.persistedQuery) {
+      params.query = `subscription useInfo($id: String) {
+        user(id: $id) {
+          id
+          name
+        }
+      }`;
+    }
     return Promise.resolve(Object.assign({}, params, { context: msg.payload.context }));
   },
 };
@@ -495,6 +503,30 @@ describe('Client', function () {
           done();
         },
       });
+  });
+
+  it('should allow persisted query to be provided instead of query', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+
+    client.request({
+        query: undefined,
+        extensions: {
+          persistedQuery: {
+            sha256Hash: 'abc',
+            version: 1,
+          },
+        },
+        operationName: 'useInfo',
+        variables: {
+          id: 3,
+        },
+      }).subscribe({
+        next: () => done(),
+        error: (err) => {
+          assert(false, err.message);
+        },
+      });
+
   });
 
   it('should allow both data and errors on GQL_DATA', (done) => {
@@ -1446,6 +1478,57 @@ describe('Server', function () {
         },
         error: (err) => {
           assert(false, 'unexpected error from request');
+        },
+        complete: () => {
+          expect(msgCnt).to.equals(1);
+          done();
+        },
+      });
+    });
+  });
+
+  it('should use query provided in onOperation', (done) => {
+    server = createServer(notFoundRequestListener);
+    server.listen(SERVER_EXECUTOR_TESTS_PORT);
+
+    const query = `query { testString }`;
+    SubscriptionServer.create({
+      execute,
+      onOperation: (message: any) => {
+        expect(message.payload.extensions.persistedQuery.sha256Hash).to.equal('abc');
+        return {
+          schema,
+          query,
+        };
+      },
+    }, {
+      server,
+      path: '/',
+    });
+
+    let msgCnt = 0;
+
+    const client = new SubscriptionClient(`ws://localhost:${SERVER_EXECUTOR_TESTS_PORT}/`);
+    client.onConnected(() => {
+      client.request({
+        extensions: {
+          persistedQuery: {
+            sha256Hash: 'abc',
+            version: 1,
+          },
+        },
+        variables: {},
+      }).subscribe({
+        next: (res) => {
+          if ( res.errors ) {
+            assert(false, res.errors.map(error => error.message).join(', '));
+          }
+
+          expect(res.data).to.deep.equal({ testString: 'value' });
+          msgCnt ++;
+        },
+        error: (err) => {
+          assert(false, err.message);
         },
         complete: () => {
           expect(msgCnt).to.equals(1);

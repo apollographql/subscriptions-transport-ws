@@ -1,6 +1,6 @@
 import { $$asyncIterator } from 'iterall';
 
-export const createEmptyIterable = (): AsyncIterator<any> => {
+export const createEmptyIterable = (): AsyncIterator<any> & { [$$asyncIterator]: () => AsyncIterator<any> } => {
   return {
     next() {
       return Promise.resolve({ value: undefined, done: true });

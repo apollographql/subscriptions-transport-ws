@@ -28,10 +28,18 @@ export interface Observable<T> {
   };
 }
 
+interface OperationExtensions {
+  persistedQuery?: {
+    sha256Hash: string;
+    version: number
+  };
+}
+
 export interface OperationOptions {
   query?: string | DocumentNode;
   variables?: Object;
   operationName?: string;
+  extensions?: OperationExtensions;
   [key: string]: any;
 }
 
@@ -398,9 +406,10 @@ export class SubscriptionClient {
   }
 
   private checkOperationOptions(options: OperationOptions, handler: (error: Error[], result?: any) => void) {
-    const { query, variables, operationName } = options;
+    const { query, variables, operationName, extensions } = options;
+    const hasPersistedQuery = !!(extensions && extensions.persistedQuery && extensions.persistedQuery.sha256Hash);
 
-    if (!query) {
+    if (!query && !hasPersistedQuery) {
       throw new Error('Must provide a query.');
     }
 
@@ -409,7 +418,7 @@ export class SubscriptionClient {
     }
 
     if (
-      ( !isString(query) && !getOperationAST(query, operationName)) ||
+      ( query && !isString(query) && !getOperationAST(query, operationName)) ||
       ( operationName && !isString(operationName)) ||
       ( variables && !isObject(variables))
     ) {
@@ -418,13 +427,18 @@ export class SubscriptionClient {
     }
   }
 
-  private buildMessage(id: string, type: string, payload: any) {
+  private buildMessage(id: string, type: string, payload: OperationOptions) {
     const payloadToReturn = payload && payload.query ?
       {
         ...payload,
         query: typeof payload.query === 'string' ? payload.query : print(payload.query),
       } :
       payload;
+
+    // There is no requirement to send the query if this is a persisted query
+    if (payloadToReturn && payloadToReturn.extensions && payloadToReturn.extensions.persistedQuery) {
+      delete payloadToReturn.query;
+    }
 
     return {
       id,
@@ -456,7 +470,7 @@ export class SubscriptionClient {
     }];
   }
 
-  private sendMessage(id: string, type: string, payload: any) {
+  private sendMessage(id: string, type: string, payload: OperationOptions) {
     this.sendMessageRaw(this.buildMessage(id, type, payload));
   }
 

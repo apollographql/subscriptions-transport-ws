@@ -1,5 +1,10 @@
 # Changelog
 
+### v0.9.17
+- Don't pass query in payload if persistedQuery is given
+- Allow query to be returned from `onOperation`
+- Allow query not to be given, if `persistedQuery` is passed in payload
+
 ### v0.9.16
 - Add ability to set custom WebSocket protocols for client. <br/>
   [@pkosiec](https://github.com/pkosiec) in [#477](https://github.com/apollographql/subscriptions-transport-ws/pull/477)

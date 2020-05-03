@@ -44,6 +44,12 @@ export type ConnectionContext = {
 
 export interface OperationMessagePayload {
   [key: string]: any; // this will support for example any options sent in init like the auth token
+  extensions?: {
+    persistedQuery?: {
+      sha256Hash: string,
+      version: number,
+    },
+  };
   query?: string;
   variables?: { [key: string]: any };
   operationName?: string;
@@ -329,7 +335,9 @@ export class SubscriptionServer {
               promisedParams = Promise.resolve(this.onOperation(messageForCallback, baseParams, connectionContext.socket));
             }
 
-            promisedParams.then((params) => {
+            promisedParams.then((onOperationParams) => {
+              const params = Object.assign({}, baseParams, onOperationParams);
+
               if (typeof params !== 'object') {
                 const error = `Invalid params returned from onOperation! return values must be an object!`;
                 this.sendError(connectionContext, opId, { message: error });
@@ -345,7 +353,7 @@ export class SubscriptionServer {
                 throw new Error(error);
               }
 
-              const document = typeof baseParams.query !== 'string' ? baseParams.query : parse(baseParams.query);
+              const document = typeof params.query !== 'string' ? params.query : parse(params.query);
               let executionPromise: Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
               const validationErrors = validate(params.schema, document, this.specifiedRules);
 
