@@ -197,17 +197,44 @@ app.use('/graphiql', graphiqlExpress({
 If you are using older version, or another GraphQL server, start by modifying GraphiQL static HTML, and add this package and it's fetcher from CDN:
 
 ```html
-    <script src="//unpkg.com/subscriptions-transport-ws@0.5.4/browser/client.js"></script>
-    <script src="//unpkg.com/graphiql-subscriptions-fetcher@0.0.2/browser/client.js"></script>
+    <script src="//unpkg.com/subscriptions-transport-ws@0.9.16/browser/client.js"></script>
 ```
+
+Ensure your main `script` element is a "module": `<script type="module">`, to enable dynamic imports.
 
 Then, create `SubscriptionClient` and define the fetcher:
 
 ```js
+import { parse } from "//unpkg.com/graphql@15.0.0/language/index.mjs";
+const subsGraphQLFetcher = (subscriptionsClient, fallbackFetcher) => {
+  const hasSubscriptionOperation = (graphQlParams) => {
+    const thisOperation = graphQlParams.operationName;
+    const queryDoc = parse(graphQlParams.query);
+    const opDefinitions = queryDoc.definitions.filter(
+      x => x.kind === 'OperationDefinition'
+    );
+    const thisDefinition = opDefinitions.length == 1
+      ? opDefinitions[0]
+      : opDefinitions.filter(x => x.name.value === thisOperation)[0];
+    return thisDefinition.operation === 'subscription';
+  };
+  let activeSubscription = false;
+  return (graphQLParams) => {
+    if (subscriptionsClient && activeSubscription) {
+      subscriptionsClient.unsubscribeAll();
+    }
+    if (subscriptionsClient && hasSubscriptionOperation(graphQLParams)) {
+      activeSubscription = true;
+      return subscriptionsClient.request(graphQLParams);
+    } else {
+      return fallbackFetcher(graphQLParams);
+    }
+  };
+};
 let subscriptionsClient = new window.SubscriptionsTransportWs.SubscriptionClient('SUBSCRIPTION_WS_URL_HERE', {
   reconnect: true
 });
-let myCustomFetcher = window.GraphiQLSubscriptionsFetcher.graphQLFetcher(subscriptionsClient, graphQLFetcher);
+let myCustomFetcher = subsGraphQLFetcher(subscriptionsClient, graphQLFetcher);
 ```
 
 > `graphQLFetcher` is the default fetcher, and we use it as fallback for non-subscription GraphQL operations.
