@@ -465,7 +465,7 @@ export class SubscriptionClient {
     switch (this.status) {
       case this.wsImpl.OPEN:
         if(message.type === MessageTypes.GQL_STOP) {
-          this.eventEmitter.emit('error', new Error(`Client is closed. Preventing message to be sent: ${message}`));
+          this.eventEmitter.emit('error', new Error(`Client is closing. Preventing message to be sent: ${message.type}`));
           break;
         }
         let serializedMessage: string = JSON.stringify(message);
