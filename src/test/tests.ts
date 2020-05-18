@@ -1195,6 +1195,19 @@ describe('Client', function () {
     done();
   });
 
+  it('should throw if client is being closed', (done) => {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
+    const originalOnMessage = subscriptionsClient.client.onmessage;
+    const dataToSend = {
+      data: JSON.stringify({ type: 'stop' }),
+    };
+
+    expect(() => {
+      originalOnMessage.call(subscriptionsClient, dataToSend)();
+    }).to.throw('Client is closing. Preventing message to be sent: stop');
+    done();
+  });
+
   it('should delete operation when receive a GQL_COMPLETE', (done) => {
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
     subscriptionsClient.operations['1'] = {
