@@ -12,6 +12,8 @@
   [@sneko](https://github.com/sneko) in [#412](https://github.com/apollographql/subscriptions-transport-ws/issues/412)
 - Ensure `promisedParams` errors are not handled twice.  <br/>
   [@benjie](https://github.com/benjie) in [#514](https://github.com/apollographql/subscriptions-transport-ws/pull/514)
+- Fix invalid `formatResponse` console error.  <br/>
+  [@renatorib](https://github.com/renatorib) in [#761](https://github.com/apollographql/subscriptions-transport-ws/pull/761)
 
 ### New Features
 
