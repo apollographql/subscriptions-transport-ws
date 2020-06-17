@@ -1,5 +1,8 @@
 # Changelog
 
+### v0.9.17
+- docs(CONTRIBUTING): Update community from Slack to Spectrum [PR #770](https://github.com/apollographql/subscriptions-transport-ws/pull/770) 
+
 ### v0.9.16
 - Add ability to set custom WebSocket protocols for client. <br/>
   [@pkosiec](https://github.com/pkosiec) in [#477](https://github.com/apollographql/subscriptions-transport-ws/pull/477)

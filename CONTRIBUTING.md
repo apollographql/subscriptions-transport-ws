@@ -35,7 +35,7 @@ Improving the documentation, examples, and other open source content can be the 
 
 ### Responding to issues
 
-In addition to reporting issues, a great way to contribute to Apollo is to respond to other peoples' issues and try to identify the problem or help them work around it. If you’re interested in taking a more active role in this process, please go ahead and respond to issues. And don't forget to say "Hi" on Apollo Slack!
+In addition to reporting issues, a great way to contribute to Apollo is to respond to other peoples' issues and try to identify the problem or help them work around it. If you’re interested in taking a more active role in this process, please go ahead and respond to issues. And don't forget to say "Hi" in Apollo Spectrum!
 
 ### Small bug fixes
 
