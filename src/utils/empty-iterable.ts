@@ -14,5 +14,5 @@ export const createEmptyIterable = (): AsyncIterator<any> => {
     [$$asyncIterator]() {
       return this;
     },
-  };
+  } as any;
 };

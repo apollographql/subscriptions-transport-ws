@@ -94,6 +94,7 @@ export class SubscriptionClient {
   private maxConnectTimeoutId: any;
   private middlewares: Middleware[];
   private maxConnectTimeGenerator: any;
+  private gqlConnectionInitialized: boolean;
 
   constructor(
     url: string,
@@ -461,21 +462,23 @@ export class SubscriptionClient {
   }
 
   // send message, or queue it if connection is not open
-  private sendMessageRaw(message: Object) {
+  private sendMessageRaw(message: any) {
     switch (this.status) {
       case this.wsImpl.OPEN:
-        let serializedMessage: string = JSON.stringify(message);
-        try {
-          JSON.parse(serializedMessage);
-        } catch (e) {
-          this.eventEmitter.emit('error', new Error(`Message must be JSON-serializable. Got: ${message}`));
+        if (this.gqlConnectionInitialized || message.type === MessageTypes.GQL_CONNECTION_INIT) {
+          const serializedMessage: string = JSON.stringify(message);
+          try {
+            JSON.parse(serializedMessage);
+          } catch (e) {
+            this.eventEmitter.emit('error', new Error(`Message must be JSON-serializable. Got: ${message}`));
+          }
+          this.client.send(serializedMessage);
+        } else {
+          this.unsentMessagesQueue.push(message);
         }
-
-        this.client.send(serializedMessage);
         break;
       case this.wsImpl.CONNECTING:
         this.unsentMessagesQueue.push(message);
-
         break;
       default:
         if (!this.reconnecting) {
@@ -592,6 +595,7 @@ export class SubscriptionClient {
     }
 
     if (MessageTypes.GQL_CONNECTION_ACK === parsedMessage.type && !this.operations[opId]) {
+      this.gqlConnectionInitialized = true;
       this.flushUnsentMessagesQueue();
       return;
     }
