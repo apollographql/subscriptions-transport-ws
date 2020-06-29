@@ -212,7 +212,7 @@ export class SubscriptionServer {
   }
 
   private unsubscribe(connectionContext: ConnectionContext, opId: string) {
-    if (connectionContext.operations && connectionContext.operations[opId]) {
+    if (connectionContext.operations[opId]) {
       if (connectionContext.operations[opId].return) {
         connectionContext.operations[opId].return();
       }
@@ -304,11 +304,6 @@ export class SubscriptionServer {
 
         case MessageTypes.GQL_START:
           connectionContext.initPromise.then((initResult) => {
-            // if we already have a subscription with this id, unsubscribe from it first
-            if (connectionContext.operations && connectionContext.operations[opId]) {
-              this.unsubscribe(connectionContext, opId);
-            }
-
             const baseParams: ExecutionParams = {
               query: parsedMessage.payload.query,
               variables: parsedMessage.payload.variables,
@@ -320,9 +315,6 @@ export class SubscriptionServer {
               schema: this.schema,
             };
             let promisedParams = Promise.resolve(baseParams);
-
-            // set an initial mock subscription to only registering opId
-            connectionContext.operations[opId] = createEmptyIterable();
 
             if (this.onOperation) {
               let messageForCallback: any = parsedMessage;
@@ -409,10 +401,14 @@ export class SubscriptionServer {
 
               return executionIterable;
             }).then((subscription: ExecutionIterator) => {
+              // if we already have a subscription with this id, unsubscribe from it first
+              if (connectionContext.operations[opId]) {
+                this.unsubscribe(connectionContext, opId);
+              }
               connectionContext.operations[opId] = subscription;
             }).then(() => {
               // NOTE: This is a temporary code to support the legacy protocol.
-              // As soon as the old protocol has been removed, this coode should also be removed.
+              // As soon as the old protocol has been removed, this code should also be removed.
               this.sendMessage(connectionContext, opId, MessageTypes.SUBSCRIPTION_SUCCESS, undefined);
             }).catch((e: any) => {
               if (e.errors) {

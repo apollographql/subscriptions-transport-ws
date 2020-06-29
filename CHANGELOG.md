@@ -1,5 +1,9 @@
 # Changelog
 
+### vNEXT
+- Ensure we only ever have one active iterator for an opId [Issue #765](https://github.com/apollographql/subscriptions-transport-ws/issues/765)
+- Update empty-iterable for newest TypeScript version
+
 ### v0.9.16
 - Add ability to set custom WebSocket protocols for client. <br/>
   [@pkosiec](https://github.com/pkosiec) in [#477](https://github.com/apollographql/subscriptions-transport-ws/pull/477)
