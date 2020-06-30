@@ -42,7 +42,6 @@ export type FormatedError = Error & {
 export interface Operation {
   options: OperationOptions;
   handler: (error: Error[], result?: any) => void;
-  completed?: boolean;
 }
 
 export interface Operations {
@@ -624,9 +623,9 @@ export class SubscriptionClient {
         break;
 
       case MessageTypes.GQL_COMPLETE:
-        this.operations[opId].completed = true;
-        this.operations[opId].handler(null, null);
+        let handler = this.operations[opId].handler;
         delete this.operations[opId];
+        handler.call(this, null, null);
         break;
 
       case MessageTypes.GQL_ERROR:
@@ -664,9 +663,7 @@ export class SubscriptionClient {
     if (this.operations[opId]) {
       delete this.operations[opId];
       this.setInactivityTimeout();
-      if (!this.operations[opId].completed) {
-        this.sendMessage(opId, MessageTypes.GQL_STOP, undefined);
-      }
+      this.sendMessage(opId, MessageTypes.GQL_STOP, undefined);
     }
   }
 }
