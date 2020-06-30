@@ -623,7 +623,7 @@ export class SubscriptionClient {
         break;
 
       case MessageTypes.GQL_COMPLETE:
-        let handler = this.operations[opId].handler;
+        const handler = this.operations[opId].handler;
         delete this.operations[opId];
         handler.call(this, null, null);
         break;
