@@ -3,6 +3,11 @@
 ### vNEXT
 - Do not send GQL_STOP when unsubscribing after GQL_COMPLETE is received [Issue #765](https://github.com/apollographql/subscriptions-transport-ws/issues/711)
 
+### v0.9.17
+
+- Bump `graphql` peer/dev deps.  <br/>
+  [@hwillson](https://github.com/hwillson) in [#778](https://github.com/apollographql/subscriptions-transport-ws/pull/778)
+
 ### v0.9.16
 - Add ability to set custom WebSocket protocols for client. <br/>
   [@pkosiec](https://github.com/pkosiec) in [#477](https://github.com/apollographql/subscriptions-transport-ws/pull/477)
