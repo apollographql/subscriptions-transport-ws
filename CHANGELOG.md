@@ -8,6 +8,8 @@
   [@onhate](https://github.com/onhate) in [#775](https://github.com/apollographql/subscriptions-transport-ws/pull/775)
 - Clear WebSocket event listeners on close.  <br/>
   [@tretne](https://github.com/tretne) in [#615](https://github.com/apollographql/subscriptions-transport-ws/pull/615)
+- Fix `MessageTypes` TS import errors.  <br/>
+  [@sneko](https://github.com/sneko) in [#412](https://github.com/apollographql/subscriptions-transport-ws/issues/412)
 
 ### New Features
 

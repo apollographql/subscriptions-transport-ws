@@ -1,4 +1,4 @@
 export * from './client';
 export * from './server';
-export * from './message-types';
+export { default as MessageTypes } from './message-types';
 export * from './protocol';
