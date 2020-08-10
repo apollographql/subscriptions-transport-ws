@@ -6,6 +6,8 @@
 
 - Do not send GQL_STOP when unsubscribing after GQL_COMPLETE is received.  <br/>
   [@onhate](https://github.com/onhate) in [#775](https://github.com/apollographql/subscriptions-transport-ws/pull/775)
+- Clear WebSocket event listeners on close.  <br/>
+  [@tretne](https://github.com/tretne) in [#615](https://github.com/apollographql/subscriptions-transport-ws/pull/615)
 
 ### New Features
 

@@ -167,6 +167,10 @@ export class SubscriptionClient {
       }
 
       this.client.close();
+      this.client.onopen = null;
+      this.client.onclose = null;
+      this.client.onerror = null;
+      this.client.onmessage = null;
       this.client = null;
       this.eventEmitter.emit('disconnected');
 
