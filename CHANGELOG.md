@@ -1,7 +1,9 @@
 # Changelog
 
-### vNEXT
-- Do not send GQL_STOP when unsubscribing after GQL_COMPLETE is received [Issue #765](https://github.com/apollographql/subscriptions-transport-ws/issues/711)
+### v0.9.18 (not yet release)
+
+- Do not send GQL_STOP when unsubscribing after GQL_COMPLETE is received.  <br/>
+  [@onhate](https://github.com/onhate) in [#775](https://github.com/apollographql/subscriptions-transport-ws/pull/775)
 
 ### v0.9.17
 
