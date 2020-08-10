@@ -1195,6 +1195,33 @@ describe('Client', function () {
     done();
   });
 
+  it('should not send GQL_STOP on unsubscribe after operation received a GQL_COMPLETE', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
+    const sendMessageSpy = sinon.spy(client as any, 'sendMessage');
+
+    client.onConnected(() => {
+      const subscription = client.request({
+        query: `subscription { somethingChanged }`,
+        variables: {},
+      }).subscribe({
+        next: () =>  {
+          client.client.onmessage({
+            data: JSON.stringify({id: 1, type: MessageTypes.GQL_COMPLETE}),
+          });
+        },
+        complete: () => {
+          subscription.unsubscribe();
+        },
+      });
+      setTimeout(() => {
+        expect(sendMessageSpy.calledWith(undefined, 'connection_init', sinon.match.any)).to.be.true;
+        expect(sendMessageSpy.calledWith('1', 'start', sinon.match.any)).to.be.true;
+        expect(sendMessageSpy.calledWith('1', 'stop', sinon.match.any)).to.be.false;
+        done();
+      }, 1000);
+    });
+  });
+
   it('should delete operation when receive a GQL_COMPLETE', (done) => {
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
     subscriptionsClient.operations['1'] = {

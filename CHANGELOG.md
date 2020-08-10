@@ -1,5 +1,8 @@
 # Changelog
 
+### vNEXT
+- Do not send GQL_STOP when unsubscribing after GQL_COMPLETE is received [Issue #765](https://github.com/apollographql/subscriptions-transport-ws/issues/711)
+
 ### v0.9.17
 
 - Bump `graphql` peer/dev deps.  <br/>
