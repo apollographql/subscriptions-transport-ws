@@ -13,7 +13,7 @@ import { getOperationAST } from 'graphql/utilities/getOperationAST';
 import $$observable from 'symbol-observable';
 
 import { GRAPHQL_WS } from './protocol';
-import { WS_TIMEOUT } from './defaults';
+import { MIN_WS_TIMEOUT, WS_TIMEOUT } from './defaults';
 import MessageTypes from './message-types';
 
 export interface Observer<T> {
@@ -60,6 +60,7 @@ export type ConnectionParamsOptions = ConnectionParams | Function | Promise<Conn
 
 export interface ClientOptions {
   connectionParams?: ConnectionParamsOptions;
+  minTimeout?: number;
   timeout?: number;
   reconnect?: boolean;
   reconnectionAttempts?: number;
@@ -74,6 +75,7 @@ export class SubscriptionClient {
   private url: string;
   private nextOperationId: number;
   private connectionParams: Function;
+  private minWsTimeout: number;
   private wsTimeout: number;
   private unsentMessagesQueue: Array<any>; // queued messages while websocket is opening.
   private reconnect: boolean;
@@ -104,6 +106,7 @@ export class SubscriptionClient {
     const {
       connectionCallback = undefined,
       connectionParams = {},
+      minTimeout = MIN_WS_TIMEOUT,
       timeout = WS_TIMEOUT,
       reconnect = false,
       reconnectionAttempts = Infinity,
@@ -121,6 +124,7 @@ export class SubscriptionClient {
     this.url = url;
     this.operations = {};
     this.nextOperationId = 0;
+    this.minWsTimeout = minTimeout;
     this.wsTimeout = timeout;
     this.unsentMessagesQueue = [];
     this.reconnect = reconnect;
@@ -349,7 +353,7 @@ export class SubscriptionClient {
   }
 
   private createMaxConnectTimeGenerator() {
-    const minValue = 1000;
+    const minValue = this.minWsTimeout;
     const maxValue = this.wsTimeout;
 
     return new Backoff({
