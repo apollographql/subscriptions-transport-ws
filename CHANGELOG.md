@@ -19,6 +19,8 @@
   [@jedwards1211](https://github.com/jedwards1211) in [#675](https://github.com/apollographql/subscriptions-transport-ws/pull/675)
 - Accept extra WebSocket client arguments.  <br/>
   [@GingerBear](https://github.com/GingerBear) in [#561](https://github.com/apollographql/subscriptions-transport-ws/pull/561)
+- Support server-defined payload in GQL_CONNECTION_ACK message.  <br/>
+  [@mattkrick](https://github.com/mattkrick) in [#347](https://github.com/apollographql/subscriptions-transport-ws/pull/347)
 
 ## v0.9.17
 

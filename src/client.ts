@@ -624,7 +624,7 @@ export class SubscriptionClient {
         break;
 
       case MessageTypes.GQL_CONNECTION_ACK:
-        this.eventEmitter.emit(this.reconnecting ? 'reconnected' : 'connected');
+        this.eventEmitter.emit(this.reconnecting ? 'reconnected' : 'connected', parsedMessage.payload);
         this.reconnecting = false;
         this.backoff.reset();
         this.maxConnectTimeGenerator.reset();
