@@ -14,6 +14,8 @@
   [@benjie](https://github.com/benjie) in [#514](https://github.com/apollographql/subscriptions-transport-ws/pull/514)
 - Fix invalid `formatResponse` console error.  <br/>
   [@renatorib](https://github.com/renatorib) in [#761](https://github.com/apollographql/subscriptions-transport-ws/pull/761)
+- Destructure the correct error object in `MessageTypes.GQL_START`.  <br/>
+  [@gregbty](https://github.com/gregbty) in [#588](https://github.com/apollographql/subscriptions-transport-ws/pull/588)
 
 ### New Features
 
