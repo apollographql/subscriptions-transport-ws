@@ -10,6 +10,8 @@
   [@tretne](https://github.com/tretne) in [#615](https://github.com/apollographql/subscriptions-transport-ws/pull/615)
 - Fix `MessageTypes` TS import errors.  <br/>
   [@sneko](https://github.com/sneko) in [#412](https://github.com/apollographql/subscriptions-transport-ws/issues/412)
+- Ensure `promisedParams` errors are not handled twice.  <br/>
+  [@benjie](https://github.com/benjie) in [#514](https://github.com/apollographql/subscriptions-transport-ws/pull/514)
 
 ### New Features
 
