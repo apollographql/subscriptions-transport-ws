@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.9.18 (not yet released)
+## v0.9.18 (2020-08-17)
 
 ### Bug Fixes
 
