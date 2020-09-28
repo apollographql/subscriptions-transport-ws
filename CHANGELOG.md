@@ -1,5 +1,11 @@
 # Changelog
 
+## vnext
+
+### Bug Fixes
+
+- Memory leak when executing a query or mutation #805
+
 ## v0.9.18 (2020-08-17)
 
 ### Bug Fixes
