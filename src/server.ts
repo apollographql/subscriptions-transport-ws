@@ -387,6 +387,7 @@ export class SubscriptionServer {
                 })
                 .then(() => {
                   this.sendMessage(connectionContext, opId, MessageTypes.GQL_COMPLETE, null);
+                  this.unsubscribe(connectionContext, opId);
                 })
                 .catch((e: Error) => {
                   let error = e;

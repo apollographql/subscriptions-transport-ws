@@ -301,7 +301,7 @@ describe('Client', function () {
     });
 
     client.request({
-      query: `subscription useInfo {
+      query: `subscription userInfo {
         user(id: 3) {
           id
           name
@@ -341,7 +341,7 @@ describe('Client', function () {
     });
 
     sub = client.request({
-      query: `subscription useInfo {
+      query: `subscription userInfo {
         user(id: 3) {
           id
           name
@@ -467,7 +467,7 @@ describe('Client', function () {
 
     client.request({
         query: undefined,
-        operationName: 'useInfo',
+        operationName: 'userInfo',
         variables: {
           id: 3,
         },
@@ -486,7 +486,7 @@ describe('Client', function () {
 
     client.request({
         query: <string>{},
-        operationName: 'useInfo',
+        operationName: 'userInfo',
         variables: {
           id: 3,
         },
@@ -529,13 +529,13 @@ describe('Client', function () {
 
     client.request(
       {
-        query: `subscription useInfo($id: String) {
+        query: `subscription userInfo($id: String) {
           user(id: $id) {
             id
             name
           }
         }`,
-        operationName: 'useInfo',
+        operationName: 'userInfo',
         variables: {
           id: 3,
         },
@@ -644,13 +644,13 @@ describe('Client', function () {
     client3.use([ middleware ]);
 
     client3.request({
-        query: `subscription useInfo($id: String) {
+        query: `subscription userInfo($id: String) {
             user(id: $id) {
               id
               name
             }
           }`,
-        operationName: 'useInfo',
+        operationName: 'userInfo',
         variables: {
           id: '3',
         },
@@ -776,13 +776,13 @@ describe('Client', function () {
 
     return new Promise((resolve, reject) => {
       let sub = client.request({
-        query: `subscription useInfo($id: String) {
+        query: `subscription userInfo($id: String) {
           user(id: $id) {
             id
             name
           }
         }`,
-        operationName: 'useInfo',
+        operationName: 'userInfo',
         variables: {
           id: 3,
         },
@@ -810,13 +810,13 @@ describe('Client', function () {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
 
     let sub = client.request({
-        query: `subscription useInfo($id: String) {
+        query: `subscription userInfo($id: String) {
         user(id: $id) {
           id
           name
         }
       }`,
-        operationName: 'useInfo',
+        operationName: 'userInfo',
         variables: {
           id: 3,
         },
@@ -838,7 +838,7 @@ describe('Client', function () {
 
     setTimeout(() => {
       client.request({
-          query: `subscription useInfo{
+          query: `subscription userInfo{
           error
         }`,
           variables: {},
@@ -868,7 +868,7 @@ describe('Client', function () {
 
     setTimeout(() => {
       client.request({
-          query: `subscription useInfo{
+          query: `subscription userInfo{
           invalid
         }`,
           variables: {},
@@ -902,7 +902,7 @@ describe('Client', function () {
     const client = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
     client.request({
       query: `
-        subscription useInfo{
+        subscription userInfo{
           invalid
         }
       `,
@@ -923,13 +923,13 @@ describe('Client', function () {
     expect(client.client).to.be.null;
 
     let sub = client.request({
-        query: `subscription useInfo($id: String) {
+        query: `subscription userInfo($id: String) {
         user(id: $id) {
           id
           name
         }
       }`,
-        operationName: 'useInfo',
+        operationName: 'userInfo',
         variables: {
           id: 3,
         },
@@ -989,13 +989,13 @@ describe('Client', function () {
     });
 
     sub = client.request({
-        query: `subscription useInfo($id: String) {
+        query: `subscription userInfo($id: String) {
         user(id: $id) {
           id
           name
         }
       }`,
-        operationName: 'useInfo',
+        operationName: 'userInfo',
         variables: {
           id: 3,
         },
@@ -1059,7 +1059,7 @@ describe('Client', function () {
 
     sub = client.request({
       query: `
-        subscription useInfo{
+        subscription userInfo{
           invalid
         }
       `,
@@ -1075,7 +1075,7 @@ describe('Client', function () {
     const client = new SubscriptionClient(`ws://localhost:${ERROR_TEST_PORT}/`);
 
     client.request({
-      query: `subscription useInfo{
+      query: `subscription userInfo{
         invalid
       }`,
       variables: {},
@@ -1364,13 +1364,13 @@ describe('Client', function () {
       inactivityTimeout: 100,
     });
     const sub = subscriptionsClient.request({
-      query: `subscription useInfo($id: String) {
+      query: `subscription userInfo($id: String) {
         user(id: $id) {
           id
           name
         }
       }`,
-      operationName: 'useInfo',
+      operationName: 'userInfo',
       variables: {
         id: 3,
       },
@@ -1821,38 +1821,53 @@ describe('Server', function () {
     const spy = sinon.spy(eventsServer as any, 'unsubscribe');
 
     client.request({
-        query: `subscription useInfo($id: String) {
+        query: `subscription userInfo($id: String) {
         user(id: $id) {
           id
           name
         }
       }`,
-        operationName: 'useInfo',
+        operationName: 'userInfo',
         variables: {
           id: '3',
         },
-      }).subscribe({});
+    }).subscribe({});
 
     setTimeout(() => {
       client.client.close();
     }, 500);
 
     setTimeout(() => {
-      assert(spy.calledOnce);
+      assert(spy.calledTwice);
       done();
     }, 1000);
+  });
+
+  it('should remove server side operation after GQL_COMPLETE is sent', (done) => {
+    const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
+    client.request({
+      query: `query testString {
+        testString
+      }`,
+      operationName: 'testString',
+    }).subscribe({});
+
+    setTimeout(() => {
+      assert(eventsOptions.onOperationComplete.calledOnceWith(sinon.match.any, '1'));
+      done();
+    }, 500);
   });
 
   it('should trigger onOperation when client subscribes', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
     client.request({
-      query: `subscription useInfo($id: String) {
+      query: `subscription userInfo($id: String) {
           user(id: $id) {
             id
             name
           }
         }`,
-      operationName: 'useInfo',
+      operationName: 'userInfo',
       variables: {
         id: '3',
       },
@@ -1873,13 +1888,13 @@ describe('Server', function () {
   it('should trigger onOperationComplete when client unsubscribes', (done) => {
     const client = new SubscriptionClient(`ws://localhost:${EVENTS_TEST_PORT}/`);
     const sub = client.request({
-      query: `subscription useInfo($id: String) {
+      query: `subscription userInfo($id: String) {
           user(id: $id) {
             id
             name
           }
         }`,
-      operationName: 'useInfo',
+      operationName: 'userInfo',
       variables: {
         id: '3',
       },
@@ -1913,13 +1928,13 @@ describe('Server', function () {
     let numResults = 0;
     setTimeout(() => {
       client.request({
-        query: `subscription useInfo($id: String) {
+        query: `subscription userInfo($id: String) {
           user(id: $id) {
             id
             name
           }
         }`,
-        operationName: 'useInfo',
+        operationName: 'userInfo',
         variables: {
           id: '3',
         },
@@ -1945,13 +1960,13 @@ describe('Server', function () {
     let numResults1 = 0;
     setTimeout(function () {
       client11.request({
-        query: `subscription useInfo($id: String) {
+        query: `subscription userInfo($id: String) {
           user(id: $id) {
             id
             name
           }
         }`,
-        operationName: 'useInfo',
+        operationName: 'userInfo',
         variables: {
           id: '2',
         },
@@ -2007,13 +2022,13 @@ describe('Server', function () {
       };
 
       client1.request({
-        query: `subscription useInfo($id: String) {
+        query: `subscription userInfo($id: String) {
           user(id: $id) {
             id
             birthday
           }
         }`,
-        operationName: 'useInfo',
+        operationName: 'userInfo',
         variables: {
           id: '3',
         },
@@ -2158,13 +2173,13 @@ describe('Server', function () {
       }
     };
     sub = client4.request({
-      query: `subscription useInfo($id: String) {
+      query: `subscription userInfo($id: String) {
       user(id: $id) {
         id
         name
       }
     }`,
-      operationName: 'useInfo',
+      operationName: 'userInfo',
       variables: {
         id: '3',
       },
@@ -2224,7 +2239,7 @@ describe('Server', function () {
   it('sends back any type of error', function (done) {
     const client = new SubscriptionClient(`ws://localhost:${TEST_PORT}/`);
     client.request({
-      query: `invalid useInfo{
+      query: `invalid userInfo{
           error
         }`,
       variables: {},
