@@ -630,7 +630,7 @@ export class SubscriptionClient {
         this.maxConnectTimeGenerator.reset();
 
         if (this.connectionCallback) {
-          this.connectionCallback(parsedMessage.payload);
+          this.connectionCallback(null, parsedMessage.payload);
         }
         break;
 
