@@ -722,13 +722,14 @@ describe('Client', function () {
   it('should handle correctly GQL_CONNECTION_ACK message', (done) => {
     wsServer.on('connection', (connection: any) => {
       connection.on('message', (message: any) => {
-        connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK }));
+        connection.send(JSON.stringify({ type: MessageTypes.GQL_CONNECTION_ACK, payload: 'init-payload' }));
       });
     });
 
     new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`, {
-      connectionCallback: (error: any) => {
-        expect(error).to.equals(undefined);
+      connectionCallback: (error: any, payload: any) => {
+        expect(error).to.equal(null);
+        expect(payload).to.equal('init-payload');
         done();
       },
     });
