@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.9.19
+
+### Bug Fixes
+
+- Pass payload into connection callback on connection_ack  <br/>
+  [@trashe_racer](https://github.com/TrasheRacer) in [#811](https://github.com/apollographql/subscriptions-transport-ws/pull/811)
+
+
 ## v0.9.18 (2020-08-17)
 
 ### Bug Fixes
