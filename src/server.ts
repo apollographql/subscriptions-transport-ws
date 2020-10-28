@@ -245,14 +245,25 @@ export class SubscriptionServer {
       switch (parsedMessage.type) {
         case MessageTypes.GQL_CONNECTION_INIT:
           if (this.onConnect) {
-            connectionContext.initPromise = new Promise((resolve, reject) => {
-              try {
-                // TODO - this should become a function call with just 2 arguments in the future
-                // when we release the breaking change api: parsedMessage.payload and connectionContext
-                resolve(this.onConnect(parsedMessage.payload, connectionContext.socket, connectionContext));
-              } catch (e) {
-                reject(e);
-              }
+            connectionContext.initPromise = Promise.resolve(this.onConnect(parsedMessage.payload, connectionContext.socket, connectionContext)).catch((error: Error) => {
+              this.sendError(
+                connectionContext,
+                opId,
+                { message: error.message },
+                MessageTypes.GQL_CONNECTION_ERROR,
+              );
+
+              // Close the connection with an error code, ws v2 ensures that the
+              // connection is cleaned up even when the closing handshake fails.
+              // 1011: an unexpected condition prevented the operation from being fulfilled
+              // We are using setTimeout because we want the message to be flushed before
+              // disconnecting the client
+              setTimeout(() => {
+                connectionContext.socket.close(1011);
+              }, 10);
+              
+              // Ensure we return something to the onDisconnect function
+              return false;
             });
           }
 
