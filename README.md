@@ -1,6 +1,6 @@
 # graphql-ws
 
-This library is not being actively maintained. It is recommended that you use the [graphql-ws](https://github.com/enisdenjo/graphql-ws) library instead. For details read the [GraphQL over WebSockets](https://the-guild.dev/blog/graphql-over-websockets) announcement.
+The `subscriptions-transport-ws` library is not being actively maintained. It is recommended that you use the [graphql-ws](https://github.com/enisdenjo/graphql-ws) library instead. For details read the [GraphQL over WebSockets](https://the-guild.dev/blog/graphql-over-websockets) announcement.
 
 # subscriptions-transport-ws
 
