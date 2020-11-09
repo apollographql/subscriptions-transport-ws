@@ -170,12 +170,13 @@ export class SubscriptionClient {
         this.sendMessage(undefined, MessageTypes.GQL_CONNECTION_TERMINATE, null);
       }
 
-      this.client.close();
-      this.client.onopen = null;
-      this.client.onclose = null;
-      this.client.onerror = null;
-      this.client.onmessage = null;
+      const client = this.client;
       this.client = null;
+      client.close();
+      client.onopen = null;
+      client.onclose = null;
+      client.onerror = null;
+      client.onmessage = null;
       this.eventEmitter.emit('disconnected');
 
       if (!isForced) {

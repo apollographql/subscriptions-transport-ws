@@ -1,5 +1,8 @@
 # Changelog
 
+- Set client to null before calling onClose.  <br/>
+  [@ibash](https://github.com/ibash) in [#820](https://github.com/apollographql/subscriptions-transport-ws/pull/829)
+
 ## v0.9.18 (2020-08-17)
 
 ### Bug Fixes
