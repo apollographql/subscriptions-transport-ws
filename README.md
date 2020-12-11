@@ -296,7 +296,7 @@ ReactDOM.render(
 - `thisContext: any`: `this` context to use when calling the callback function.
 - => Returns an `off` method to cancel the event subscription.
 
-### `close() => void` - closes the WebSocket connection manually, and ignores `reconnect` logic if it was set to `true`.
+### `close(isForced = true) => void` - closes the WebSocket connection manually, and ignores `reconnect` logic if `isForced` was set to `true`.
 
 ### `use(middlewares: MiddlewareInterface[]) => SubscriptionClient` - adds middleware to modify `OperationOptions` per each request
 - `middlewares: MiddlewareInterface[]` - Array contains list of middlewares (implemented `applyMiddleware` method) implementation, the `SubscriptionClient` will use the middlewares to modify `OperationOptions` for every operation
