@@ -31,7 +31,7 @@ import {
 } from '../protocol';
 
 import { createServer, IncomingMessage, ServerResponse, Server } from 'http';
-import { SubscriptionServer, ExecutionParams } from '../server';
+import { SubscriptionServer, ExecutionParams, ConnectionContext } from '../server';
 import { SubscriptionClient } from '../client';
 import { OperationMessage } from '../server';
 import { $$asyncIterator } from 'iterall';
@@ -2277,6 +2277,36 @@ describe('Server', function () {
         type: MessageTypes.INIT,
       }));
     };
+  });
+
+  it('should work with async failing onDisconnect', (done) => {
+    const connectionCallbackSpy = sinon.spy();
+
+    const httpServerForError = createServer(notFoundRequestListener);
+    httpServerForError.listen(ERROR_TEST_PORT);
+
+    new SubscriptionServer({
+      schema,
+      execute,
+      onConnect: () => {
+        throw new Error('failed');
+      },
+      onDisconnect: async (_ws: WebSocket, connectionContext: ConnectionContext) => {
+        await connectionContext.initPromise;
+      },
+    }, { server: httpServerForError });
+
+    onConnectErrorOptions.isLegacy = false;
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${ERROR_TEST_PORT}/`, {
+      connectionCallback: connectionCallbackSpy,
+    });
+
+    setTimeout(() => {
+      expect(connectionCallbackSpy.calledOnce).to.be.true;
+      expect(connectionCallbackSpy.getCall(0).args[0]).to.eql({ message: 'failed' });
+      subscriptionsClient.close();
+      done();
+    }, 200);
   });
 });
 

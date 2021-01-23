@@ -1,5 +1,8 @@
 # Changelog
 
+- Catch onDisconnect Promise rejections. <br/>
+  [@asmeikal](https://github.com/asmeikal) in [#846](https://github.com/apollographql/subscriptions-transport-ws/pull/846)
+
 ## v0.9.18 (2020-08-17)
 
 ### Bug Fixes

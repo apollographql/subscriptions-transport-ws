@@ -174,7 +174,9 @@ export class SubscriptionServer {
         this.onClose(connectionContext);
 
         if (this.onDisconnect) {
-          this.onDisconnect(socket, connectionContext);
+          Promise.resolve(this.onDisconnect(socket, connectionContext)).catch((err) => {
+            console.error('Error in onDisconnect:', err);
+          });
         }
       };
 
