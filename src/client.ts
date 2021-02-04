@@ -73,7 +73,7 @@ export interface ClientOptions {
 export class SubscriptionClient {
   public client: any;
   public operations: Operations;
-  private url: string;
+  private url: string | (() => string);
   private nextOperationId: number;
   private connectionParams: Function;
   private minWsTimeout: number;
@@ -100,7 +100,7 @@ export class SubscriptionClient {
   private wsOptionArguments: any[];
 
   constructor(
-    url: string,
+    url: string | (() => string),
     options?: ClientOptions,
     webSocketImpl?: any,
     webSocketProtocols?: string | string[],
@@ -554,7 +554,8 @@ export class SubscriptionClient {
   }
 
   private connect() {
-    this.client = new this.wsImpl(this.url, this.wsProtocols, ...this.wsOptionArguments);
+    const url = typeof this.url === "string" ? this.url : this.url();
+    this.client = new this.wsImpl(url, this.wsProtocols, ...this.wsOptionArguments);
 
     this.checkMaxConnectTimeout();
 
