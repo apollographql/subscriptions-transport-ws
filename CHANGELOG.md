@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.9.19 (TDB)
+- Allow for dynamic url [#847](https://github.com/apollographql/subscriptions-transport-ws/pull/847)
+
 ## v0.9.18 (2020-08-17)
 
 ### Bug Fixes
