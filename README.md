@@ -238,7 +238,7 @@ ReactDOM.render(
 
 ## SubscriptionClient
 ### `Constructor(url, options, webSocketImpl)`
-- `url: string` : url that the client will connect to, starts with `ws://` or `wss://`
+- `url: string | (() => string)` : url that the client will connect to, starts with `ws://` or `wss://` - can alternatively be a function that returns the connection url, which will be invoked every time the client tries to connect
 - `options?: Object` : optional, object to modify default client behavior
   * `timeout?: number` : how long the client should wait in ms for a keep-alive message from the server (default 30000 ms), this parameter is ignored if the server does not send keep-alive messages. This will also be used to calculate the max connection time per connect/reconnect
   * `minTimeout?: number`: the minimum amount of time the client should wait for a connection to be made (default 1000 ms)
