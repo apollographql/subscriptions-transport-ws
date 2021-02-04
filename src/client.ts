@@ -554,7 +554,7 @@ export class SubscriptionClient {
   }
 
   private connect() {
-    const url = typeof this.url === "string" ? this.url : this.url();
+    const url = typeof this.url === 'string' ? this.url : this.url();
     this.client = new this.wsImpl(url, this.wsProtocols, ...this.wsOptionArguments);
 
     this.checkMaxConnectTimeout();
