@@ -477,9 +477,22 @@ export class SubscriptionServer {
     this.sendMessage(
       connectionContext,
       opId,
-      sanitizedOverrideDefaultErrorType,
-      errorPayload,
+      MessageTypes.GQL_DATA, // is there a reason this used to be error types?
+      this.convertToGraphQLErrorArray(errorPayload),
     );
+  }
+
+  private convertToGraphQLErrorArray(errorPayload: any) {
+    if (Array.isArray(errorPayload)) {
+      return errorPayload;
+    }
+    return {
+      errors: [{
+        message: errorPayload.message,
+        extensions: {code: 'INTERNAL_SERVER_ERROR'},
+      }],
+      data: <any>null,
+    };
   }
 }
 
