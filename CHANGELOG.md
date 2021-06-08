@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.10.0 (2021-06-08)
+
+- Bump `ws` dependency to allow v6 and v7. Note that there are breaking changes in `ws` [`6.0.0`](https://github.com/websockets/ws/releases/tag/6.0.0) and [`7.0.0`](https://github.com/websockets/ws/releases/tag/7.0.0); for example, messages over 100MiB are rejected, and (in v7) the behavior of sending messages while the connection is starting or ending has changed. We are publishing this package to allow users of Apollo Server 2 to avoid seeing [this CVE](https://www.npmjs.com/advisories/1748) in their `npm audit`. However, note that (a) this CVE does not affect the subscriptions client, just the server and (b) Apollo Server 3 will remove its superficial integration with this package entirely. We encourage users of Apollo Server 2 to disable the integration with this unmaintained package via `new ApolloServer({subscriptions: false})`, and consider packages such as `graphql-ws` to power GraphQL subscriptions until such time as Apollo Server has more fully integrated subscriptions support.
+
 ## v0.9.18 (2020-08-17)
 
 ### Bug Fixes

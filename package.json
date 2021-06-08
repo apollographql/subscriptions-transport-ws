@@ -13,7 +13,7 @@
     "eventemitter3": "^3.1.0",
     "iterall": "^1.2.1",
     "symbol-observable": "^1.0.4",
-    "ws": "^5.2.0"
+    "ws": "^5.2.0 || ^6.0.0 || ^7.0.0"
   },
   "scripts": {
     "clean": "rimraf browser dist coverage",
