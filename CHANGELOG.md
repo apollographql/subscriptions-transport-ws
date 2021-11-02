@@ -2,7 +2,9 @@
 
 ## v0.11.0 (2021-11-02)
 
-- Support for `graphql@16` and bump minimal supported version to be `graphql@15.7.2`. As part of this change signatures for `ExecuteFunction` and `SubscribeFunction` were changed.
+- Support for `graphql@16` and bump minimal supported version to be `graphql@15.7.2`. As part of this change signatures for `ExecuteFunction` and `SubscribeFunction` were changed.  <br/>
+  [@IvanGoncharov](https://github.com/IvanGoncharov) in [#902](https://github.com/apollographql/subscriptions-transport-ws/pull/902)
+
 
 ## v0.10.0 (2021-06-08)
 
