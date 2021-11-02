@@ -30,11 +30,10 @@
     "prepublishOnly": "npm run clean && npm run compile && npm run browser-compile"
   },
   "peerDependencies": {
-    "graphql": ">=0.10.0"
+    "graphql": "^15.7.2 || ^16.0.0"
   },
   "devDependencies": {
     "@types/chai": "^4.0.0",
-    "@types/graphql": "^14.0.0",
     "@types/is-promise": "^2.1.0",
     "@types/lodash": "^4.14.109",
     "@types/mocha": "^5.2.5",
@@ -42,7 +41,7 @@
     "@types/sinon": "^5.0.1",
     "@types/ws": "^5.1.2",
     "chai": "^4.0.2",
-    "graphql": "^15.3.0",
+    "graphql": "16.0.0",
     "graphql-subscriptions": "^1.0.0",
     "istanbul": "^1.0.0-alpha.2",
     "lodash": "^4.17.1",
@@ -52,7 +51,7 @@
     "rimraf": "^2.6.1",
     "sinon": "^6.1.4",
     "tslint": "^5.10.0",
-    "typescript": "^3.9.6",
+    "typescript": "^4.1.0",
     "webpack": "^3.1.0"
   },
   "typings": "dist/index.d.ts",
