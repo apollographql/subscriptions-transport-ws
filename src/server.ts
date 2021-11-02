@@ -12,6 +12,8 @@ import {
   ValidationContext,
   specifiedRules,
   GraphQLFieldResolver,
+  ExecutionArgs,
+  SubscriptionArgs,
 } from 'graphql';
 import { createEmptyIterable } from './utils/empty-iterable';
 import { createAsyncIterator, forAwaitEach, isAsyncIterable } from 'iterall';
@@ -55,27 +57,14 @@ export interface OperationMessage {
   type: string;
 }
 
-export type ExecuteFunction = (schema: GraphQLSchema,
-                               document: DocumentNode,
-                               rootValue?: any,
-                               contextValue?: any,
-                               variableValues?: { [key: string]: any },
-                               operationName?: string,
-                               fieldResolver?: GraphQLFieldResolver<any, any>) =>
-                               ExecutionResult |
-                               Promise<ExecutionResult> |
-                               AsyncIterator<ExecutionResult>;
+export type ExecuteFunction = (args: ExecutionArgs) =>
+  | ExecutionResult
+  | Promise<ExecutionResult>
+  | AsyncIterator<ExecutionResult>;
 
-export type SubscribeFunction = (schema: GraphQLSchema,
-                                 document: DocumentNode,
-                                 rootValue?: any,
-                                 contextValue?: any,
-                                 variableValues?: { [key: string]: any },
-                                 operationName?: string,
-                                 fieldResolver?: GraphQLFieldResolver<any, any>,
-                                 subscribeFieldResolver?: GraphQLFieldResolver<any, any>) =>
-                                 AsyncIterator<ExecutionResult> |
-                                 Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
+export type SubscribeFunction = (args: SubscriptionArgs) =>
+  | AsyncIterator<ExecutionResult>
+  | Promise<AsyncIterator<ExecutionResult> | ExecutionResult>;
 
 export interface ServerOptions {
   rootValue?: any;
@@ -356,12 +345,16 @@ export class SubscriptionServer {
                 if (this.subscribe && isASubscriptionOperation(document, params.operationName)) {
                   executor = this.subscribe;
                 }
-                executionPromise = Promise.resolve(executor(params.schema,
-                  document,
-                  this.rootValue,
-                  params.context,
-                  params.variables,
-                  params.operationName));
+                executionPromise = Promise.resolve(
+                  executor({
+                    schema: params.schema,
+                    document,
+                    rootValue: this.rootValue,
+                    contextValue: params.context,
+                    variableValues: params.variables,
+                    operationName: params.operationName,
+                  }),
+                );
               }
 
               return executionPromise.then((executionResult) => ({
