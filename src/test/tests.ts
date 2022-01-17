@@ -1208,6 +1208,14 @@ describe('Client', function () {
     }, 1300);
   });
 
+  it('should emit an error when no keep alive messages are received', (done) => {
+    const subscriptionsClient = new SubscriptionClient(`ws://localhost:${KEEP_ALIVE_TEST_PORT}/`, { timeout: 100, reconnect: false });
+    subscriptionsClient.onError((err: Error) => {
+      expect(err.message).to.be.equal('Timed out');
+      done();
+    });
+  });
+
   it('should take care of invalid message received', (done) => {
     const subscriptionsClient = new SubscriptionClient(`ws://localhost:${RAW_TEST_PORT}/`);
     const originalOnMessage = subscriptionsClient.client.onmessage;
