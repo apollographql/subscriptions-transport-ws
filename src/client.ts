@@ -537,6 +537,7 @@ export class SubscriptionClient {
     }
 
     if (!this.reconnecting) {
+      this.eventEmitter.emit('error', new Error('Timed out'));
       this.close(false, true);
     }
   }
