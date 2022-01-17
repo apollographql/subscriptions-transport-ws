@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.11.1 (2022-01-17)
+
+- Emit a `Timed out` error when the web socket has not received a keep alive message in time.
+
 ## v0.11.0 (2021-11-02)
 
 - Support for `graphql@16` and bump minimal supported version to be `graphql@15.7.2`. As part of this change signatures for `ExecuteFunction` and `SubscribeFunction` were changed.  <br/>
