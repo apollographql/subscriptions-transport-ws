@@ -6,7 +6,7 @@ Users should migrate to [`graphql-ws`](https://github.com/enisdenjo/graphql-ws),
 
 Note that the packages implement distinct protocols, so you must migrate all clients and servers.
 
-If you're using subscriptions with the Apollo platform, the [Apollo Server docs](https://www.apollographql.com/docs/apollo-server/data/subscriptions/#switching-from-subscriptions-transport-ws) show how to use `graphql-ws` with Apollo Server, Apollo Studio Explorer, Apollo Client Web, Apollo iOS, and Apollo Kotlin.
+If you're using subscriptions with the Apollo platform, the [Apollo Server docs](https://www.apollographql.com/docs/apollo-server/data/subscriptions/#switching-from-subscriptions-transport-ws) show how to use `graphql-ws` with Apollo Server, Apollo Studio Explorer, Apollo Client Web, Apollo iOS, and Apollo Kotlin. If you have more questions about using `graphql-ws` with the Apollo platform, file an issue on the corresponding repository or post in [the community](https://community.apollographql.com/).
 
 The [`graphql-ws` README](https://github.com/enisdenjo/graphql-ws/blob/master/README.md) shows how to integrate `graphql-ws` with other software.
 
